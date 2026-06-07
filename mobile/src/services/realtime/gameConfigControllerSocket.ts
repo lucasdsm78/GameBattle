@@ -135,6 +135,14 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'stopchrono.next-team' });
   }
 
+  nextManche(): void {
+    this.sendMessage({ type: 'game.next-manche' });
+  }
+
+  revealNextRanking(): void {
+    this.sendMessage({ type: 'ranking.reveal-next' });
+  }
+
   disconnect(): void {
     this.shouldReconnect = false;
     if (this.reconnectTimer) {

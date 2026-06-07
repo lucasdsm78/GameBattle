@@ -9,24 +9,13 @@ const defaultDraft: GameDraft = {
     random_round_order: true,
     teams: ['Équipe Rouge', 'Équipe Bleue'],
     buzzer_keys: ['1', '2'],
+    total_rounds: 4,
   },
   games: [
-    {
-      game_key: 'blindtest',
-      label: 'Blindtest',
-      enabled: true,
-      round_count: 1,
-    },
+    { game_key: 'blindtest', label: 'Blindtest', enabled: true, round_count: 0 },
+    { game_key: 'stopchrono', label: 'Stop Chrono', enabled: false, round_count: 0 },
   ],
-  rounds: [
-    {
-      id: 'blindtest-round-1',
-      label: 'Blindtest aléatoire',
-      game_key: 'blindtest',
-      planned_track_count: 10,
-      buzzer_enabled: true,
-    },
-  ],
+  rounds: [],
   status: 'configuring',
 };
 

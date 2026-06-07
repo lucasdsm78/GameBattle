@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { GameConfigSnapshot } from '../types/gameConfig';
 import { StopChronoBoard } from './StopChronoBoard';
+import { FinalRankingBoard } from './FinalRankingBoard';
 
 type Props = {
   gameConfig: GameConfigSnapshot | null;
@@ -151,6 +152,10 @@ export function DisplayBoard({
         </div>
       </main>
     );
+  }
+
+  if (gameConfig.status === 'finished') {
+    return <FinalRankingBoard gameConfig={gameConfig} connectionState={connectionState} />;
   }
 
   if (activeGameKey === 'stopchrono') {

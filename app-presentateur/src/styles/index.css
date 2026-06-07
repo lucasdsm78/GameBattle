@@ -597,6 +597,50 @@ button {
   }
 }
 
+/* --- Classement final --- */
+.ranking-board {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+}
+
+.ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 24px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--panel-border);
+  animation: winner-pop 0.45s ease;
+}
+
+.ranking-row-winner {
+  background: rgba(34, 197, 94, 0.16);
+  border-color: var(--accent);
+}
+
+.ranking-rank {
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  font-weight: 900;
+  color: var(--accent);
+  min-width: 70px;
+}
+
+.ranking-team {
+  flex: 1;
+  font-size: clamp(1.4rem, 4vw, 2.4rem);
+  font-weight: 800;
+  color: var(--text);
+}
+
+.ranking-score {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
 /* --- Écran de victoire (fin de manche) : nom du vainqueur en grand + arrière-plan flouté --- */
 .winner-overlay {
   position: fixed;

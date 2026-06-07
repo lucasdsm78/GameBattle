@@ -17,6 +17,7 @@ STOPCHRONO_MIN_TARGET_MS = 7000
 STOPCHRONO_MAX_TARGET_MS = 25000
 STOPCHRONO_PHASES = {"idle", "running", "revealed", "finished"}
 TIE_LABEL = "Égalité"
+MAX_TOTAL_ROUNDS = 30
 
 
 def utc_now_iso() -> str:
@@ -35,10 +36,10 @@ class GameDefinition:
             raise InvalidGameConfigError(f"Jeu non supporté: {self.game_key}.")
         if len(self.label.strip()) < 2:
             raise InvalidGameConfigError("Chaque jeu doit avoir un libellé lisible.")
-        if self.enabled and not 1 <= self.round_count <= 20:
-            raise InvalidGameConfigError("Le nombre de manches par jeu doit être compris entre 1 et 20.")
-        if not self.enabled and self.round_count != 0:
-            raise InvalidGameConfigError("Un jeu désactivé doit avoir 0 manche configurée.")
+        # round_count n'est plus utilisé pour le séquençage (répartition équitable depuis total_rounds),
+        # mais on garde le champ pour compatibilité — on borne juste sa valeur.
+        if not 0 <= self.round_count <= MAX_TOTAL_ROUNDS:
+            raise InvalidGameConfigError("Le nombre de manches par jeu est invalide.")
 
 
 @dataclass(slots=True)
@@ -47,10 +48,13 @@ class GameSettings:
     random_round_order: bool
     teams: list[str]
     buzzer_keys: list[str] = field(default_factory=list)
+    total_rounds: int = 1
 
     def validate(self) -> None:
         if len(self.game_title.strip()) < 3:
             raise InvalidGameConfigError("Le titre de la partie doit contenir au moins 3 caractères.")
+        if not 1 <= self.total_rounds <= MAX_TOTAL_ROUNDS:
+            raise InvalidGameConfigError(f"Le nombre de manches doit être compris entre 1 et {MAX_TOTAL_ROUNDS}.")
         if len(self.teams) < 2:
             raise InvalidGameConfigError("Au moins 2 équipes sont requises.")
         normalized_teams = [team.strip() for team in self.teams]
@@ -198,13 +202,30 @@ class GameSession:
     active_round: Optional[ActiveRound] = None
     blindtest: BlindtestState = field(default_factory=BlindtestState)
     stopchrono: StopChronoState = field(default_factory=StopChronoState)
+    # Séquence des jeux pour chaque manche, déterminée au lancement et JAMAIS exposée aux apps
+    # (le mobile et l'écran ne voient que la manche courante).
+    round_sequence: list[str] = field(default_factory=list)
+    round_index: int = 0
+    total_rounds: int = 0
+    manches_won: dict[str, int] = field(default_factory=dict)
+    manche_finished: bool = False
+    manche_winner: Optional[str] = None
+    final_ranking: list[dict[str, Any]] = field(default_factory=list)
+    ranking_reveal_count: int = 0
     updated_at: str = field(default_factory=utc_now_iso)
 
     def validate(self, teams: list[str]) -> None:
+        allowed_teams = {team.strip() for team in teams}
         if self.active_round is not None:
             self.active_round.validate()
         self.blindtest.validate(teams)
         self.stopchrono.validate(teams)
+        if set(self.manches_won.keys()) - allowed_teams:
+            raise InvalidGameConfigError("Le classement contient une équipe inconnue.")
+        if self.manche_winner and self.manche_winner not in allowed_teams and self.manche_winner != TIE_LABEL:
+            raise InvalidGameConfigError("Le gagnant de manche est inconnu.")
+        if any(game_key not in SUPPORTED_GAME_KEYS for game_key in self.round_sequence):
+            raise InvalidGameConfigError("La séquence de manches contient un jeu non supporté.")
 
 
 @dataclass(slots=True)
@@ -233,9 +254,11 @@ class GameConfig:
             if game.enabled:
                 enabled_games.add(game.game_key)
 
-        if not 1 <= len(self.rounds) <= 12:
-            raise InvalidGameConfigError("La partie doit contenir entre 1 et 12 manches.")
+        if not enabled_games:
+            raise InvalidGameConfigError("Sélectionne au moins un jeu pour la partie.")
 
+        # `rounds` est désormais optionnel (la séquence réelle est générée au lancement). On valide
+        # seulement la cohérence des templates éventuellement fournis.
         round_ids = set()
         for round_config in self.rounds:
             round_config.validate()
@@ -245,11 +268,10 @@ class GameConfig:
                 raise InvalidGameConfigError("Les identifiants de manche doivent être uniques.")
             round_ids.add(round_config.id)
 
-        expected_rounds = sum(game.round_count for game in self.games if game.enabled)
-        if expected_rounds != len(self.rounds):
-            raise InvalidGameConfigError("Le nombre de manches ne correspond pas à la configuration par jeu.")
-
         self.session.validate(self.settings.teams)
+
+    def enabled_game_keys(self) -> list[str]:
+        return [game.game_key for game in self.games if game.enabled]
 
     @property
     def round_count(self) -> int:
@@ -269,48 +291,73 @@ class GameConfig:
         if not self.rounds:
             raise GameConfigurationNotReadyError("Aucune manche n'est configurée pour démarrer la partie.")
 
-    def start_session(self) -> "GameConfig":
-        self.ensure_can_launch()
-        selected_round = random.choice(self.rounds) if self.settings.random_round_order else self.rounds[0]
+    def _replace_session(self, *, status: Optional[str] = None, **session_changes: Any) -> "GameConfig":
+        new_session = replace(self.session, updated_at=utc_now_iso(), **session_changes)
+        return replace(self, session=new_session, status=(status or self.status), updated_at=utc_now_iso())
+
+    def _build_manche_states(self, game_key: str, index: int) -> tuple[ActiveRound, BlindtestState, StopChronoState]:
         active_round = ActiveRound(
-            round_id=selected_round.id,
-            label=selected_round.label,
-            game_key=selected_round.game_key,
-            order_index=0,
+            round_id=f"{game_key}-manche-{index + 1}",
+            label=f"Manche {index + 1}",
+            game_key=game_key,
+            order_index=index,
             completed=False,
         )
-        if selected_round.game_key == "stopchrono":
-            session = GameSession(
-                active_round=active_round,
-                stopchrono=StopChronoState(
-                    target_ms=random.randint(STOPCHRONO_MIN_TARGET_MS, STOPCHRONO_MAX_TARGET_MS),
-                    phase="idle",
-                    current_team_index=0,
-                    results={},
-                    scores={team: 0 for team in self.settings.teams},
-                ),
-                updated_at=utc_now_iso(),
+        if game_key == "stopchrono":
+            stopchrono = StopChronoState(
+                target_ms=random.randint(STOPCHRONO_MIN_TARGET_MS, STOPCHRONO_MAX_TARGET_MS),
+                phase="idle",
+                current_team_index=0,
+                results={},
+                scores={team: 0 for team in self.settings.teams},
             )
-        else:
-            session = GameSession(
-                active_round=active_round,
-                blindtest=BlindtestState(
-                    round_id=selected_round.id,
-                    total_tracks=selected_round.planned_track_count,
-                    current_track_index=1,
-                    scores={team: 0 for team in self.settings.teams},
-                    playback_state="stopped",
-                ),
+            return active_round, BlindtestState(), stopchrono
+        blindtest = BlindtestState(
+            round_id=active_round.round_id,
+            total_tracks=TRACKS_PER_RANDOM_BLINDTEST_ROUND,
+            current_track_index=1,
+            scores={team: 0 for team in self.settings.teams},
+            playback_state="stopped",
+        )
+        return active_round, blindtest, StopChronoState()
+
+    def _start_manche(self, index: int) -> "GameConfig":
+        game_key = self.session.round_sequence[index]
+        active_round, blindtest, stopchrono = self._build_manche_states(game_key, index)
+        return self._replace_session(
+            active_round=active_round,
+            blindtest=blindtest,
+            stopchrono=stopchrono,
+            round_index=index,
+            manche_finished=False,
+            manche_winner=None,
+            status="live",
+        )
+
+    def start_session(self) -> "GameConfig":
+        pool = self.enabled_game_keys()
+        if not pool:
+            raise GameConfigurationNotReadyError("Aucun jeu sélectionné pour démarrer la partie.")
+        sequence = build_round_sequence(pool, self.settings.total_rounds, self.settings.random_round_order)
+        if not sequence:
+            raise GameConfigurationNotReadyError("Impossible de générer les manches de la partie.")
+        prepared = replace(
+            self,
+            session=GameSession(
+                round_sequence=sequence,
+                round_index=0,
+                total_rounds=len(sequence),
+                manches_won={team: 0 for team in self.settings.teams},
+                manche_finished=False,
+                manche_winner=None,
+                final_ranking=[],
+                ranking_reveal_count=0,
                 updated_at=utc_now_iso(),
-            )
-        return GameConfig(
-            settings=self.settings,
-            games=self.games,
-            rounds=self.rounds,
-            session=session,
+            ),
             status="live",
             updated_at=utc_now_iso(),
         )
+        return prepared._start_manche(0)
 
     def with_blindtest_tracks(
         self,
@@ -347,23 +394,11 @@ class GameConfig:
             playback_duration_ms=0,
             playback_updated_at=utc_now_iso(),
         )
-        return GameConfig(
-            settings=self.settings,
-            games=self.games,
-            rounds=self.rounds,
-            session=GameSession(active_round=self.session.active_round, blindtest=blindtest_state, updated_at=utc_now_iso()),
-            status=self.status,
-            updated_at=utc_now_iso(),
-        )
+        return self._replace_session(blindtest=blindtest_state)
 
     def register_buzzer(self, team: str) -> "GameConfig":
-        if self.status != "live" or self.session.active_round is None:
-            raise InvalidGameConfigError("Le buzz n'est disponible que pendant une manche en cours.")
-        active_round_config = next((round_config for round_config in self.rounds if round_config.id == self.session.active_round.round_id), None)
-        if active_round_config is None:
-            raise InvalidGameConfigError("La manche active est introuvable dans la configuration.")
-        if not active_round_config.buzzer_enabled:
-            raise InvalidGameConfigError("Les buzzers sont désactivés pour cette manche.")
+        if self.status != "live" or self.session.active_round is None or self.session.active_round.game_key != "blindtest":
+            raise InvalidGameConfigError("Le buzz n'est disponible que pendant une manche blindtest en cours.")
         if self.session.blindtest.current_track is None:
             raise InvalidGameConfigError("Aucune musique n'est en lecture pour accepter un buzz.")
         if team not in self.session.blindtest.scores:
@@ -388,14 +423,7 @@ class GameConfig:
             playback_duration_ms=self.session.blindtest.playback_duration_ms,
             playback_updated_at=utc_now_iso(),
         )
-        return GameConfig(
-            settings=self.settings,
-            games=self.games,
-            rounds=self.rounds,
-            session=GameSession(active_round=self.session.active_round, blindtest=blindtest_state, updated_at=utc_now_iso()),
-            status=self.status,
-            updated_at=utc_now_iso(),
-        )
+        return self._replace_session(blindtest=blindtest_state)
 
     def mark_answer(self, is_correct: bool) -> "GameConfig":
         blindtest = self.session.blindtest
@@ -436,14 +464,7 @@ class GameConfig:
             playback_duration_ms=blindtest.playback_duration_ms,
             playback_updated_at=utc_now_iso(),
         )
-        return GameConfig(
-            settings=self.settings,
-            games=self.games,
-            rounds=self.rounds,
-            session=GameSession(active_round=self.session.active_round, blindtest=blindtest_state, updated_at=utc_now_iso()),
-            status=self.status,
-            updated_at=utc_now_iso(),
-        )
+        return self._replace_session(blindtest=blindtest_state)
 
     def control_playback(self, action: str, position_ms: Optional[int] = None) -> "GameConfig":
         blindtest = self.session.blindtest
@@ -487,14 +508,7 @@ class GameConfig:
             playback_duration_ms=blindtest.playback_duration_ms,
             playback_updated_at=utc_now_iso(),
         )
-        return GameConfig(
-            settings=self.settings,
-            games=self.games,
-            rounds=self.rounds,
-            session=GameSession(active_round=self.session.active_round, blindtest=blindtest_state, updated_at=utc_now_iso()),
-            status=self.status,
-            updated_at=utc_now_iso(),
-        )
+        return self._replace_session(blindtest=blindtest_state)
 
     def sync_playback(self, track_id: str, playback_state: str, position_ms: int, duration_ms: int = 0) -> "GameConfig":
         blindtest = self.session.blindtest
@@ -532,14 +546,7 @@ class GameConfig:
             playback_duration_ms=next_duration_ms,
             playback_updated_at=utc_now_iso(),
         )
-        return GameConfig(
-            settings=self.settings,
-            games=self.games,
-            rounds=self.rounds,
-            session=GameSession(active_round=self.session.active_round, blindtest=blindtest_state, updated_at=utc_now_iso()),
-            status=self.status,
-            updated_at=utc_now_iso(),
-        )
+        return self._replace_session(blindtest=blindtest_state)
 
     def advance_track(self) -> "GameConfig":
         blindtest = self.session.blindtest
@@ -550,24 +557,20 @@ class GameConfig:
         winner_team = blindtest.winner_team
         playback_state = "playing"
         current_track = None
-        status = self.status
         active_round = self.session.active_round
+        manche_finished = self.session.manche_finished
+        manche_winner = self.session.manche_winner
 
         if next_index > blindtest.total_tracks:
-            status = "finished"
             playback_state = "stopped"
             max_score = max(blindtest.scores.values(), default=0)
             winners = [team for team, score in blindtest.scores.items() if score == max_score]
-            winner_team = winners[0] if len(winners) == 1 else "Égalité"
+            winner_team = winners[0] if len(winners) == 1 else TIE_LABEL
             next_index = blindtest.total_tracks
+            manche_finished = True
+            manche_winner = winner_team
             if active_round is not None:
-                active_round = ActiveRound(
-                    round_id=active_round.round_id,
-                    label=active_round.label,
-                    game_key=active_round.game_key,
-                    order_index=active_round.order_index,
-                    completed=True,
-                )
+                active_round = replace(active_round, completed=True)
         else:
             current_track = blindtest.tracks[next_index - 1]
 
@@ -592,13 +595,11 @@ class GameConfig:
             playback_duration_ms=0,
             playback_updated_at=utc_now_iso(),
         )
-        return GameConfig(
-            settings=self.settings,
-            games=self.games,
-            rounds=self.rounds,
-            session=GameSession(active_round=active_round, blindtest=blindtest_state, updated_at=utc_now_iso()),
-            status=status,
-            updated_at=utc_now_iso(),
+        return self._replace_session(
+            active_round=active_round,
+            blindtest=blindtest_state,
+            manche_finished=manche_finished,
+            manche_winner=manche_winner,
         )
 
     # --- Stop Chrono ---
@@ -608,23 +609,21 @@ class GameConfig:
             raise InvalidGameConfigError("Aucune manche stop chrono n'est active.")
         return self.session.stopchrono
 
-    def _with_stopchrono(self, chrono: StopChronoState, status: str, complete_round: bool = False) -> "GameConfig":
+    def _with_stopchrono(
+        self,
+        chrono: StopChronoState,
+        status: str,
+        complete_round: bool = False,
+        manche_winner: Optional[str] = None,
+    ) -> "GameConfig":
         active_round = self.session.active_round
-        if complete_round and active_round is not None:
-            active_round = replace(active_round, completed=True)
-        return GameConfig(
-            settings=self.settings,
-            games=self.games,
-            rounds=self.rounds,
-            session=GameSession(
-                active_round=active_round,
-                blindtest=self.session.blindtest,
-                stopchrono=chrono,
-                updated_at=utc_now_iso(),
-            ),
-            status=status,
-            updated_at=utc_now_iso(),
-        )
+        changes: dict[str, Any] = {"stopchrono": chrono}
+        if complete_round:
+            if active_round is not None:
+                changes["active_round"] = replace(active_round, completed=True)
+            changes["manche_finished"] = True
+            changes["manche_winner"] = manche_winner
+        return self._replace_session(status=status, **changes)
 
     def start_chrono(self, now_ms: int) -> "GameConfig":
         chrono = self._ensure_stopchrono_active()
@@ -668,7 +667,37 @@ class GameConfig:
                 scores[team] = 1
             winner_team = winners[0] if len(winners) == 1 else TIE_LABEL
         finished = replace(chrono, phase="finished", scores=scores, winner_team=winner_team, started_at_ms=0)
-        return self._with_stopchrono(finished, status="finished", complete_round=True)
+        # Fin de la MANCHE (pas de la partie) : on attend « Manche suivante ».
+        return self._with_stopchrono(finished, status="live", complete_round=True, manche_winner=winner_team)
+
+    # --- Orchestration des manches / classement final ---
+
+    def next_manche(self) -> "GameConfig":
+        if not self.session.manche_finished:
+            raise InvalidGameConfigError("La manche en cours n'est pas terminée.")
+        manches_won = dict(self.session.manches_won)
+        winner = self.session.manche_winner
+        if winner and winner != TIE_LABEL:
+            manches_won[winner] = manches_won.get(winner, 0) + 1
+        next_index = self.session.round_index + 1
+        if next_index < self.session.total_rounds:
+            advanced = self._replace_session(manches_won=manches_won)
+            return advanced._start_manche(next_index)
+        ranking = compute_ranking(self.settings.teams, manches_won)
+        return self._replace_session(
+            status="finished",
+            manches_won=manches_won,
+            manche_finished=True,
+            final_ranking=ranking,
+            ranking_reveal_count=0,
+        )
+
+    def reveal_next_ranking(self) -> "GameConfig":
+        if self.status != "finished" or not self.session.final_ranking:
+            raise InvalidGameConfigError("Le classement final n'est pas encore disponible.")
+        total = len(self.session.final_ranking)
+        next_count = min(self.session.ranking_reveal_count + 1, total)
+        return self._replace_session(ranking_reveal_count=next_count)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -696,12 +725,24 @@ class GameConfig:
                         for team, elapsed in self.session.stopchrono.results.items()
                     },
                 },
+                # Orchestration. `round_sequence` est persisté (round-trip DB) mais retiré du
+                # payload envoyé aux clients par la couche WebSocket (les apps ne voient pas les prochains jeux).
+                "round_sequence": list(self.session.round_sequence),
+                "round_index": self.session.round_index,
+                "total_rounds": self.session.total_rounds,
+                "manche_number": min(self.session.round_index + 1, self.session.total_rounds) if self.session.total_rounds else 0,
+                "manches_won": dict(self.session.manches_won),
+                "manche_finished": self.session.manche_finished,
+                "manche_winner": self.session.manche_winner,
+                "final_ranking": list(self.session.final_ranking),
+                "final_ranking_total": len(self.session.final_ranking),
+                "ranking_reveal_count": self.session.ranking_reveal_count,
                 "updated_at": self.session.updated_at,
             },
             "status": self.status,
             "updated_at": self.updated_at,
             "summary": {
-                "round_count": len(self.rounds),
+                "round_count": self.session.total_rounds,
                 "enabled_game_count": len([game for game in self.games if game.enabled]),
                 "teams": len(self.settings.teams),
             },
@@ -715,31 +756,83 @@ def build_default_game_config() -> GameConfig:
             random_round_order=True,
             teams=["Équipe Rouge", "Équipe Bleue"],
             buzzer_keys=build_default_buzzer_keys(2),
+            total_rounds=4,
         ),
         games=[
-            GameDefinition(
-                game_key="blindtest",
-                label="Blindtest",
-                enabled=True,
-                round_count=1,
-            )
+            GameDefinition(game_key="blindtest", label="Blindtest", enabled=True, round_count=0),
+            GameDefinition(game_key="stopchrono", label="Stop Chrono", enabled=False, round_count=0),
         ],
-        rounds=[
-            GameRoundPlan(
-                id="blindtest-round-1",
-                label="Blindtest aléatoire",
-                game_key="blindtest",
-                planned_track_count=TRACKS_PER_RANDOM_BLINDTEST_ROUND,
-                buzzer_enabled=True,
-            ),
-        ],
-        session=GameSession(
-            blindtest=BlindtestState(scores={"Équipe Rouge": 0, "Équipe Bleue": 0}),
-            updated_at=utc_now_iso(),
-        ),
+        rounds=[],
+        session=GameSession(updated_at=utc_now_iso()),
     ).with_timestamp()
     config.validate()
     return config
+
+
+def build_round_sequence(pool: list[str], total: int, random_order: bool) -> list[str]:
+    """Répartit `total` manches équitablement entre les jeux de `pool`.
+
+    random_order=True : ordre mélangé en limitant les répétitions consécutives.
+    random_order=False : ordre prévisible (round-robin).
+    """
+    if not pool or total <= 0:
+        return []
+    base, remainder = divmod(total, len(pool))
+    counts = {key: base for key in pool}
+    bonus_order = list(pool)
+    if random_order:
+        random.shuffle(bonus_order)
+    for key in bonus_order[:remainder]:
+        counts[key] += 1
+
+    if not random_order:
+        return _round_robin(pool, counts)
+    return _shuffle_spread(counts)
+
+
+def _round_robin(pool: list[str], counts: dict[str, int]) -> list[str]:
+    remaining = dict(counts)
+    sequence: list[str] = []
+    while any(value > 0 for value in remaining.values()):
+        for key in pool:
+            if remaining[key] > 0:
+                sequence.append(key)
+                remaining[key] -= 1
+    return sequence
+
+
+def _shuffle_spread(counts: dict[str, int]) -> list[str]:
+    items: list[str] = []
+    for key, value in counts.items():
+        items.extend([key] * value)
+    random.shuffle(items)
+    # Réduit les répétitions consécutives quand c'est possible (« pas retomber souvent sur le même »).
+    for i in range(1, len(items)):
+        if items[i] == items[i - 1]:
+            for j in range(i + 1, len(items)):
+                if items[j] != items[i - 1]:
+                    items[i], items[j] = items[j], items[i]
+                    break
+    return items
+
+
+def compute_ranking(teams: list[str], manches_won: dict[str, int]) -> list[dict[str, Any]]:
+    """Classement ordonné du DERNIER au PREMIER (pour la révélation progressive)."""
+    best_first = sorted(teams, key=lambda team: manches_won.get(team, 0), reverse=True)
+    ranking: list[dict[str, Any]] = []
+    previous_score: Optional[int] = None
+    previous_rank = 0
+    for index, team in enumerate(best_first):
+        score = manches_won.get(team, 0)
+        if score == previous_score:
+            rank = previous_rank
+        else:
+            rank = index + 1
+            previous_rank = rank
+            previous_score = score
+        ranking.append({"team": team, "manches_won": score, "rank": rank})
+    # Inverse : dernier d'abord, premier en dernier.
+    return list(reversed(ranking))
 
 
 def build_default_buzzer_keys(team_count: int) -> list[str]:

@@ -17,6 +17,7 @@ class GameSettingsModel(BaseModel):
     random_round_order: bool = True
     teams: list[str] = Field(min_length=2, max_length=6)
     buzzer_keys: list[str] = Field(default_factory=list, max_length=6)
+    total_rounds: int = Field(default=1, ge=1, le=30)
 
 
 class GameDefinitionModel(BaseModel):
@@ -37,7 +38,7 @@ class GameRoundPlanModel(BaseModel):
 class GameConfigUpsertModel(BaseModel):
     settings: GameSettingsModel
     games: list[GameDefinitionModel] = Field(min_length=1, max_length=10)
-    rounds: list[GameRoundPlanModel] = Field(min_length=1, max_length=12)
+    rounds: list[GameRoundPlanModel] = Field(default_factory=list, max_length=30)
     status: str = Field(default="configuring", max_length=30)
 
     @field_validator("status")

@@ -140,4 +140,23 @@ export const styles = StyleSheet.create({
   scoreTileValue: { color: colors.text, fontSize: 28, fontWeight: '800', marginTop: 10 },
   scoreTileHint: { color: colors.muted, marginTop: 6, fontSize: 12 },
   winnerText: { color: '#bbf7d0', fontWeight: '800', fontSize: 16, marginTop: 8 },
+
+  // Manche suivante / classement final
+  mancheBanner: { backgroundColor: 'rgba(34,197,94,0.16)', borderRadius: 20, padding: 16, gap: 12, borderWidth: 1, borderColor: colors.accent },
+  mancheBannerTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
+  rankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: colors.cardAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  rankRowWinner: { backgroundColor: 'rgba(34,197,94,0.2)', borderColor: colors.accent },
+  rankPosition: { color: colors.accent, fontWeight: '900', fontSize: 20, width: 44 },
+  rankTeam: { color: colors.text, fontWeight: '800', fontSize: 18, flex: 1 },
+  rankScore: { color: colors.subtle, fontWeight: '700' },
 });

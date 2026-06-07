@@ -81,6 +81,14 @@ class GameConfigCommandUseCase(ABC):
     async def next_stopchrono_team(self) -> GameConfigReadModel:
         raise NotImplementedError
 
+    @abstractmethod
+    async def next_manche(self) -> GameConfigReadModel:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def reveal_next_ranking(self) -> GameConfigReadModel:
+        raise NotImplementedError
+
 
 class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     def __init__(
@@ -112,6 +120,22 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
             playlist_provider="spotify",
         )
 
+    async def _autoimport_blindtest(self, config: GameConfig) -> GameConfig:
+        """Importe la playlist fixe (best-effort) quand on entre dans une manche blindtest sans pistes."""
+        active_round = config.session.active_round
+        if (
+            active_round is not None
+            and active_round.game_key == "blindtest"
+            and not config.session.blindtest.tracks
+            and self._default_playlist_url
+            and self.spotify_playlist_service.has_user_token
+        ):
+            try:
+                return await self._apply_spotify_playlist(config, self._default_playlist_url)
+            except InvalidGameConfigError as exc:
+                logger.warning("blindtest.autoimport.failed", extra={"detail": exc.message})
+        return config
+
     async def replace_config(self, payload: GameConfigUpsertModel) -> GameConfigReadModel:
         game_config = payload.to_domain().with_timestamp()
         game_config.validate()
@@ -120,16 +144,7 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
 
     async def launch_game(self) -> GameConfigReadModel:
         current = await self.repository.get_current()
-        launched = current.start_session()
-        is_blindtest = launched.session.active_round is not None and launched.session.active_round.game_key == "blindtest"
-        # Import automatique de la playlist fixe (best-effort) — uniquement pour une manche blindtest.
-        # Si le token de l'écran n'est pas encore disponible ou si l'import échoue, on lance quand
-        # même la partie sans pistes — le présentateur pourra recharger la playlist depuis l'écran.
-        if is_blindtest and self._default_playlist_url and self.spotify_playlist_service.has_user_token:
-            try:
-                launched = await self._apply_spotify_playlist(launched, self._default_playlist_url)
-            except InvalidGameConfigError as exc:
-                logger.warning("blindtest.autoimport.failed", extra={"detail": exc.message})
+        launched = await self._autoimport_blindtest(current.start_session())
         launched.validate()
         persisted = await self.repository.save(launched)
         return GameConfigReadModel.from_domain(persisted)
@@ -230,6 +245,20 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     async def next_stopchrono_team(self) -> GameConfigReadModel:
         current = await self.repository.get_current()
         updated = current.next_chrono_team()
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def next_manche(self) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        advanced = await self._autoimport_blindtest(current.next_manche())
+        advanced.validate()
+        persisted = await self.repository.save(advanced)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def reveal_next_ranking(self) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        updated = current.reveal_next_ranking()
         updated.validate()
         persisted = await self.repository.save(updated)
         return GameConfigReadModel.from_domain(persisted)

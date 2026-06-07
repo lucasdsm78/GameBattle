@@ -31,6 +31,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws", tags=["realtime"])
 
 
+def _public_envelope(event_type: str, payload) -> dict:
+    """Construit l'enveloppe envoyée aux clients en retirant la séquence des prochains jeux."""
+    envelope = GameConfigEnvelope(type=event_type, payload=payload).model_dump()
+    session = envelope.get("payload", {}).get("session")
+    if isinstance(session, dict):
+        session.pop("round_sequence", None)
+    return envelope
+
+
 @router.websocket("/game-config")
 async def game_config_websocket(
     websocket: WebSocket,
@@ -49,7 +58,7 @@ async def game_config_websocket(
 
     try:
         current = await query_usecase.get_current()
-        await websocket.send_json(GameConfigEnvelope(type="game.config.snapshot", payload=current).model_dump())
+        await websocket.send_json(_public_envelope("game.config.snapshot", current))
 
         while True:
             raw_message = await websocket.receive_text()
@@ -109,6 +118,10 @@ async def game_config_websocket(
                     updated = await command_usecase.stop_stopchrono()
                 elif event_type == "stopchrono.next-team":
                     updated = await command_usecase.next_stopchrono_team()
+                elif event_type == "game.next-manche":
+                    updated = await command_usecase.next_manche()
+                elif event_type == "ranking.reveal-next":
+                    updated = await command_usecase.reveal_next_ranking()
                 else:
                     await websocket.send_json({"type": "error", "detail": "Type d'évènement non supporté."})
                     continue
@@ -123,10 +136,8 @@ async def game_config_websocket(
                 await websocket.send_json({"type": "error", "detail": "Erreur interne lors de la mise à jour."})
                 continue
 
-            event = GameConfigEnvelope(type="game.config.updated", payload=updated).model_dump()
-            logger.info("game_config.websocket.broadcasting", extra={"clients": len(hub._clients)})
+            event = _public_envelope("game.config.updated", updated)
             await hub.broadcast_json(event)
-            logger.info("game_config.websocket.broadcast_done")
     except WebSocketDisconnect:
         logger.info("game_config.websocket.disconnected", extra={"client_type": client_type})
     finally:

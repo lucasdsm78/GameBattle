@@ -7,6 +7,13 @@ export type GameSettings = {
   random_round_order: boolean;
   teams: string[];
   buzzer_keys: string[];
+  total_rounds: number;
+};
+
+export type RankingEntry = {
+  team: string;
+  manches_won: number;
+  rank: number;
 };
 
 export type GameDefinition = {
@@ -77,6 +84,15 @@ export type GameSession = {
   active_round: ActiveRound | null;
   blindtest: BlindtestState;
   stopchrono: StopChronoState;
+  round_index: number;
+  total_rounds: number;
+  manche_number: number;
+  manches_won: Record<string, number>;
+  manche_finished: boolean;
+  manche_winner: string | null;
+  final_ranking: RankingEntry[];
+  final_ranking_total: number;
+  ranking_reveal_count: number;
   updated_at: string;
 };
 
