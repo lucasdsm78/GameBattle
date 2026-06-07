@@ -13,6 +13,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.gamebattle.controller",
       "adaptiveIcon": {
         "backgroundColor": "#08111d"
       }
@@ -21,13 +22,25 @@
       "backendWsUrl": "ws://192.168.1.14:8000",
       "backendHttpUrl": "http://192.168.1.14:8000",
       "controllerToken": "5C51sjkTnv5uEAaeJP-sHsd4QwGTaKtttpXwSMegjMU",
-      "spotifyClientId": "",
-      "spotifyRedirectScheme": "gamebattlecontroller"
+      "spotifyClientId": "bfaa4a2e5eec4a87b23797b73e75759f",
+      "spotifyRedirectScheme": "gamebattlecontroller",
+      "eas": {
+        "projectId": "da5f2d09-4be5-490a-bf60-e249e70108d8"
+      }
     },
     "plugins": [
       "expo-secure-store",
       "expo-web-browser",
-      "./plugins/withGameBattleSpotifySdk"
-    ]
+      "./plugins/withGameBattleSpotifySdk",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "owner": "lucasdsm"
   }
 }

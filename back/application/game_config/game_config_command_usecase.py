@@ -56,6 +56,10 @@ class GameConfigCommandUseCase(ABC):
     async def next_blindtest_track(self) -> GameConfigReadModel:
         raise NotImplementedError
 
+    @abstractmethod
+    async def set_spotify_user_token(self, access_token: str) -> None:
+        raise NotImplementedError
+
 
 class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     def __init__(self, repository: GameConfigRepository, spotify_playlist_service: SpotifyPlaylistService) -> None:
@@ -155,4 +159,7 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
         updated.validate()
         persisted = await self.repository.save(updated)
         return GameConfigReadModel.from_domain(persisted)
+
+    async def set_spotify_user_token(self, access_token: str) -> None:
+        self.spotify_playlist_service.set_user_token(access_token)
 

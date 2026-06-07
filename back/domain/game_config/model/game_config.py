@@ -270,6 +270,12 @@ class GameConfig:
     ) -> "GameConfig":
         if self.session.active_round is None or self.session.active_round.game_key != "blindtest":
             raise InvalidGameConfigError("Aucune manche blindtest active n'est disponible.")
+        planned = next(
+            (plan.planned_track_count for plan in self.rounds if plan.id == self.session.active_round.round_id),
+            TRACKS_PER_RANDOM_BLINDTEST_ROUND,
+        )
+        if tracks:
+            tracks = random.sample(tracks, min(planned, len(tracks)))
         active_index = min(max(self.session.blindtest.current_track_index, 1), len(tracks)) if tracks else 0
         current_track = tracks[active_index - 1] if active_index else None
         blindtest_state = BlindtestState(

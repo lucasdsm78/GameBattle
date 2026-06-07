@@ -65,6 +65,11 @@ export class GameConfigSocket {
     this.sendMessage({ type: 'blindtest.buzzer', payload: { team } });
   }
 
+  // Pousse le token utilisateur Spotify vers le backend pour autoriser l'import de playlist.
+  sendSpotifyToken(accessToken: string): void {
+    this.sendMessage({ type: 'spotify.user-token', payload: { access_token: accessToken } });
+  }
+
   disconnect(): void {
     this.shouldReconnect = false;
     if (this.reconnectTimer) {

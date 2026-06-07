@@ -125,7 +125,8 @@ export function DisplayBoard({ gameConfig, connectionState, errorMessage, onBuzz
   const keyboardHints = teams.map((team, index) => `${(buzzerKeys[index] ?? '?').toUpperCase()} → ${team}`);
 
   return (
-    <main className="screen blindtest-screen">
+    <>
+      <main className="screen blindtest-screen">
       <section className="hero glass-card">
         <div>
           <p className="eyebrow">Blindtest live</p>
@@ -154,7 +155,11 @@ export function DisplayBoard({ gameConfig, connectionState, errorMessage, onBuzz
 
           <div className="track-visual">
             <div className="artwork-placeholder">
-              {currentTrack?.artwork_url ? <img src={currentTrack.artwork_url} alt={currentTrack.title} /> : <span>♪</span>}
+              {blindtest.revealed && currentTrack?.artwork_url ? (
+                <img src={currentTrack.artwork_url} alt={currentTrack.title} />
+              ) : (
+                <span>♪</span>
+              )}
             </div>
             <div>
               <p className="muted-label">Titre</p>
@@ -237,7 +242,27 @@ export function DisplayBoard({ gameConfig, connectionState, errorMessage, onBuzz
       </section>
 
       {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
-    </main>
+      </main>
+
+      {blindtest.winner_team ? (
+        <div className="winner-overlay">
+          {blindtest.winner_team === 'Égalité' ? (
+            <>
+              <p className="winner-eyebrow">Manche terminée</p>
+              <p className="winner-name">Égalité&nbsp;!</p>
+            </>
+          ) : (
+            <>
+              <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
+              <p className="winner-name">{blindtest.winner_team}</p>
+            </>
+          )}
+          <p className="winner-sub">
+            {teams.map((team) => `${team} : ${blindtest.scores[team] ?? 0}`).join('   •   ')}
+          </p>
+        </div>
+      ) : null}
+    </>
   );
 }
 

@@ -64,6 +64,11 @@ async def game_config_websocket(
                 await websocket.send_json({"type": "pong"})
                 continue
 
+            if event_type == "spotify.user-token":
+                token = str((message.get("payload") or {}).get("access_token", ""))
+                await command_usecase.set_spotify_user_token(token)
+                continue
+
             if client_type != "controller" and event_type != "blindtest.buzzer":
                 await websocket.send_json({"type": "error", "detail": "Le client display est en lecture seule."})
                 continue

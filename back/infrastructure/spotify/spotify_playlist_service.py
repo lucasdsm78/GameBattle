@@ -37,11 +37,26 @@ class SpotifyPlaylistService:
         self._client_secret = client_secret.strip()
         self._access_token = ""
         self._token_expires_at = 0.0
+        # Token utilisateur fourni par l'écran (Web Playback SDK). Requis depuis le changement
+        # Spotify de février 2026 : /playlists/{id}/items ne renvoie le contenu que pour les
+        # playlists de l'utilisateur authentifié, et Client Credentials ne peut plus lire les pistes.
+        self._user_access_token = ""
+
+    def set_user_token(self, token: str) -> None:
+        self._user_access_token = (token or "").strip()
+
+    @property
+    def has_user_token(self) -> bool:
+        return bool(self._user_access_token)
 
     async def import_playlist(self, playlist_reference: str) -> SpotifyPlaylistImportResult:
         playlist_id = self._extract_playlist_id(playlist_reference)
-        access_token = await self._get_access_token()
-        headers = {"Authorization": f"Bearer {access_token}"}
+        if not self._user_access_token:
+            raise InvalidGameConfigError(
+                "Connecte Spotify sur l'écran avant d'importer : l'API Spotify exige désormais "
+                "un token utilisateur pour lire les pistes d'une playlist (changement de février 2026)."
+            )
+        headers = {"Authorization": f"Bearer {self._user_access_token}"}
 
         async with httpx.AsyncClient(timeout=20.0) as client:
             playlist_response = await self._send_request(
@@ -56,7 +71,8 @@ class SpotifyPlaylistService:
             playlist_url = (playlist_payload.get("external_urls") or {}).get("spotify", "").strip()
 
             tracks: list[SpotifyPlaylistTrackData] = []
-            next_url = f"{self.API_BASE_URL}/playlists/{playlist_id}/tracks"
+            # Depuis février 2026, /tracks est déprécié au profit de /items.
+            next_url = f"{self.API_BASE_URL}/playlists/{playlist_id}/items"
             params: dict[str, object] | None = {"limit": 100, "offset": 0, "market": "FR"}
 
             while next_url:
@@ -66,7 +82,9 @@ class SpotifyPlaylistService:
                 params = None
 
                 for item in payload.get("items", []):
-                    track_payload = item.get("track") or {}
+                    # Depuis février 2026, l'endpoint /items expose le morceau sous "item"
+                    # (l'ancien /tracks utilisait "track"). On gère les deux par sécurité.
+                    track_payload = item.get("item") or item.get("track") or {}
                     if not track_payload or track_payload.get("type") != "track" or track_payload.get("is_local"):
                         continue
 
@@ -144,12 +162,36 @@ class SpotifyPlaylistService:
         if response.status_code == 401:
             self._access_token = ""
             self._token_expires_at = 0.0
-            raise InvalidGameConfigError("Authentification Spotify refusée. Vérifiez les identifiants API.")
+            self._user_access_token = ""
+            raise InvalidGameConfigError(
+                "Session Spotify de l'écran expirée. Elle se rafraîchit automatiquement : "
+                "réessaie l'import dans quelques secondes (ou recharge l'écran)."
+            )
+        if response.status_code == 403:
+            raise InvalidGameConfigError(
+                "Spotify autorise uniquement la lecture des pistes de TES propres playlists "
+                "(changement de février 2026). Utilise une playlist créée sur le compte connecté à l'écran."
+            )
         if response.status_code == 404:
-            raise InvalidGameConfigError("Playlist Spotify introuvable. Vérifiez l'URL ou rendez-la publique.")
+            raise InvalidGameConfigError(
+                f"Playlist Spotify introuvable. Vérifiez l'URL ou rendez-la publique. ({self._spotify_error(response)})"
+            )
         if response.status_code >= 400:
-            raise InvalidGameConfigError("Spotify a refusé la demande d'import de playlist.")
+            raise InvalidGameConfigError(
+                f"Spotify a refusé la demande (HTTP {response.status_code} sur {response.request.url.path} : {self._spotify_error(response)})."
+            )
         return response
+
+    @staticmethod
+    def _spotify_error(response: httpx.Response) -> str:
+        try:
+            payload = response.json()
+        except ValueError:
+            return (response.text or "").strip()[:200] or "sans détail"
+        error = payload.get("error") if isinstance(payload, dict) else None
+        if isinstance(error, dict):
+            return str(error.get("message") or error.get("reason") or error)[:200]
+        return str(error or payload)[:200]
 
     def _extract_playlist_id(self, playlist_reference: str) -> str:
         value = playlist_reference.strip()
