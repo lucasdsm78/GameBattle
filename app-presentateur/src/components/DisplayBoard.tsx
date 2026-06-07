@@ -1,11 +1,14 @@
 import { useEffect } from 'react';
 import { GameConfigSnapshot } from '../types/gameConfig';
+import { StopChronoBoard } from './StopChronoBoard';
 
 type Props = {
   gameConfig: GameConfigSnapshot | null;
   connectionState: 'connecting' | 'connected' | 'disconnected';
   errorMessage: string | null;
   onBuzz: (team: string) => void;
+  onStartChrono: () => void;
+  onStopChrono: () => void;
 };
 
 const KEYBOARD_BINDINGS = ['1', '2', '3', '4', '5', '6'];
@@ -74,7 +77,18 @@ const matchesBinding = (event: KeyboardEvent, binding: string): boolean => {
   return bindingAliases(binding).some((candidate) => aliases.has(candidate));
 };
 
-export function DisplayBoard({ gameConfig, connectionState, errorMessage, onBuzz }: Props) {
+export function DisplayBoard({
+  gameConfig,
+  connectionState,
+  errorMessage,
+  onBuzz,
+  onStartChrono,
+  onStopChrono,
+}: Props) {
+  const chronoPhase = gameConfig?.session.stopchrono.phase;
+  const chronoTeamIndex = gameConfig?.session.stopchrono.current_team_index;
+  const activeGameKey = gameConfig?.session.active_round?.game_key ?? 'blindtest';
+
   useEffect(() => {
     if (!gameConfig?.settings.teams.length) {
       return;
@@ -90,6 +104,20 @@ export function DisplayBoard({ gameConfig, connectionState, errorMessage, onBuzz
         return;
       }
 
+      // Stop Chrono : seule la touche de l'équipe en cours (ou Espace) démarre puis arrête le chrono.
+      if (activeGameKey === 'stopchrono') {
+        const currentKey = buzzerKeys[chronoTeamIndex ?? 0] ?? '';
+        if (!matchesBinding(event, currentKey) && !matchesBinding(event, 'space')) {
+          return;
+        }
+        if (chronoPhase === 'idle') {
+          onStartChrono();
+        } else if (chronoPhase === 'running') {
+          onStopChrono();
+        }
+        return;
+      }
+
       for (let index = 0; index < teams.length; index += 1) {
         if (matchesBinding(event, buzzerKeys[index] ?? '')) {
           onBuzz(teams[index]);
@@ -100,7 +128,16 @@ export function DisplayBoard({ gameConfig, connectionState, errorMessage, onBuzz
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameConfig?.settings.buzzer_keys, gameConfig?.settings.teams, onBuzz]);
+  }, [
+    gameConfig?.settings.buzzer_keys,
+    gameConfig?.settings.teams,
+    activeGameKey,
+    chronoPhase,
+    chronoTeamIndex,
+    onBuzz,
+    onStartChrono,
+    onStopChrono,
+  ]);
 
   if (!gameConfig) {
     return (
@@ -113,6 +150,57 @@ export function DisplayBoard({ gameConfig, connectionState, errorMessage, onBuzz
           {errorMessage ? <p className="inline-error">{errorMessage}</p> : null}
         </div>
       </main>
+    );
+  }
+
+  if (activeGameKey === 'stopchrono') {
+    const chrono = gameConfig.session.stopchrono;
+    const recap = gameConfig.settings.teams
+      .map((team) => `${team} : ${((chrono.results[team] ?? 0) / 1000).toFixed(2)}s`)
+      .join('   •   ');
+    return (
+      <>
+        <main className="screen blindtest-screen">
+          <section className="hero glass-card">
+            <div>
+              <p className="eyebrow">Stop Chrono live</p>
+              <h1>{gameConfig.settings.game_title}</h1>
+              <p className="meta">
+                <span>Cible {chrono.target_seconds}s</span>
+                <span>•</span>
+                <span>{gameConfig.settings.teams.length} équipes</span>
+                <span>•</span>
+                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
+              </p>
+            </div>
+            <div className="hero-aside">
+              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
+              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
+            </div>
+          </section>
+
+          <StopChronoBoard gameConfig={gameConfig} />
+
+          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
+        </main>
+
+        {chrono.winner_team ? (
+          <div className="winner-overlay">
+            {chrono.winner_team === 'Égalité' ? (
+              <>
+                <p className="winner-eyebrow">Manche terminée</p>
+                <p className="winner-name">Égalité&nbsp;!</p>
+              </>
+            ) : (
+              <>
+                <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
+                <p className="winner-name">{chrono.winner_team}</p>
+              </>
+            )}
+            <p className="winner-sub">{recap}</p>
+          </div>
+        ) : null}
+      </>
     );
   }
 

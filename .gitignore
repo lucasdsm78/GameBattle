@@ -19,3 +19,5 @@ build/
 # Runtime state
 back/data/*.json
 
+.env
+app-presentateur/.env

@@ -65,6 +65,14 @@ export class GameConfigSocket {
     this.sendMessage({ type: 'blindtest.buzzer', payload: { team } });
   }
 
+  startChrono(): void {
+    this.sendMessage({ type: 'stopchrono.start' });
+  }
+
+  stopChrono(): void {
+    this.sendMessage({ type: 'stopchrono.stop' });
+  }
+
   // Pousse le token utilisateur Spotify vers le backend pour autoriser l'import de playlist.
   sendSpotifyToken(accessToken: string): void {
     this.sendMessage({ type: 'spotify.user-token', payload: { access_token: accessToken } });

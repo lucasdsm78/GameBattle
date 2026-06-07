@@ -1,4 +1,4 @@
-export type GameKey = 'blindtest';
+export type GameKey = 'blindtest' | 'stopchrono';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
 
@@ -60,9 +60,23 @@ export type BlindtestState = {
   playback_updated_at: string;
 };
 
+export type StopChronoState = {
+  target_ms: number;
+  target_seconds: number;
+  phase: 'idle' | 'running' | 'revealed' | 'finished';
+  current_team_index: number;
+  current_team: string | null;
+  started_at_ms: number;
+  results: Record<string, number>;
+  deltas_ms: Record<string, number>;
+  scores: Record<string, number>;
+  winner_team: string | null;
+};
+
 export type GameSession = {
   active_round: ActiveRound | null;
   blindtest: BlindtestState;
+  stopchrono: StopChronoState;
   updated_at: string;
 };
 

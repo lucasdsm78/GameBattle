@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from abc import ABC, abstractmethod
 
 from application.game_config.game_config_models import (
@@ -68,6 +69,18 @@ class GameConfigCommandUseCase(ABC):
     async def reload_default_playlist(self) -> GameConfigReadModel:
         raise NotImplementedError
 
+    @abstractmethod
+    async def start_stopchrono(self) -> GameConfigReadModel:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def stop_stopchrono(self) -> GameConfigReadModel:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def next_stopchrono_team(self) -> GameConfigReadModel:
+        raise NotImplementedError
+
 
 class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     def __init__(
@@ -108,10 +121,11 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     async def launch_game(self) -> GameConfigReadModel:
         current = await self.repository.get_current()
         launched = current.start_session()
-        # Import automatique de la playlist fixe (best-effort) : si le token de l'écran n'est pas
-        # encore disponible ou si l'import échoue, on lance quand même la partie sans pistes — le
-        # présentateur pourra recharger la playlist depuis l'écran live.
-        if self._default_playlist_url and self.spotify_playlist_service.has_user_token:
+        is_blindtest = launched.session.active_round is not None and launched.session.active_round.game_key == "blindtest"
+        # Import automatique de la playlist fixe (best-effort) — uniquement pour une manche blindtest.
+        # Si le token de l'écran n'est pas encore disponible ou si l'import échoue, on lance quand
+        # même la partie sans pistes — le présentateur pourra recharger la playlist depuis l'écran.
+        if is_blindtest and self._default_playlist_url and self.spotify_playlist_service.has_user_token:
             try:
                 launched = await self._apply_spotify_playlist(launched, self._default_playlist_url)
             except InvalidGameConfigError as exc:
@@ -198,4 +212,25 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
 
     async def set_spotify_user_token(self, access_token: str) -> None:
         self.spotify_playlist_service.set_user_token(access_token)
+
+    async def start_stopchrono(self) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        updated = current.start_chrono(int(time.time() * 1000))
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def stop_stopchrono(self) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        updated = current.stop_chrono(int(time.time() * 1000))
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def next_stopchrono_team(self) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        updated = current.next_chrono_team()
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
 

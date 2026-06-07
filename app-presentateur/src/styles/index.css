@@ -458,6 +458,145 @@ button {
   font-weight: 600;
 }
 
+/* --- Stop Chrono --- */
+.chrono-layout {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+.chrono-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 40px 28px;
+  text-align: center;
+}
+
+.chrono-target {
+  font-size: clamp(4rem, 13vw, 9rem);
+  font-weight: 900;
+  line-height: 1;
+  color: var(--accent);
+  text-shadow: 0 0 50px rgba(34, 197, 94, 0.45);
+}
+
+.chrono-turn {
+  font-size: 1.3rem;
+  color: var(--text);
+}
+
+.chrono-state {
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.chrono-running {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.chrono-pulse {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.9), rgba(34, 197, 94, 0.1));
+  animation: chrono-pulse 0.9s ease-in-out infinite;
+}
+
+.chrono-running-label {
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@keyframes chrono-pulse {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+.chrono-reveal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chrono-reveal-time {
+  font-size: clamp(3rem, 9vw, 6rem);
+  font-weight: 900;
+  color: var(--text);
+}
+
+.chrono-reveal-delta {
+  color: var(--accent);
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.chrono-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chrono-score-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chrono-score-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'team time' 'delta delta';
+  gap: 2px 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--panel-border);
+}
+
+.chrono-score-item-active {
+  border-color: var(--accent);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.chrono-score-team {
+  grid-area: team;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.chrono-score-time {
+  grid-area: time;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.chrono-score-delta {
+  grid-area: delta;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .chrono-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- Écran de victoire (fin de manche) : nom du vainqueur en grand + arrière-plan flouté --- */
 .winner-overlay {
   position: fixed;

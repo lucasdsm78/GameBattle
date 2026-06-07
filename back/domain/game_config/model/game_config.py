@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 import random
 from typing import Any, Optional
@@ -8,11 +8,15 @@ from uuid import uuid4
 
 from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
 
-SUPPORTED_GAME_KEYS = {"blindtest"}
+SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono"}
 ALLOWED_STATUSES = {"configuring", "ready", "live", "finished"}
 TRACKS_PER_RANDOM_BLINDTEST_ROUND = 10
 DEFAULT_BUZZER_KEYS = ["1", "2", "3", "4", "5", "6"]
 PLAYBACK_STATES = {"stopped", "playing", "paused"}
+STOPCHRONO_MIN_TARGET_MS = 7000
+STOPCHRONO_MAX_TARGET_MS = 25000
+STOPCHRONO_PHASES = {"idle", "running", "revealed", "finished"}
+TIE_LABEL = "Égalité"
 
 
 def utc_now_iso() -> str:
@@ -147,6 +151,34 @@ class BlindtestState:
 
 
 @dataclass(slots=True)
+class StopChronoState:
+    target_ms: int = 0
+    phase: str = "idle"  # idle | running | revealed | finished
+    current_team_index: int = 0
+    started_at_ms: int = 0
+    results: dict[str, int] = field(default_factory=dict)  # équipe -> temps stoppé (ms)
+    scores: dict[str, int] = field(default_factory=dict)
+    winner_team: Optional[str] = None
+
+    def validate(self, teams: list[str]) -> None:
+        allowed_teams = {team.strip() for team in teams}
+        if set(self.scores.keys()) - allowed_teams:
+            raise InvalidGameConfigError("Les scores du stop chrono contiennent une équipe inconnue.")
+        if set(self.results.keys()) - allowed_teams:
+            raise InvalidGameConfigError("Les résultats du stop chrono contiennent une équipe inconnue.")
+        if self.winner_team and self.winner_team not in allowed_teams and self.winner_team != TIE_LABEL:
+            raise InvalidGameConfigError("Le gagnant du stop chrono est inconnu.")
+        if self.phase not in STOPCHRONO_PHASES:
+            raise InvalidGameConfigError("La phase du stop chrono est invalide.")
+        if not 0 <= self.target_ms <= STOPCHRONO_MAX_TARGET_MS:
+            raise InvalidGameConfigError("La cible du stop chrono est invalide.")
+        if self.current_team_index < 0:
+            raise InvalidGameConfigError("L'index d'équipe du stop chrono est invalide.")
+        if any(value < 0 for value in self.results.values()):
+            raise InvalidGameConfigError("Un temps de stop chrono est invalide.")
+
+
+@dataclass(slots=True)
 class ActiveRound:
     round_id: str
     label: str
@@ -165,12 +197,14 @@ class ActiveRound:
 class GameSession:
     active_round: Optional[ActiveRound] = None
     blindtest: BlindtestState = field(default_factory=BlindtestState)
+    stopchrono: StopChronoState = field(default_factory=StopChronoState)
     updated_at: str = field(default_factory=utc_now_iso)
 
     def validate(self, teams: list[str]) -> None:
         if self.active_round is not None:
             self.active_round.validate()
         self.blindtest.validate(teams)
+        self.stopchrono.validate(teams)
 
 
 @dataclass(slots=True)
@@ -245,18 +279,35 @@ class GameConfig:
             order_index=0,
             completed=False,
         )
-        blindtest_state = BlindtestState(
-            round_id=selected_round.id,
-            total_tracks=selected_round.planned_track_count,
-            current_track_index=1,
-            scores={team: 0 for team in self.settings.teams},
-            playback_state="stopped",
-        )
+        if selected_round.game_key == "stopchrono":
+            session = GameSession(
+                active_round=active_round,
+                stopchrono=StopChronoState(
+                    target_ms=random.randint(STOPCHRONO_MIN_TARGET_MS, STOPCHRONO_MAX_TARGET_MS),
+                    phase="idle",
+                    current_team_index=0,
+                    results={},
+                    scores={team: 0 for team in self.settings.teams},
+                ),
+                updated_at=utc_now_iso(),
+            )
+        else:
+            session = GameSession(
+                active_round=active_round,
+                blindtest=BlindtestState(
+                    round_id=selected_round.id,
+                    total_tracks=selected_round.planned_track_count,
+                    current_track_index=1,
+                    scores={team: 0 for team in self.settings.teams},
+                    playback_state="stopped",
+                ),
+                updated_at=utc_now_iso(),
+            )
         return GameConfig(
             settings=self.settings,
             games=self.games,
             rounds=self.rounds,
-            session=GameSession(active_round=active_round, blindtest=blindtest_state, updated_at=utc_now_iso()),
+            session=session,
             status="live",
             updated_at=utc_now_iso(),
         )
@@ -550,6 +601,75 @@ class GameConfig:
             updated_at=utc_now_iso(),
         )
 
+    # --- Stop Chrono ---
+
+    def _ensure_stopchrono_active(self) -> StopChronoState:
+        if self.status != "live" or self.session.active_round is None or self.session.active_round.game_key != "stopchrono":
+            raise InvalidGameConfigError("Aucune manche stop chrono n'est active.")
+        return self.session.stopchrono
+
+    def _with_stopchrono(self, chrono: StopChronoState, status: str, complete_round: bool = False) -> "GameConfig":
+        active_round = self.session.active_round
+        if complete_round and active_round is not None:
+            active_round = replace(active_round, completed=True)
+        return GameConfig(
+            settings=self.settings,
+            games=self.games,
+            rounds=self.rounds,
+            session=GameSession(
+                active_round=active_round,
+                blindtest=self.session.blindtest,
+                stopchrono=chrono,
+                updated_at=utc_now_iso(),
+            ),
+            status=status,
+            updated_at=utc_now_iso(),
+        )
+
+    def start_chrono(self, now_ms: int) -> "GameConfig":
+        chrono = self._ensure_stopchrono_active()
+        if chrono.phase != "idle":
+            raise InvalidGameConfigError("Le chrono ne peut démarrer que lorsqu'une équipe est prête.")
+        return self._with_stopchrono(replace(chrono, phase="running", started_at_ms=int(now_ms)), status="live")
+
+    def stop_chrono(self, now_ms: int) -> "GameConfig":
+        chrono = self._ensure_stopchrono_active()
+        if chrono.phase != "running":
+            raise InvalidGameConfigError("Aucun chrono en cours à arrêter.")
+        if chrono.current_team_index >= len(self.settings.teams):
+            raise InvalidGameConfigError("Aucune équipe courante pour arrêter le chrono.")
+        team = self.settings.teams[chrono.current_team_index]
+        elapsed_ms = max(int(now_ms) - chrono.started_at_ms, 0)
+        results = dict(chrono.results)
+        results[team] = elapsed_ms
+        return self._with_stopchrono(
+            replace(chrono, phase="revealed", results=results, started_at_ms=0),
+            status="live",
+        )
+
+    def next_chrono_team(self) -> "GameConfig":
+        chrono = self._ensure_stopchrono_active()
+        if chrono.phase != "revealed":
+            raise InvalidGameConfigError("Valide d'abord le temps de l'équipe en cours.")
+        next_index = chrono.current_team_index + 1
+        if next_index < len(self.settings.teams):
+            return self._with_stopchrono(
+                replace(chrono, phase="idle", current_team_index=next_index, started_at_ms=0),
+                status="live",
+            )
+        # Toutes les équipes ont joué : l'équipe la plus proche de la cible gagne (+1).
+        deltas = {team: abs(elapsed - chrono.target_ms) for team, elapsed in chrono.results.items()}
+        scores = {team: 0 for team in self.settings.teams}
+        winner_team: Optional[str] = None
+        if deltas:
+            min_delta = min(deltas.values())
+            winners = [team for team, delta in deltas.items() if delta == min_delta]
+            for team in winners:
+                scores[team] = 1
+            winner_team = winners[0] if len(winners) == 1 else TIE_LABEL
+        finished = replace(chrono, phase="finished", scores=scores, winner_team=winner_team, started_at_ms=0)
+        return self._with_stopchrono(finished, status="finished", complete_round=True)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "settings": asdict(self.settings),
@@ -562,6 +682,19 @@ class GameConfig:
                     "current_track": asdict(self.session.blindtest.current_track) if self.session.blindtest.current_track else None,
                     "tracks": [asdict(track) for track in self.session.blindtest.tracks],
                     "tracks_remaining": self.session.blindtest.tracks_remaining,
+                },
+                "stopchrono": {
+                    **asdict(self.session.stopchrono),
+                    "target_seconds": round(self.session.stopchrono.target_ms / 1000, 2),
+                    "current_team": (
+                        self.settings.teams[self.session.stopchrono.current_team_index]
+                        if 0 <= self.session.stopchrono.current_team_index < len(self.settings.teams)
+                        else None
+                    ),
+                    "deltas_ms": {
+                        team: abs(elapsed - self.session.stopchrono.target_ms)
+                        for team, elapsed in self.session.stopchrono.results.items()
+                    },
                 },
                 "updated_at": self.session.updated_at,
             },

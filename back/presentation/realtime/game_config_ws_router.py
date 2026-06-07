@@ -69,7 +69,9 @@ async def game_config_websocket(
                 await command_usecase.set_spotify_user_token(token)
                 continue
 
-            if client_type != "controller" and event_type != "blindtest.buzzer":
+            # L'écran (display) peut envoyer le buzz et piloter le chrono (touches clavier).
+            display_allowed_events = {"blindtest.buzzer", "stopchrono.start", "stopchrono.stop"}
+            if client_type != "controller" and event_type not in display_allowed_events:
                 await websocket.send_json({"type": "error", "detail": "Le client display est en lecture seule."})
                 continue
 
@@ -101,6 +103,12 @@ async def game_config_websocket(
                     updated = await command_usecase.sync_blindtest_playback(payload)
                 elif event_type == "blindtest.next-track":
                     updated = await command_usecase.next_blindtest_track()
+                elif event_type == "stopchrono.start":
+                    updated = await command_usecase.start_stopchrono()
+                elif event_type == "stopchrono.stop":
+                    updated = await command_usecase.stop_stopchrono()
+                elif event_type == "stopchrono.next-team":
+                    updated = await command_usecase.next_stopchrono_team()
                 else:
                     await websocket.send_json({"type": "error", "detail": "Type d'évènement non supporté."})
                     continue

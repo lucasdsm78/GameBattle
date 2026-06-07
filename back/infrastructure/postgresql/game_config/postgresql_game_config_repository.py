@@ -14,6 +14,7 @@ from domain.game_config.model.game_config import (
     GameRoundPlan,
     GameSession,
     GameSettings,
+    StopChronoState,
     build_default_game_config,
 )
 from domain.game_config.repository.game_config_repository import GameConfigRepository
@@ -72,6 +73,7 @@ class PostgreSQLGameConfigRepository(GameConfigRepository):
     def _to_domain(self, payload: dict) -> GameConfig:
         session_payload = payload.get("session", {})
         blindtest_payload = session_payload.get("blindtest", {})
+        stopchrono_payload = session_payload.get("stopchrono", {})
         active_round_payload = session_payload.get("active_round")
 
         config = GameConfig(
@@ -103,6 +105,15 @@ class PostgreSQLGameConfigRepository(GameConfigRepository):
                     playlist_name=blindtest_payload.get("playlist_name", ""),
                     playlist_source_url=blindtest_payload.get("playlist_source_url", ""),
                     playlist_provider=blindtest_payload.get("playlist_provider", ""),
+                ),
+                stopchrono=StopChronoState(
+                    target_ms=stopchrono_payload.get("target_ms", 0),
+                    phase=stopchrono_payload.get("phase", "idle"),
+                    current_team_index=stopchrono_payload.get("current_team_index", 0),
+                    started_at_ms=stopchrono_payload.get("started_at_ms", 0),
+                    results=stopchrono_payload.get("results", {}) or {},
+                    scores=stopchrono_payload.get("scores", {}) or {},
+                    winner_team=stopchrono_payload.get("winner_team"),
                 ),
                 updated_at=session_payload.get("updated_at", payload.get("updated_at", "")),
             ),

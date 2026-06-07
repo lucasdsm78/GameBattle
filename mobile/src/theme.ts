@@ -85,6 +85,21 @@ export const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   actionRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
+  // Game picker
+  gamePickerRow: { flexDirection: 'row', gap: 10 },
+  gameChip: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    backgroundColor: colors.cardAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  gameChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  gameChipText: { color: colors.subtle, fontWeight: '800' },
+  gameChipTextActive: { color: colors.bg },
+
   // Teams
   teamRow: { gap: 10 },
   removeText: { color: '#fda4af', fontWeight: '700' },
@@ -98,6 +113,13 @@ export const styles = StyleSheet.create({
   // Playlist imported card
   importedCard: { backgroundColor: colors.cardAlt, borderRadius: 18, padding: 16, gap: 6 },
   importedName: { color: colors.text, fontSize: 18, fontWeight: '800' },
+
+  // Stop Chrono
+  chronoCard: { backgroundColor: colors.cardAlt, borderRadius: 20, padding: 18, gap: 12, alignItems: 'center' },
+  chronoTarget: { color: colors.muted, fontWeight: '600' },
+  chronoResult: { alignItems: 'center', gap: 8, alignSelf: 'stretch' },
+  chronoResultTime: { color: colors.text, fontSize: 40, fontWeight: '900' },
+  chronoResultDelta: { color: colors.accent, fontSize: 16, fontWeight: '700' },
 
   // Live / now playing
   liveCard: { backgroundColor: colors.cardAlt, borderRadius: 20, padding: 16, gap: 6 },

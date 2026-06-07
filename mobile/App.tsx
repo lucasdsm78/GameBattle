@@ -5,6 +5,7 @@ import { GameConfigControllerSocket } from './src/services/realtime/gameConfigCo
 import { useGameConfigStore } from './src/store/gameConfigStore';
 import { ConfigScreen } from './src/screens/ConfigScreen';
 import { LiveScreen } from './src/screens/LiveScreen';
+import { StopChronoLiveScreen } from './src/screens/StopChronoLiveScreen';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
@@ -71,7 +72,18 @@ export default function App() {
           />
         ) : null}
 
-        {step === 'live' && remoteSnapshot ? (
+        {step === 'live' && remoteSnapshot && remoteSnapshot.session.active_round?.game_key === 'stopchrono' ? (
+          <StopChronoLiveScreen
+            snapshot={remoteSnapshot}
+            errorMessage={errorMessage}
+            onStart={() => socket.startChrono()}
+            onStop={() => socket.stopChrono()}
+            onNext={() => socket.nextChronoTeam()}
+            onBack={() => setStep('config')}
+          />
+        ) : null}
+
+        {step === 'live' && remoteSnapshot && remoteSnapshot.session.active_round?.game_key !== 'stopchrono' ? (
           <LiveScreen
             snapshot={remoteSnapshot}
             errorMessage={errorMessage}

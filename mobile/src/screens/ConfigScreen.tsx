@@ -2,7 +2,10 @@ import { useMemo } from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
 import { Field } from '../components/Field';
 import { colors, styles } from '../theme';
-import { GameDraft } from '../types/gameConfig';
+import { GameDraft, GameKey } from '../types/gameConfig';
+
+const GAME_LABELS: Record<GameKey, string> = { blindtest: 'Blindtest', stopchrono: 'Stop Chrono' };
+const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono'];
 
 type Props = {
   draft: GameDraft;
@@ -25,18 +28,33 @@ const cloneDraft = (draft: GameDraft): GameDraft => ({
   status: draft.status,
 });
 
-const rebuildRounds = (draft: GameDraft, roundCount: number): GameDraft['rounds'] =>
-  Array.from({ length: roundCount }, (_, index) => ({
-    id: `blindtest-round-${index + 1}`,
-    label: draft.settings.random_round_order ? `Blindtest aléatoire ${index + 1}` : `Blindtest ${index + 1}`,
-    game_key: 'blindtest' as const,
-    planned_track_count: 10,
-    buzzer_enabled: true,
-  }));
+const buildRounds = (gameKey: GameKey, roundCount: number, random: boolean): GameDraft['rounds'] =>
+  Array.from({ length: roundCount }, (_, index) => {
+    const n = index + 1;
+    if (gameKey === 'stopchrono') {
+      return {
+        id: `stopchrono-round-${n}`,
+        label: random ? `Stop Chrono aléatoire ${n}` : `Stop Chrono ${n}`,
+        game_key: 'stopchrono' as const,
+        planned_track_count: 1,
+        buzzer_enabled: true,
+      };
+    }
+    return {
+      id: `blindtest-round-${n}`,
+      label: random ? `Blindtest aléatoire ${n}` : `Blindtest ${n}`,
+      game_key: 'blindtest' as const,
+      planned_track_count: 10,
+      buzzer_enabled: true,
+    };
+  });
 
 export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, onValidate }: Props) {
   const teams = draft.settings.teams;
   const buzzerKeys = draft.settings.buzzer_keys;
+  const currentGame = draft.games.find((game) => game.enabled) ?? draft.games[0];
+  const gameKey: GameKey = currentGame?.game_key ?? 'blindtest';
+  const roundCount = currentGame?.round_count ?? 1;
 
   const canValidate = useMemo(() => {
     const titleOk = draft.settings.game_title.trim().length >= 3;
@@ -50,18 +68,25 @@ export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, o
     setDraft(next);
   };
 
+  const selectGame = (key: GameKey) => {
+    const next = cloneDraft(draft);
+    next.games = [{ game_key: key, label: GAME_LABELS[key], enabled: true, round_count: roundCount }];
+    next.rounds = buildRounds(key, roundCount, next.settings.random_round_order);
+    setDraft(next);
+  };
+
   const updateRandomOrder = (value: boolean) => {
     const next = cloneDraft(draft);
     next.settings.random_round_order = value;
-    next.rounds = rebuildRounds(next, next.rounds.length);
+    next.rounds = buildRounds(gameKey, roundCount, value);
     setDraft(next);
   };
 
   const updateRoundCount = (value: string) => {
-    const roundCount = Math.min(Math.max(Number.parseInt(value || '1', 10) || 1, 1), 12);
+    const nextCount = Math.min(Math.max(Number.parseInt(value || '1', 10) || 1, 1), 12);
     const next = cloneDraft(draft);
-    next.games[0].round_count = roundCount;
-    next.rounds = rebuildRounds(next, roundCount);
+    next.games = [{ game_key: gameKey, label: GAME_LABELS[gameKey], enabled: true, round_count: nextCount }];
+    next.rounds = buildRounds(gameKey, nextCount, next.settings.random_round_order);
     setDraft(next);
   };
 
@@ -102,7 +127,7 @@ export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, o
       <View style={styles.heroCard}>
         <Text style={styles.eyebrow}>GameBattle Controller</Text>
         <Text style={styles.title}>Configuration de la partie</Text>
-        <Text style={styles.subtitle}>Règle le titre, le mode et les équipes, puis valide pour choisir la playlist.</Text>
+        <Text style={styles.subtitle}>Choisis le jeu, règle le mode et les équipes, puis valide pour lancer la partie.</Text>
         <View style={styles.badgeRow}>
           <View style={[styles.badge, connectionState === 'connected' ? styles.badgeSuccess : styles.badgeWarning]}>
             <Text style={styles.badgeText}>{connectionState}</Text>
@@ -115,6 +140,22 @@ export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, o
         <Text style={styles.sectionTitle}>Partie</Text>
         <Field label="Titre de la partie" value={draft.settings.game_title} onChangeText={updateTitle} />
 
+        <Text style={styles.inputLabel}>Jeu</Text>
+        <View style={styles.gamePickerRow}>
+          {GAME_KEYS.map((key) => {
+            const active = key === gameKey;
+            return (
+              <Pressable
+                key={key}
+                style={[styles.gameChip, active && styles.gameChipActive]}
+                onPress={() => selectGame(key)}
+              >
+                <Text style={[styles.gameChipText, active && styles.gameChipTextActive]}>{GAME_LABELS[key]}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <View style={styles.switchRow}>
           <Text style={styles.inputLabel}>Manches aléatoires</Text>
           <Switch
@@ -126,9 +167,9 @@ export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, o
         </View>
 
         <Field
-          label="Nombre de manches blindtest"
+          label={`Nombre de manches (${GAME_LABELS[gameKey]})`}
           keyboardType="number-pad"
-          value={String(draft.games[0]?.round_count ?? 1)}
+          value={String(roundCount)}
           onChangeText={updateRoundCount}
         />
       </View>

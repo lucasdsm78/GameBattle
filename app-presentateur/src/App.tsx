@@ -123,6 +123,8 @@ export default function App() {
         connectionState={connectionState}
         errorMessage={errorMessage}
         onBuzz={(team) => socket.buzz(team)}
+        onStartChrono={() => socket.startChrono()}
+        onStopChrono={() => socket.stopChrono()}
       />
     </>
   );

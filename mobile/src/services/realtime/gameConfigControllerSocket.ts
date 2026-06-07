@@ -123,6 +123,18 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'blindtest.next-track' });
   }
 
+  startChrono(): void {
+    this.sendMessage({ type: 'stopchrono.start' });
+  }
+
+  stopChrono(): void {
+    this.sendMessage({ type: 'stopchrono.stop' });
+  }
+
+  nextChronoTeam(): void {
+    this.sendMessage({ type: 'stopchrono.next-team' });
+  }
+
   disconnect(): void {
     this.shouldReconnect = false;
     if (this.reconnectTimer) {
