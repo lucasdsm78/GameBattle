@@ -45,7 +45,12 @@ def spotify_playlist_service_singleton() -> SpotifyPlaylistService:
 
 
 def game_config_command_usecase() -> GameConfigCommandUseCase:
-    return GameConfigCommandUseCaseImpl(game_config_repository_singleton(), spotify_playlist_service_singleton())
+    settings = get_settings()
+    return GameConfigCommandUseCaseImpl(
+        game_config_repository_singleton(),
+        spotify_playlist_service_singleton(),
+        default_playlist_url=settings.blindtest_playlist_url,
+    )
 
 
 def game_config_query_usecase() -> GameConfigQueryUseCase:

@@ -11,15 +11,29 @@ type Props = {
   onBuzz: (team: string) => void;
   onAnswer: (isCorrect: boolean) => void;
   onNext: () => void;
+  onReloadPlaylist: () => void;
+  onBack: () => void;
 };
 
-export function LiveScreen({ snapshot, errorMessage, onPlay, onPause, onBuzz, onAnswer, onNext }: Props) {
+export function LiveScreen({
+  snapshot,
+  errorMessage,
+  onPlay,
+  onPause,
+  onBuzz,
+  onAnswer,
+  onNext,
+  onReloadPlaylist,
+  onBack,
+}: Props) {
   const blindtest = snapshot.session.blindtest;
   const teams = snapshot.settings.teams;
   const buzzerKeys = snapshot.settings.buzzer_keys;
   const track = blindtest.current_track;
   const isPlaying = blindtest.playback_state === 'playing';
   const total = Math.max(blindtest.total_tracks, 1);
+  // total_tracks reflète le nombre planifié (10) même sans import ; on teste les pistes réellement chargées.
+  const hasPlaylist = blindtest.tracks.length > 0;
 
   // Une équipe a buzzé et attend la validation du présentateur.
   const answerPending = Boolean(blindtest.current_buzzer_team) && !blindtest.revealed;
@@ -45,6 +59,10 @@ export function LiveScreen({ snapshot, errorMessage, onPlay, onPause, onBuzz, on
 
   return (
     <>
+      <Pressable style={styles.backButton} onPress={onBack}>
+        <Text style={styles.backButtonText}>‹ Reconfigurer la partie</Text>
+      </Pressable>
+
       <View style={styles.heroCard}>
         <Text style={styles.eyebrow}>Blindtest en direct</Text>
         <Text style={styles.title}>{snapshot.settings.game_title}</Text>
@@ -61,6 +79,18 @@ export function LiveScreen({ snapshot, errorMessage, onPlay, onPause, onBuzz, on
         </View>
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
       </View>
+
+      {!hasPlaylist ? (
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Playlist non chargée</Text>
+          <Text style={styles.helperText}>
+            La playlist n’a pas pu être importée automatiquement. Vérifie que Spotify est connecté sur l’écran, puis recharge.
+          </Text>
+          <Pressable style={styles.secondaryButton} onPress={onReloadPlaylist}>
+            <Text style={styles.secondaryButtonText}>Recharger la playlist</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.liveCard}>
         <Text style={styles.nowPlayingLabel}>Réponse (visible régie uniquement)</Text>

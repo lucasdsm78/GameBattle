@@ -85,6 +85,8 @@ async def game_config_websocket(
                 elif event_type == "blindtest.playlist.import-spotify":
                     payload = SpotifyPlaylistImportCommandModel(**message.get("payload", {}))
                     updated = await command_usecase.import_blindtest_playlist_from_spotify(payload)
+                elif event_type == "blindtest.playlist.reload":
+                    updated = await command_usecase.reload_default_playlist()
                 elif event_type == "blindtest.buzzer":
                     payload = BlindtestBuzzerCommandModel(**message.get("payload", {}))
                     updated = await command_usecase.register_blindtest_buzzer(payload)

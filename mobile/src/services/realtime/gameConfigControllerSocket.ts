@@ -93,6 +93,11 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'blindtest.playlist.import-spotify', payload: { playlist_url: playlistUrl } });
   }
 
+  // Recharge la playlist fixe configurée côté serveur (GAMEBATTLE_BLINDTEST_PLAYLIST_URL).
+  reloadPlaylist(): void {
+    this.sendMessage({ type: 'blindtest.playlist.reload' });
+  }
+
   buzz(team: string): void {
     this.sendMessage({ type: 'blindtest.buzzer', payload: { team } });
   }

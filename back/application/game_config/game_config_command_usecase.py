@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 
 from application.game_config.game_config_models import (
@@ -12,9 +13,12 @@ from application.game_config.game_config_models import (
     GameConfigUpsertModel,
     SpotifyPlaylistImportCommandModel,
 )
-from domain.game_config.model.game_config import build_blindtest_track
+from domain.game_config.exception.game_config_exception import InvalidGameConfigError
+from domain.game_config.model.game_config import GameConfig, build_blindtest_track
 from domain.game_config.repository.game_config_repository import GameConfigRepository
 from infrastructure.spotify.spotify_playlist_service import SpotifyPlaylistService
+
+logger = logging.getLogger(__name__)
 
 
 class GameConfigCommandUseCase(ABC):
@@ -60,11 +64,40 @@ class GameConfigCommandUseCase(ABC):
     async def set_spotify_user_token(self, access_token: str) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def reload_default_playlist(self) -> GameConfigReadModel:
+        raise NotImplementedError
+
 
 class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
-    def __init__(self, repository: GameConfigRepository, spotify_playlist_service: SpotifyPlaylistService) -> None:
+    def __init__(
+        self,
+        repository: GameConfigRepository,
+        spotify_playlist_service: SpotifyPlaylistService,
+        default_playlist_url: str = "",
+    ) -> None:
         self.repository = repository
         self.spotify_playlist_service = spotify_playlist_service
+        self._default_playlist_url = (default_playlist_url or "").strip()
+
+    async def _apply_spotify_playlist(self, config: GameConfig, playlist_url: str) -> GameConfig:
+        spotify_playlist = await self.spotify_playlist_service.import_playlist(playlist_url)
+        tracks = [
+            build_blindtest_track(
+                track_id=track.track_id,
+                title=track.title,
+                artist=track.artist,
+                preview_url=track.preview_url,
+                artwork_url=track.artwork_url,
+            )
+            for track in spotify_playlist.tracks
+        ]
+        return config.with_blindtest_tracks(
+            tracks,
+            playlist_name=spotify_playlist.playlist_name,
+            playlist_source_url=spotify_playlist.playlist_url,
+            playlist_provider="spotify",
+        )
 
     async def replace_config(self, payload: GameConfigUpsertModel) -> GameConfigReadModel:
         game_config = payload.to_domain().with_timestamp()
@@ -75,6 +108,14 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     async def launch_game(self) -> GameConfigReadModel:
         current = await self.repository.get_current()
         launched = current.start_session()
+        # Import automatique de la playlist fixe (best-effort) : si le token de l'écran n'est pas
+        # encore disponible ou si l'import échoue, on lance quand même la partie sans pistes — le
+        # présentateur pourra recharger la playlist depuis l'écran live.
+        if self._default_playlist_url and self.spotify_playlist_service.has_user_token:
+            try:
+                launched = await self._apply_spotify_playlist(launched, self._default_playlist_url)
+            except InvalidGameConfigError as exc:
+                logger.warning("blindtest.autoimport.failed", extra={"detail": exc.message})
         launched.validate()
         persisted = await self.repository.save(launched)
         return GameConfigReadModel.from_domain(persisted)
@@ -99,23 +140,18 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
         self, payload: SpotifyPlaylistImportCommandModel
     ) -> GameConfigReadModel:
         current = await self.repository.get_current()
-        spotify_playlist = await self.spotify_playlist_service.import_playlist(payload.playlist_url)
-        tracks = [
-            build_blindtest_track(
-                track_id=track.track_id,
-                title=track.title,
-                artist=track.artist,
-                preview_url=track.preview_url,
-                artwork_url=track.artwork_url,
+        updated = await self._apply_spotify_playlist(current, payload.playlist_url)
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def reload_default_playlist(self) -> GameConfigReadModel:
+        if not self._default_playlist_url:
+            raise InvalidGameConfigError(
+                "Aucune playlist blindtest n'est configurée côté serveur (GAMEBATTLE_BLINDTEST_PLAYLIST_URL)."
             )
-            for track in spotify_playlist.tracks
-        ]
-        updated = current.with_blindtest_tracks(
-            tracks,
-            playlist_name=spotify_playlist.playlist_name,
-            playlist_source_url=spotify_playlist.playlist_url,
-            playlist_provider="spotify",
-        )
+        current = await self.repository.get_current()
+        updated = await self._apply_spotify_playlist(current, self._default_playlist_url)
         updated.validate()
         persisted = await self.repository.save(updated)
         return GameConfigReadModel.from_domain(persisted)

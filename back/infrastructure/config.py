@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://gamebattle:gamebattle@localhost:5432/gamebattle"
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
+    blindtest_playlist_url: str = ""
     docs_enabled: bool = True
 
     @property

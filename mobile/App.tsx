@@ -4,19 +4,17 @@ import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { GameConfigControllerSocket } from './src/services/realtime/gameConfigControllerSocket';
 import { useGameConfigStore } from './src/store/gameConfigStore';
 import { ConfigScreen } from './src/screens/ConfigScreen';
-import { PlaylistScreen } from './src/screens/PlaylistScreen';
 import { LiveScreen } from './src/screens/LiveScreen';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
 
-type Step = 'config' | 'playlist' | 'live';
+type Step = 'config' | 'live';
 const STEP_LABELS: { key: Step; label: string }[] = [
   { key: 'config', label: 'Partie' },
-  { key: 'playlist', label: 'Playlist' },
   { key: 'live', label: 'Blindtest' },
 ];
-const STEP_ORDER: Step[] = ['config', 'playlist', 'live'];
+const STEP_ORDER: Step[] = ['config', 'live'];
 
 export default function App() {
   const { draft, remoteSnapshot, connectionState, errorMessage, setDraft, setRemoteSnapshot, setConnectionState, setErrorMessage } =
@@ -33,18 +31,11 @@ export default function App() {
     return () => socket.disconnect();
   }, [setConnectionState, setErrorMessage, setRemoteSnapshot]);
 
+  // Valider la config lance la partie : le backend importe automatiquement la playlist fixe
+  // (GAMEBATTLE_BLINDTEST_PLAYLIST_URL) puis on passe directement au blindtest en direct.
   const validateConfig = () => {
     socket.replaceConfig({ ...draft, status: 'ready' });
     socket.launchGame();
-    setStep('playlist');
-  };
-
-  const importPlaylist = (playlistUrl: string) => {
-    socket.importSpotifyPlaylist(playlistUrl);
-  };
-
-  const startLive = () => {
-    socket.controlPlayback('play');
     setStep('live');
   };
 
@@ -80,16 +71,6 @@ export default function App() {
           />
         ) : null}
 
-        {step === 'playlist' ? (
-          <PlaylistScreen
-            snapshot={remoteSnapshot}
-            errorMessage={errorMessage}
-            onImport={importPlaylist}
-            onValidate={startLive}
-            onBack={() => setStep('config')}
-          />
-        ) : null}
-
         {step === 'live' && remoteSnapshot ? (
           <LiveScreen
             snapshot={remoteSnapshot}
@@ -99,6 +80,8 @@ export default function App() {
             onBuzz={(team) => socket.buzz(team)}
             onAnswer={(isCorrect) => socket.answer(isCorrect)}
             onNext={() => socket.nextTrack()}
+            onReloadPlaylist={() => socket.reloadPlaylist()}
+            onBack={() => setStep('config')}
           />
         ) : null}
       </ScrollView>
