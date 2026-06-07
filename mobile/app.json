@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "GameBattle Controller",
+    "slug": "gamebattle-controller",
+    "scheme": "gamebattlecontroller",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#08111d"
+      }
+    },
+    "extra": {
+      "backendWsUrl": "ws://192.168.1.14:8000",
+      "backendHttpUrl": "http://192.168.1.14:8000",
+      "controllerToken": "5C51sjkTnv5uEAaeJP-sHsd4QwGTaKtttpXwSMegjMU",
+      "spotifyClientId": "",
+      "spotifyRedirectScheme": "gamebattlecontroller"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser",
+      "./plugins/withGameBattleSpotifySdk"
+    ]
+  }
+}

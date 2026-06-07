@@ -1,0 +1,25 @@
+{
+  "poll_interval_ms": 30,
+  "request_timeout_seconds": 5,
+  "bindings": [
+    {
+      "label": "Buzzer Rouge",
+      "team": "Rouges",
+      "vendor_id": "0x1234",
+      "product_id": "0x0001",
+      "match_byte_index": 0,
+      "match_byte_value": 1,
+      "debounce_ms": 500
+    },
+    {
+      "label": "Buzzer Bleu",
+      "team": "Bleus",
+      "vendor_id": "0x1234",
+      "product_id": "0x0002",
+      "match_byte_index": 0,
+      "match_byte_value": 1,
+      "debounce_ms": 500
+    }
+  ]
+}
+
