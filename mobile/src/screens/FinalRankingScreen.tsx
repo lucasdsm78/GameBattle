@@ -10,7 +10,9 @@ type Props = {
 
 export function FinalRankingScreen({ snapshot, onRevealNext, onBack }: Props) {
   const session = snapshot.session;
-  const revealed = session.final_ranking.slice(0, session.ranking_reveal_count);
+  // final_ranking est ordonné du dernier au 1er (révélation). On inverse l'affichage pour mettre
+  // le meilleur révélé en haut et le dernier tout en bas.
+  const revealed = session.final_ranking.slice(0, session.ranking_reveal_count).reverse();
   const allRevealed = session.ranking_reveal_count >= session.final_ranking_total && session.final_ranking_total > 0;
 
   return (

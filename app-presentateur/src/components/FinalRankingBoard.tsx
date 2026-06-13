@@ -7,7 +7,9 @@ type Props = {
 
 export function FinalRankingBoard({ gameConfig, connectionState }: Props) {
   const session = gameConfig.session;
-  const revealed = session.final_ranking.slice(0, session.ranking_reveal_count);
+  // final_ranking est ordonné du dernier au 1er (ordre de révélation). On inverse l'affichage :
+  // le meilleur révélé en haut, le dernier tout en bas.
+  const revealed = session.final_ranking.slice(0, session.ranking_reveal_count).reverse();
 
   return (
     <main className="screen blindtest-screen">
