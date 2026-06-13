@@ -7,7 +7,7 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
-from domain.game_config.model.culture_questions import CULTURE_DIFFICULTIES, pick_culture_questions
+from domain.game_config.model.culture_questions import CULTURE_DIFFICULTIES, pick_one_culture_question
 
 SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture"}
 ALLOWED_STATUSES = {"configuring", "ready", "live", "finished"}
@@ -18,7 +18,7 @@ STOPCHRONO_MIN_TARGET_MS = 7000
 STOPCHRONO_MAX_TARGET_MS = 25000
 STOPCHRONO_PHASES = {"idle", "running", "revealed", "finished"}
 CULTURE_QUESTIONS_PER_ROUND = 10
-CULTURE_PHASES = {"idle", "question", "finished"}
+CULTURE_PHASES = {"idle", "selecting", "question", "finished"}
 ALLOWED_CULTURE_DIFFICULTIES = {"toutes", *CULTURE_DIFFICULTIES}
 TIE_LABEL = "Égalité"
 MAX_TOTAL_ROUNDS = 30
@@ -200,11 +200,12 @@ class CultureQuestion:
 
 @dataclass(slots=True)
 class CultureState:
-    phase: str = "idle"  # idle | question | finished
+    phase: str = "idle"  # idle | selecting | question | finished
     current_index: int = 0
     total_questions: int = 0
-    difficulty: str = "toutes"
-    questions: list[CultureQuestion] = field(default_factory=list)
+    difficulty: str = "toutes"  # difficulté de la question courante (affichage)
+    current_question: Optional[CultureQuestion] = None
+    asked_questions: list[str] = field(default_factory=list)  # textes déjà posés (anti-répétition)
     current_buzzer_team: Optional[str] = None
     answered: bool = False
     scores: dict[str, int] = field(default_factory=dict)
@@ -222,12 +223,6 @@ class CultureState:
             raise InvalidGameConfigError("La phase de culture générale est invalide.")
         if self.current_index < 0:
             raise InvalidGameConfigError("L'index de question est invalide.")
-
-    @property
-    def current_question(self) -> Optional[CultureQuestion]:
-        if 1 <= self.current_index <= len(self.questions):
-            return self.questions[self.current_index - 1]
-        return None
 
     @property
     def questions_remaining(self) -> int:
@@ -370,24 +365,15 @@ class GameConfig:
             )
             return active_round, BlindtestState(), stopchrono, CultureState()
         if game_key == "culture":
-            difficulty = self.settings.culture_difficulty
-            picked = pick_culture_questions(difficulty, CULTURE_QUESTIONS_PER_ROUND)
-            questions = [
-                CultureQuestion(
-                    id=f"culture-{index + 1}-{position + 1}",
-                    question=item["question"],
-                    answer=item["answer"],
-                    explanation=item["explanation"],
-                    difficulty=item["difficulty"],
-                )
-                for position, item in enumerate(picked)
-            ]
+            # Les questions ne sont PAS pré-tirées : le présentateur choisit la difficulté avant
+            # chaque question, et une question est tirée à la demande.
             culture = CultureState(
                 phase="idle",
                 current_index=0,
-                total_questions=len(questions),
-                difficulty=difficulty,
-                questions=questions,
+                total_questions=CULTURE_QUESTIONS_PER_ROUND,
+                difficulty="toutes",
+                current_question=None,
+                asked_questions=[],
                 scores=teams_scores,
             )
             return active_round, BlindtestState(), StopChronoState(), culture
@@ -763,10 +749,35 @@ class GameConfig:
         culture = self._ensure_culture_active()
         if culture.phase != "idle":
             raise InvalidGameConfigError("La manche de culture générale a déjà commencé.")
-        if not culture.questions:
-            raise InvalidGameConfigError("Aucune question disponible pour cette manche.")
+        # On passe au choix de la difficulté de la 1re question.
         return self._replace_session(
-            culture=replace(culture, phase="question", current_index=1, current_buzzer_team=None, answered=False)
+            culture=replace(culture, phase="selecting", current_index=1, current_question=None, current_buzzer_team=None, answered=False)
+        )
+
+    def select_culture_difficulty(self, difficulty: str) -> "GameConfig":
+        culture = self._ensure_culture_active()
+        if culture.phase != "selecting":
+            raise InvalidGameConfigError("Le choix de la difficulté n'est pas disponible pour le moment.")
+        picked = pick_one_culture_question(difficulty, set(culture.asked_questions))
+        if picked is None:
+            raise InvalidGameConfigError("Aucune question disponible pour cette difficulté.")
+        question = CultureQuestion(
+            id=f"culture-{self.session.active_round.round_id}-{culture.current_index}",
+            question=picked["question"],
+            answer=picked["answer"],
+            explanation=picked["explanation"],
+            difficulty=picked["difficulty"],
+        )
+        return self._replace_session(
+            culture=replace(
+                culture,
+                phase="question",
+                difficulty=question.difficulty,
+                current_question=question,
+                asked_questions=[*culture.asked_questions, question.question],
+                current_buzzer_team=None,
+                answered=False,
+            )
         )
 
     def register_culture_buzzer(self, team: str) -> "GameConfig":
@@ -800,8 +811,16 @@ class GameConfig:
             raise InvalidGameConfigError("Commence d'abord la manche de culture générale.")
         next_index = culture.current_index + 1
         if next_index <= culture.total_questions:
+            # On revient au choix de la difficulté pour la question suivante.
             return self._replace_session(
-                culture=replace(culture, current_index=next_index, current_buzzer_team=None, answered=False)
+                culture=replace(
+                    culture,
+                    phase="selecting",
+                    current_index=next_index,
+                    current_question=None,
+                    current_buzzer_team=None,
+                    answered=False,
+                )
             )
         # Fin de la manche : l'équipe avec le plus de points l'emporte.
         max_score = max(culture.scores.values(), default=0)
@@ -879,15 +898,13 @@ class GameConfig:
                     "answered": self.session.culture.answered,
                     "scores": dict(self.session.culture.scores),
                     "winner_team": self.session.culture.winner_team,
+                    "asked_questions": list(self.session.culture.asked_questions),
                     # current_question contient la réponse + explication (affichées seulement sur le mobile).
                     "current_question": (
                         asdict(self.session.culture.current_question)
                         if self.session.culture.current_question
                         else None
                     ),
-                    # `questions` (toutes les réponses) est persisté pour le round-trip DB mais retiré
-                    # du payload envoyé aux clients par la couche WebSocket.
-                    "questions": [asdict(question) for question in self.session.culture.questions],
                 },
                 # Orchestration. `round_sequence` est persisté (round-trip DB) mais retiré du
                 # payload envoyé aux clients par la couche WebSocket (les apps ne voient pas les prochains jeux).

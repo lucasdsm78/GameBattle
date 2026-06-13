@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from typing import Optional
 
 # Banque de questions de culture générale (FR). Chaque entrée : question, réponse, explication, difficulté.
 # difficulté ∈ {"facile", "moyen", "difficile"}.
@@ -57,3 +58,18 @@ def pick_culture_questions(difficulty: str, count: int) -> list[dict[str, str]]:
         pool = list(CULTURE_QUESTIONS)
     chosen = random.sample(pool, min(count, len(pool)))
     return [dict(q) for q in chosen]
+
+
+def pick_one_culture_question(difficulty: str, exclude_questions: set[str]) -> Optional[dict[str, str]]:
+    """Tire UNE question au hasard de la difficulté donnée, en évitant celles déjà posées.
+
+    Si toutes les questions de la difficulté ont déjà été posées, on autorise la répétition.
+    """
+    normalized = (difficulty or "toutes").strip().lower()
+    pool = [q for q in CULTURE_QUESTIONS if normalized == "toutes" or q["difficulty"] == normalized]
+    if not pool:
+        pool = list(CULTURE_QUESTIONS)
+    available = [q for q in pool if q["question"] not in exclude_questions] or pool
+    if not available:
+        return None
+    return dict(random.choice(available))

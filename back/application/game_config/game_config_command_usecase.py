@@ -10,6 +10,7 @@ from application.game_config.game_config_models import (
     BlindtestPlaybackCommandModel,
     BlindtestPlaybackSyncCommandModel,
     BlindtestPlaylistCommandModel,
+    CultureDifficultyCommandModel,
     GameConfigReadModel,
     GameConfigUpsertModel,
     SpotifyPlaylistImportCommandModel,
@@ -91,6 +92,10 @@ class GameConfigCommandUseCase(ABC):
 
     @abstractmethod
     async def start_culture(self) -> GameConfigReadModel:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def select_culture_difficulty(self, payload: CultureDifficultyCommandModel) -> GameConfigReadModel:
         raise NotImplementedError
 
     @abstractmethod
@@ -282,6 +287,13 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     async def start_culture(self) -> GameConfigReadModel:
         current = await self.repository.get_current()
         updated = current.start_culture()
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def select_culture_difficulty(self, payload: CultureDifficultyCommandModel) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        updated = current.select_culture_difficulty(payload.difficulty)
         updated.validate()
         persisted = await self.repository.save(updated)
         return GameConfigReadModel.from_domain(persisted)

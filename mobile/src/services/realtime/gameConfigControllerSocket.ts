@@ -139,6 +139,10 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'culture.start' });
   }
 
+  selectCultureDifficulty(difficulty: 'toutes' | 'facile' | 'moyen' | 'difficile'): void {
+    this.sendMessage({ type: 'culture.select-difficulty', payload: { difficulty } });
+  }
+
   cultureBuzzer(team: string): void {
     this.sendMessage({ type: 'culture.buzzer', payload: { team } });
   }

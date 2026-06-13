@@ -21,6 +21,17 @@ export function CultureBoard({ gameConfig }: Props) {
           </>
         ) : null}
 
+        {culture.phase === 'selecting' ? (
+          <>
+            <div className="section-row">
+              <span className="section-chip">Culture générale</span>
+              <strong className="progress-pill">{culture.current_index}/{total}</strong>
+            </div>
+            <div className="culture-waiting">Question {culture.current_index}</div>
+            <p className="chrono-state">Choix de la difficulté en cours…</p>
+          </>
+        ) : null}
+
         {culture.phase === 'question' && question ? (
           <>
             <div className="section-row">

@@ -3,17 +3,34 @@ import { styles } from '../theme';
 import { GameConfigSnapshot } from '../types/gameConfig';
 import { useVolumeButtons } from '../hooks/useVolumeButtons';
 
+type CultureDifficultyChoice = 'facile' | 'moyen' | 'difficile';
+const DIFFICULTY_CHOICES: { key: CultureDifficultyChoice; label: string }[] = [
+  { key: 'facile', label: 'Facile' },
+  { key: 'moyen', label: 'Moyen' },
+  { key: 'difficile', label: 'Difficile' },
+];
+
 type Props = {
   snapshot: GameConfigSnapshot;
   errorMessage: string | null;
   onStart: () => void;
+  onSelectDifficulty: (difficulty: CultureDifficultyChoice) => void;
   onBuzz: (team: string) => void;
   onAnswer: (isCorrect: boolean) => void;
   onNext: () => void;
   onBack: () => void;
 };
 
-export function CultureLiveScreen({ snapshot, errorMessage, onStart, onBuzz, onAnswer, onNext, onBack }: Props) {
+export function CultureLiveScreen({
+  snapshot,
+  errorMessage,
+  onStart,
+  onSelectDifficulty,
+  onBuzz,
+  onAnswer,
+  onNext,
+  onBack,
+}: Props) {
   const culture = snapshot.session.culture;
   const teams = snapshot.settings.teams;
   const buzzerKeys = snapshot.settings.buzzer_keys;
@@ -68,6 +85,20 @@ export function CultureLiveScreen({ snapshot, errorMessage, onStart, onBuzz, onA
           <Pressable style={styles.primaryButton} onPress={onStart}>
             <Text style={styles.primaryButtonText}>▶︎ Commencer</Text>
           </Pressable>
+        </View>
+      ) : null}
+
+      {culture.phase === 'selecting' ? (
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Question {culture.current_index}/{total}</Text>
+          <Text style={styles.helperText}>Choisis la difficulté de la question.</Text>
+          <View style={styles.gamePickerRow}>
+            {DIFFICULTY_CHOICES.map((option) => (
+              <Pressable key={option.key} style={styles.difficultyChip} onPress={() => onSelectDifficulty(option.key)}>
+                <Text style={styles.gameChipText}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       ) : null}
 

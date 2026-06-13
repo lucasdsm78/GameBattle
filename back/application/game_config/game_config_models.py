@@ -105,6 +105,10 @@ class BlindtestPlaybackSyncCommandModel(BaseModel):
     duration_ms: int = Field(default=0, ge=0)
 
 
+class CultureDifficultyCommandModel(BaseModel):
+    difficulty: Literal["toutes", "facile", "moyen", "difficile"]
+
+
 class SpotifyPlaylistImportCommandModel(BaseModel):
     playlist_url: str = Field(min_length=10, max_length=500)
 

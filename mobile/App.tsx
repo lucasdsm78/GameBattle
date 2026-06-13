@@ -94,6 +94,7 @@ export default function App() {
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}
                 onStart={() => socket.startCulture()}
+                onSelectDifficulty={(difficulty) => socket.selectCultureDifficulty(difficulty)}
                 onBuzz={(team) => socket.cultureBuzzer(team)}
                 onAnswer={(isCorrect) => socket.cultureAnswer(isCorrect)}
                 onNext={() => socket.nextCultureQuestion()}

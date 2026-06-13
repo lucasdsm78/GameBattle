@@ -21,7 +21,7 @@ export type CultureQuestion = {
 };
 
 export type CultureState = {
-  phase: 'idle' | 'question' | 'finished';
+  phase: 'idle' | 'selecting' | 'question' | 'finished';
   current_index: number;
   total_questions: number;
   questions_remaining: number;

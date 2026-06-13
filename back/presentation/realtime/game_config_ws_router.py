@@ -13,6 +13,7 @@ from application.game_config.game_config_models import (
     BlindtestPlaybackCommandModel,
     BlindtestPlaybackSyncCommandModel,
     BlindtestPlaylistCommandModel,
+    CultureDifficultyCommandModel,
     GameConfigEnvelope,
     GameConfigUpsertModel,
     SpotifyPlaylistImportCommandModel,
@@ -124,6 +125,9 @@ async def game_config_websocket(
                     updated = await command_usecase.next_stopchrono_team()
                 elif event_type == "culture.start":
                     updated = await command_usecase.start_culture()
+                elif event_type == "culture.select-difficulty":
+                    payload = CultureDifficultyCommandModel(**message.get("payload", {}))
+                    updated = await command_usecase.select_culture_difficulty(payload)
                 elif event_type == "culture.buzzer":
                     payload = BlindtestBuzzerCommandModel(**message.get("payload", {}))
                     updated = await command_usecase.register_culture_buzzer(payload)

@@ -125,16 +125,18 @@ class PostgreSQLGameConfigRepository(GameConfigRepository):
                     current_index=culture_payload.get("current_index", 0),
                     total_questions=culture_payload.get("total_questions", 0),
                     difficulty=culture_payload.get("difficulty", "toutes"),
-                    questions=[
+                    current_question=(
                         CultureQuestion(
-                            id=q.get("id", ""),
-                            question=q.get("question", ""),
-                            answer=q.get("answer", ""),
-                            explanation=q.get("explanation", ""),
-                            difficulty=q.get("difficulty", "toutes"),
+                            id=culture_payload["current_question"].get("id", ""),
+                            question=culture_payload["current_question"].get("question", ""),
+                            answer=culture_payload["current_question"].get("answer", ""),
+                            explanation=culture_payload["current_question"].get("explanation", ""),
+                            difficulty=culture_payload["current_question"].get("difficulty", "toutes"),
                         )
-                        for q in (culture_payload.get("questions", []) or [])
-                    ],
+                        if culture_payload.get("current_question")
+                        else None
+                    ),
+                    asked_questions=list(culture_payload.get("asked_questions", []) or []),
                     current_buzzer_team=culture_payload.get("current_buzzer_team"),
                     answered=culture_payload.get("answered", False),
                     scores=culture_payload.get("scores", {}) or {},
