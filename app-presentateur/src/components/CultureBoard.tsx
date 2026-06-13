@@ -39,7 +39,13 @@ export function CultureBoard({ gameConfig }: Props) {
               <strong className="progress-pill">{culture.current_index}/{total}</strong>
             </div>
             <p className="culture-question">{question.question}</p>
-            {culture.current_buzzer_team ? (
+            {culture.answered ? (
+              <div className="culture-answer">
+                <span className="culture-answer-label">Réponse</span>
+                <p className="culture-answer-text">{question.answer}</p>
+                {question.explanation ? <p className="culture-answer-explanation">{question.explanation}</p> : null}
+              </div>
+            ) : culture.current_buzzer_team ? (
               <div className="culture-buzzer">Au buzzer : {culture.current_buzzer_team}</div>
             ) : (
               <p className="chrono-state">Buzzez pour répondre !</p>
