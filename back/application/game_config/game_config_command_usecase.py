@@ -89,6 +89,22 @@ class GameConfigCommandUseCase(ABC):
     async def reveal_next_ranking(self) -> GameConfigReadModel:
         raise NotImplementedError
 
+    @abstractmethod
+    async def start_culture(self) -> GameConfigReadModel:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def register_culture_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def answer_culture(self, payload: BlindtestAnswerCommandModel) -> GameConfigReadModel:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def next_culture_question(self) -> GameConfigReadModel:
+        raise NotImplementedError
+
 
 class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     def __init__(
@@ -259,6 +275,34 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     async def reveal_next_ranking(self) -> GameConfigReadModel:
         current = await self.repository.get_current()
         updated = current.reveal_next_ranking()
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def start_culture(self) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        updated = current.start_culture()
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def register_culture_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        updated = current.register_culture_buzzer(payload.team.strip())
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def answer_culture(self, payload: BlindtestAnswerCommandModel) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        updated = current.answer_culture(payload.is_correct)
+        updated.validate()
+        persisted = await self.repository.save(updated)
+        return GameConfigReadModel.from_domain(persisted)
+
+    async def next_culture_question(self) -> GameConfigReadModel:
+        current = await self.repository.get_current()
+        updated = current.next_culture_question()
         updated.validate()
         persisted = await self.repository.save(updated)
         return GameConfigReadModel.from_domain(persisted)

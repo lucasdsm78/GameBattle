@@ -10,10 +10,12 @@ const defaultDraft: GameDraft = {
     teams: ['Équipe Rouge', 'Équipe Bleue'],
     buzzer_keys: ['1', '2'],
     total_rounds: 4,
+    culture_difficulty: 'toutes',
   },
   games: [
     { game_key: 'blindtest', label: 'Blindtest', enabled: true, round_count: 0 },
     { game_key: 'stopchrono', label: 'Stop Chrono', enabled: false, round_count: 0 },
+    { game_key: 'culture', label: 'Culture générale', enabled: false, round_count: 0 },
   ],
   rounds: [],
   status: 'configuring',

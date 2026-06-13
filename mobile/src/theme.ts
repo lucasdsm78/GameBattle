@@ -96,6 +96,16 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  difficultyChip: {
+    flexGrow: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: colors.cardAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   gameChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   gameChipText: { color: colors.subtle, fontWeight: '800' },
   gameChipTextActive: { color: colors.bg },
@@ -120,6 +130,11 @@ export const styles = StyleSheet.create({
   chronoResult: { alignItems: 'center', gap: 8, alignSelf: 'stretch' },
   chronoResultTime: { color: colors.text, fontSize: 40, fontWeight: '900' },
   chronoResultDelta: { color: colors.accent, fontSize: 16, fontWeight: '700' },
+
+  // Culture générale
+  questionText: { color: colors.text, fontSize: 20, fontWeight: '800', lineHeight: 28 },
+  answerCard: { backgroundColor: 'rgba(34,197,94,0.12)', borderRadius: 14, padding: 12, gap: 4, borderWidth: 1, borderColor: 'rgba(34,197,94,0.4)' },
+  answerText: { color: '#bbf7d0', fontSize: 18, fontWeight: '800' },
 
   // Live / now playing
   liveCard: { backgroundColor: colors.cardAlt, borderRadius: 20, padding: 16, gap: 6 },

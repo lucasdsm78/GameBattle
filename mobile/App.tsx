@@ -6,6 +6,7 @@ import { useGameConfigStore } from './src/store/gameConfigStore';
 import { ConfigScreen } from './src/screens/ConfigScreen';
 import { LiveScreen } from './src/screens/LiveScreen';
 import { StopChronoLiveScreen } from './src/screens/StopChronoLiveScreen';
+import { CultureLiveScreen } from './src/screens/CultureLiveScreen';
 import { FinalRankingScreen } from './src/screens/FinalRankingScreen';
 import { styles } from './src/theme';
 
@@ -86,6 +87,16 @@ export default function App() {
                 onStart={() => socket.startChrono()}
                 onStop={() => socket.stopChrono()}
                 onNext={() => socket.nextChronoTeam()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'culture' ? (
+              <CultureLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStart={() => socket.startCulture()}
+                onBuzz={(team) => socket.cultureBuzzer(team)}
+                onAnswer={(isCorrect) => socket.cultureAnswer(isCorrect)}
+                onNext={() => socket.nextCultureQuestion()}
                 onBack={() => setStep('config')}
               />
             ) : (

@@ -7,8 +7,9 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
+from domain.game_config.model.culture_questions import CULTURE_DIFFICULTIES, pick_culture_questions
 
-SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono"}
+SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture"}
 ALLOWED_STATUSES = {"configuring", "ready", "live", "finished"}
 TRACKS_PER_RANDOM_BLINDTEST_ROUND = 10
 DEFAULT_BUZZER_KEYS = ["1", "2", "3", "4", "5", "6"]
@@ -16,6 +17,9 @@ PLAYBACK_STATES = {"stopped", "playing", "paused"}
 STOPCHRONO_MIN_TARGET_MS = 7000
 STOPCHRONO_MAX_TARGET_MS = 25000
 STOPCHRONO_PHASES = {"idle", "running", "revealed", "finished"}
+CULTURE_QUESTIONS_PER_ROUND = 10
+CULTURE_PHASES = {"idle", "question", "finished"}
+ALLOWED_CULTURE_DIFFICULTIES = {"toutes", *CULTURE_DIFFICULTIES}
 TIE_LABEL = "Égalité"
 MAX_TOTAL_ROUNDS = 30
 
@@ -49,12 +53,15 @@ class GameSettings:
     teams: list[str]
     buzzer_keys: list[str] = field(default_factory=list)
     total_rounds: int = 1
+    culture_difficulty: str = "toutes"
 
     def validate(self) -> None:
         if len(self.game_title.strip()) < 3:
             raise InvalidGameConfigError("Le titre de la partie doit contenir au moins 3 caractères.")
         if not 1 <= self.total_rounds <= MAX_TOTAL_ROUNDS:
             raise InvalidGameConfigError(f"Le nombre de manches doit être compris entre 1 et {MAX_TOTAL_ROUNDS}.")
+        if self.culture_difficulty not in ALLOWED_CULTURE_DIFFICULTIES:
+            raise InvalidGameConfigError("La difficulté de culture générale est invalide.")
         if len(self.teams) < 2:
             raise InvalidGameConfigError("Au moins 2 équipes sont requises.")
         normalized_teams = [team.strip() for team in self.teams]
@@ -183,6 +190,51 @@ class StopChronoState:
 
 
 @dataclass(slots=True)
+class CultureQuestion:
+    id: str
+    question: str
+    answer: str
+    explanation: str
+    difficulty: str
+
+
+@dataclass(slots=True)
+class CultureState:
+    phase: str = "idle"  # idle | question | finished
+    current_index: int = 0
+    total_questions: int = 0
+    difficulty: str = "toutes"
+    questions: list[CultureQuestion] = field(default_factory=list)
+    current_buzzer_team: Optional[str] = None
+    answered: bool = False
+    scores: dict[str, int] = field(default_factory=dict)
+    winner_team: Optional[str] = None
+
+    def validate(self, teams: list[str]) -> None:
+        allowed_teams = {team.strip() for team in teams}
+        if set(self.scores.keys()) - allowed_teams:
+            raise InvalidGameConfigError("Les scores de culture générale contiennent une équipe inconnue.")
+        if self.current_buzzer_team and self.current_buzzer_team not in allowed_teams:
+            raise InvalidGameConfigError("L'équipe qui a buzzé est inconnue.")
+        if self.winner_team and self.winner_team not in allowed_teams and self.winner_team != TIE_LABEL:
+            raise InvalidGameConfigError("Le gagnant de culture générale est inconnu.")
+        if self.phase not in CULTURE_PHASES:
+            raise InvalidGameConfigError("La phase de culture générale est invalide.")
+        if self.current_index < 0:
+            raise InvalidGameConfigError("L'index de question est invalide.")
+
+    @property
+    def current_question(self) -> Optional[CultureQuestion]:
+        if 1 <= self.current_index <= len(self.questions):
+            return self.questions[self.current_index - 1]
+        return None
+
+    @property
+    def questions_remaining(self) -> int:
+        return max(self.total_questions - self.current_index, 0)
+
+
+@dataclass(slots=True)
 class ActiveRound:
     round_id: str
     label: str
@@ -202,6 +254,7 @@ class GameSession:
     active_round: Optional[ActiveRound] = None
     blindtest: BlindtestState = field(default_factory=BlindtestState)
     stopchrono: StopChronoState = field(default_factory=StopChronoState)
+    culture: CultureState = field(default_factory=CultureState)
     # Séquence des jeux pour chaque manche, déterminée au lancement et JAMAIS exposée aux apps
     # (le mobile et l'écran ne voient que la manche courante).
     round_sequence: list[str] = field(default_factory=list)
@@ -220,6 +273,7 @@ class GameSession:
             self.active_round.validate()
         self.blindtest.validate(teams)
         self.stopchrono.validate(teams)
+        self.culture.validate(teams)
         if set(self.manches_won.keys()) - allowed_teams:
             raise InvalidGameConfigError("Le classement contient une équipe inconnue.")
         if self.manche_winner and self.manche_winner not in allowed_teams and self.manche_winner != TIE_LABEL:
@@ -295,7 +349,9 @@ class GameConfig:
         new_session = replace(self.session, updated_at=utc_now_iso(), **session_changes)
         return replace(self, session=new_session, status=(status or self.status), updated_at=utc_now_iso())
 
-    def _build_manche_states(self, game_key: str, index: int) -> tuple[ActiveRound, BlindtestState, StopChronoState]:
+    def _build_manche_states(
+        self, game_key: str, index: int
+    ) -> tuple[ActiveRound, BlindtestState, StopChronoState, CultureState]:
         active_round = ActiveRound(
             round_id=f"{game_key}-manche-{index + 1}",
             label=f"Manche {index + 1}",
@@ -303,31 +359,55 @@ class GameConfig:
             order_index=index,
             completed=False,
         )
+        teams_scores = {team: 0 for team in self.settings.teams}
         if game_key == "stopchrono":
             stopchrono = StopChronoState(
                 target_ms=random.randint(STOPCHRONO_MIN_TARGET_MS // 1000, STOPCHRONO_MAX_TARGET_MS // 1000) * 1000,
                 phase="idle",
                 current_team_index=0,
                 results={},
-                scores={team: 0 for team in self.settings.teams},
+                scores=teams_scores,
             )
-            return active_round, BlindtestState(), stopchrono
+            return active_round, BlindtestState(), stopchrono, CultureState()
+        if game_key == "culture":
+            difficulty = self.settings.culture_difficulty
+            picked = pick_culture_questions(difficulty, CULTURE_QUESTIONS_PER_ROUND)
+            questions = [
+                CultureQuestion(
+                    id=f"culture-{index + 1}-{position + 1}",
+                    question=item["question"],
+                    answer=item["answer"],
+                    explanation=item["explanation"],
+                    difficulty=item["difficulty"],
+                )
+                for position, item in enumerate(picked)
+            ]
+            culture = CultureState(
+                phase="idle",
+                current_index=0,
+                total_questions=len(questions),
+                difficulty=difficulty,
+                questions=questions,
+                scores=teams_scores,
+            )
+            return active_round, BlindtestState(), StopChronoState(), culture
         blindtest = BlindtestState(
             round_id=active_round.round_id,
             total_tracks=TRACKS_PER_RANDOM_BLINDTEST_ROUND,
             current_track_index=1,
-            scores={team: 0 for team in self.settings.teams},
+            scores=teams_scores,
             playback_state="stopped",
         )
-        return active_round, blindtest, StopChronoState()
+        return active_round, blindtest, StopChronoState(), CultureState()
 
     def _start_manche(self, index: int) -> "GameConfig":
         game_key = self.session.round_sequence[index]
-        active_round, blindtest, stopchrono = self._build_manche_states(game_key, index)
+        active_round, blindtest, stopchrono, culture = self._build_manche_states(game_key, index)
         return self._replace_session(
             active_round=active_round,
             blindtest=blindtest,
             stopchrono=stopchrono,
+            culture=culture,
             round_index=index,
             manche_finished=False,
             manche_winner=None,
@@ -672,6 +752,68 @@ class GameConfig:
         # Fin de la MANCHE (pas de la partie) : on attend « Manche suivante ».
         return self._with_stopchrono(finished, status="live", complete_round=True, manche_winner=winner_team)
 
+    # --- Culture générale ---
+
+    def _ensure_culture_active(self) -> CultureState:
+        if self.status != "live" or self.session.active_round is None or self.session.active_round.game_key != "culture":
+            raise InvalidGameConfigError("Aucune manche de culture générale n'est active.")
+        return self.session.culture
+
+    def start_culture(self) -> "GameConfig":
+        culture = self._ensure_culture_active()
+        if culture.phase != "idle":
+            raise InvalidGameConfigError("La manche de culture générale a déjà commencé.")
+        if not culture.questions:
+            raise InvalidGameConfigError("Aucune question disponible pour cette manche.")
+        return self._replace_session(
+            culture=replace(culture, phase="question", current_index=1, current_buzzer_team=None, answered=False)
+        )
+
+    def register_culture_buzzer(self, team: str) -> "GameConfig":
+        culture = self._ensure_culture_active()
+        if culture.phase != "question":
+            raise InvalidGameConfigError("Aucune question n'est affichée pour buzzer.")
+        if team not in culture.scores:
+            raise InvalidGameConfigError("L'équipe qui a buzzé est inconnue.")
+        if culture.current_buzzer_team is not None and not culture.answered:
+            raise InvalidGameConfigError("Un buzz est déjà en attente de validation.")
+        if culture.answered:
+            raise InvalidGameConfigError("La question a déjà été validée, passe à la suivante.")
+        return self._replace_session(culture=replace(culture, current_buzzer_team=team))
+
+    def answer_culture(self, is_correct: bool) -> "GameConfig":
+        culture = self._ensure_culture_active()
+        if culture.phase != "question":
+            raise InvalidGameConfigError("Aucune question en cours pour valider une réponse.")
+        if culture.current_buzzer_team is None:
+            raise InvalidGameConfigError("Aucune équipe n'a buzzé pour valider une réponse.")
+        if is_correct:
+            scores = dict(culture.scores)
+            scores[culture.current_buzzer_team] = scores.get(culture.current_buzzer_team, 0) + 1
+            return self._replace_session(culture=replace(culture, scores=scores, answered=True))
+        # Mauvaise réponse : on rouvre le buzz pour les autres équipes.
+        return self._replace_session(culture=replace(culture, current_buzzer_team=None))
+
+    def next_culture_question(self) -> "GameConfig":
+        culture = self._ensure_culture_active()
+        if culture.phase != "question":
+            raise InvalidGameConfigError("Commence d'abord la manche de culture générale.")
+        next_index = culture.current_index + 1
+        if next_index <= culture.total_questions:
+            return self._replace_session(
+                culture=replace(culture, current_index=next_index, current_buzzer_team=None, answered=False)
+            )
+        # Fin de la manche : l'équipe avec le plus de points l'emporte.
+        max_score = max(culture.scores.values(), default=0)
+        winners = [team for team, score in culture.scores.items() if score == max_score]
+        winner = winners[0] if len(winners) == 1 else TIE_LABEL
+        finished_culture = replace(culture, phase="finished", current_buzzer_team=None, winner_team=winner)
+        active_round = self.session.active_round
+        changes: dict[str, Any] = {"culture": finished_culture, "manche_finished": True, "manche_winner": winner}
+        if active_round is not None:
+            changes["active_round"] = replace(active_round, completed=True)
+        return self._replace_session(status="live", **changes)
+
     # --- Orchestration des manches / classement final ---
 
     def next_manche(self) -> "GameConfig":
@@ -727,6 +869,26 @@ class GameConfig:
                         for team, elapsed in self.session.stopchrono.results.items()
                     },
                 },
+                "culture": {
+                    "phase": self.session.culture.phase,
+                    "current_index": self.session.culture.current_index,
+                    "total_questions": self.session.culture.total_questions,
+                    "questions_remaining": self.session.culture.questions_remaining,
+                    "difficulty": self.session.culture.difficulty,
+                    "current_buzzer_team": self.session.culture.current_buzzer_team,
+                    "answered": self.session.culture.answered,
+                    "scores": dict(self.session.culture.scores),
+                    "winner_team": self.session.culture.winner_team,
+                    # current_question contient la réponse + explication (affichées seulement sur le mobile).
+                    "current_question": (
+                        asdict(self.session.culture.current_question)
+                        if self.session.culture.current_question
+                        else None
+                    ),
+                    # `questions` (toutes les réponses) est persisté pour le round-trip DB mais retiré
+                    # du payload envoyé aux clients par la couche WebSocket.
+                    "questions": [asdict(question) for question in self.session.culture.questions],
+                },
                 # Orchestration. `round_sequence` est persisté (round-trip DB) mais retiré du
                 # payload envoyé aux clients par la couche WebSocket (les apps ne voient pas les prochains jeux).
                 "round_sequence": list(self.session.round_sequence),
@@ -763,6 +925,7 @@ def build_default_game_config() -> GameConfig:
         games=[
             GameDefinition(game_key="blindtest", label="Blindtest", enabled=True, round_count=0),
             GameDefinition(game_key="stopchrono", label="Stop Chrono", enabled=False, round_count=0),
+            GameDefinition(game_key="culture", label="Culture générale", enabled=False, round_count=0),
         ],
         rounds=[],
         session=GameSession(updated_at=utc_now_iso()),

@@ -1,4 +1,4 @@
-export type GameKey = 'blindtest' | 'stopchrono';
+export type GameKey = 'blindtest' | 'stopchrono' | 'culture';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
 
@@ -80,10 +80,32 @@ export type StopChronoState = {
   winner_team: string | null;
 };
 
+export type CultureQuestion = {
+  id: string;
+  question: string;
+  answer: string;
+  explanation: string;
+  difficulty: string;
+};
+
+export type CultureState = {
+  phase: 'idle' | 'question' | 'finished';
+  current_index: number;
+  total_questions: number;
+  questions_remaining: number;
+  difficulty: string;
+  current_buzzer_team: string | null;
+  answered: boolean;
+  scores: Record<string, number>;
+  winner_team: string | null;
+  current_question: CultureQuestion | null;
+};
+
 export type GameSession = {
   active_round: ActiveRound | null;
   blindtest: BlindtestState;
   stopchrono: StopChronoState;
+  culture: CultureState;
   round_index: number;
   total_rounds: number;
   manche_number: number;

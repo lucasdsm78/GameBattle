@@ -9,6 +9,8 @@ from domain.game_config.model.game_config import (
     ActiveRound,
     BlindtestState,
     BlindtestTrack,
+    CultureQuestion,
+    CultureState,
     GameConfig,
     GameDefinition,
     GameRoundPlan,
@@ -74,6 +76,7 @@ class PostgreSQLGameConfigRepository(GameConfigRepository):
         session_payload = payload.get("session", {})
         blindtest_payload = session_payload.get("blindtest", {})
         stopchrono_payload = session_payload.get("stopchrono", {})
+        culture_payload = session_payload.get("culture", {})
         active_round_payload = session_payload.get("active_round")
 
         config = GameConfig(
@@ -83,6 +86,7 @@ class PostgreSQLGameConfigRepository(GameConfigRepository):
                 teams=payload["settings"].get("teams", []),
                 buzzer_keys=payload["settings"].get("buzzer_keys", []),
                 total_rounds=payload["settings"].get("total_rounds", 1),
+                culture_difficulty=payload["settings"].get("culture_difficulty", "toutes"),
             ),
             games=[GameDefinition(**game_payload) for game_payload in payload.get("games", [])],
             rounds=[GameRoundPlan(**round_payload) for round_payload in payload["rounds"]],
@@ -115,6 +119,26 @@ class PostgreSQLGameConfigRepository(GameConfigRepository):
                     results=stopchrono_payload.get("results", {}) or {},
                     scores=stopchrono_payload.get("scores", {}) or {},
                     winner_team=stopchrono_payload.get("winner_team"),
+                ),
+                culture=CultureState(
+                    phase=culture_payload.get("phase", "idle"),
+                    current_index=culture_payload.get("current_index", 0),
+                    total_questions=culture_payload.get("total_questions", 0),
+                    difficulty=culture_payload.get("difficulty", "toutes"),
+                    questions=[
+                        CultureQuestion(
+                            id=q.get("id", ""),
+                            question=q.get("question", ""),
+                            answer=q.get("answer", ""),
+                            explanation=q.get("explanation", ""),
+                            difficulty=q.get("difficulty", "toutes"),
+                        )
+                        for q in (culture_payload.get("questions", []) or [])
+                    ],
+                    current_buzzer_team=culture_payload.get("current_buzzer_team"),
+                    answered=culture_payload.get("answered", False),
+                    scores=culture_payload.get("scores", {}) or {},
+                    winner_team=culture_payload.get("winner_team"),
                 ),
                 round_sequence=list(session_payload.get("round_sequence", []) or []),
                 round_index=session_payload.get("round_index", 0),

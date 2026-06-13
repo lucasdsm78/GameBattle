@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { GameConfigSnapshot } from '../types/gameConfig';
 import { StopChronoBoard } from './StopChronoBoard';
+import { CultureBoard } from './CultureBoard';
 import { FinalRankingBoard } from './FinalRankingBoard';
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
   onBuzz: (team: string) => void;
   onStartChrono: () => void;
   onStopChrono: () => void;
+  onCultureBuzz: (team: string) => void;
 };
 
 const KEYBOARD_BINDINGS = ['1', '2', '3', '4', '5', '6'];
@@ -85,9 +87,11 @@ export function DisplayBoard({
   onBuzz,
   onStartChrono,
   onStopChrono,
+  onCultureBuzz,
 }: Props) {
   const chronoPhase = gameConfig?.session.stopchrono.phase;
   const chronoTeamIndex = gameConfig?.session.stopchrono.current_team_index;
+  const culturePhase = gameConfig?.session.culture.phase;
   const activeGameKey = gameConfig?.session.active_round?.game_key ?? 'blindtest';
 
   useEffect(() => {
@@ -119,6 +123,20 @@ export function DisplayBoard({
         return;
       }
 
+      // Culture générale : les touches d'équipe buzzent (uniquement quand une question est affichée).
+      if (activeGameKey === 'culture') {
+        if (culturePhase !== 'question') {
+          return;
+        }
+        for (let index = 0; index < teams.length; index += 1) {
+          if (matchesBinding(event, buzzerKeys[index] ?? '')) {
+            onCultureBuzz(teams[index]);
+            return;
+          }
+        }
+        return;
+      }
+
       for (let index = 0; index < teams.length; index += 1) {
         if (matchesBinding(event, buzzerKeys[index] ?? '')) {
           onBuzz(teams[index]);
@@ -130,6 +148,8 @@ export function DisplayBoard({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
+    culturePhase,
+    onCultureBuzz,
     gameConfig?.settings.buzzer_keys,
     gameConfig?.settings.teams,
     activeGameKey,
@@ -200,6 +220,53 @@ export function DisplayBoard({
               <>
                 <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
                 <p className="winner-name">{chrono.winner_team}</p>
+              </>
+            )}
+            <p className="winner-sub">{recap}</p>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
+  if (activeGameKey === 'culture') {
+    const culture = gameConfig.session.culture;
+    const recap = gameConfig.settings.teams.map((team) => `${team} : ${culture.scores[team] ?? 0}`).join('   •   ');
+    return (
+      <>
+        <main className="screen blindtest-screen">
+          <section className="hero glass-card">
+            <div>
+              <p className="eyebrow">Culture générale</p>
+              <h1>{gameConfig.settings.game_title}</h1>
+              <p className="meta">
+                <span>{gameConfig.settings.teams.length} équipes</span>
+                <span>•</span>
+                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
+              </p>
+            </div>
+            <div className="hero-aside">
+              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
+              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
+            </div>
+          </section>
+
+          <CultureBoard gameConfig={gameConfig} />
+
+          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
+        </main>
+
+        {culture.winner_team ? (
+          <div className="winner-overlay">
+            {culture.winner_team === 'Égalité' ? (
+              <>
+                <p className="winner-eyebrow">Manche terminée</p>
+                <p className="winner-name">Égalité&nbsp;!</p>
+              </>
+            ) : (
+              <>
+                <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
+                <p className="winner-name">{culture.winner_team}</p>
               </>
             )}
             <p className="winner-sub">{recap}</p>

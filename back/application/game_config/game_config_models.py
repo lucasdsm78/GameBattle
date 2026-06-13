@@ -18,10 +18,11 @@ class GameSettingsModel(BaseModel):
     teams: list[str] = Field(min_length=2, max_length=6)
     buzzer_keys: list[str] = Field(default_factory=list, max_length=6)
     total_rounds: int = Field(default=1, ge=1, le=30)
+    culture_difficulty: Literal["toutes", "facile", "moyen", "difficile"] = "toutes"
 
 
 class GameDefinitionModel(BaseModel):
-    game_key: Literal["blindtest", "stopchrono"]
+    game_key: Literal["blindtest", "stopchrono", "culture"]
     label: str = Field(min_length=2, max_length=50)
     enabled: bool = True
     round_count: int = Field(ge=0, le=20)
@@ -30,7 +31,7 @@ class GameDefinitionModel(BaseModel):
 class GameRoundPlanModel(BaseModel):
     id: str = Field(min_length=3, max_length=50)
     label: str = Field(min_length=2, max_length=50)
-    game_key: Literal["blindtest", "stopchrono"]
+    game_key: Literal["blindtest", "stopchrono", "culture"]
     planned_track_count: int = Field(ge=1, le=100)
     buzzer_enabled: bool = False
 

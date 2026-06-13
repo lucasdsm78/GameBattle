@@ -37,6 +37,10 @@ def _public_envelope(event_type: str, payload) -> dict:
     session = envelope.get("payload", {}).get("session")
     if isinstance(session, dict):
         session.pop("round_sequence", None)
+        culture = session.get("culture")
+        if isinstance(culture, dict):
+            # On ne révèle pas toutes les questions/réponses à venir aux clients.
+            culture.pop("questions", None)
     return envelope
 
 
@@ -79,7 +83,7 @@ async def game_config_websocket(
                 continue
 
             # L'écran (display) peut envoyer le buzz et piloter le chrono (touches clavier).
-            display_allowed_events = {"blindtest.buzzer", "stopchrono.start", "stopchrono.stop"}
+            display_allowed_events = {"blindtest.buzzer", "stopchrono.start", "stopchrono.stop", "culture.buzzer"}
             if client_type != "controller" and event_type not in display_allowed_events:
                 await websocket.send_json({"type": "error", "detail": "Le client display est en lecture seule."})
                 continue
@@ -118,6 +122,16 @@ async def game_config_websocket(
                     updated = await command_usecase.stop_stopchrono()
                 elif event_type == "stopchrono.next-team":
                     updated = await command_usecase.next_stopchrono_team()
+                elif event_type == "culture.start":
+                    updated = await command_usecase.start_culture()
+                elif event_type == "culture.buzzer":
+                    payload = BlindtestBuzzerCommandModel(**message.get("payload", {}))
+                    updated = await command_usecase.register_culture_buzzer(payload)
+                elif event_type == "culture.answer":
+                    payload = BlindtestAnswerCommandModel(**message.get("payload", {}))
+                    updated = await command_usecase.answer_culture(payload)
+                elif event_type == "culture.next-question":
+                    updated = await command_usecase.next_culture_question()
                 elif event_type == "game.next-manche":
                     updated = await command_usecase.next_manche()
                 elif event_type == "ranking.reveal-next":

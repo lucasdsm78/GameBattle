@@ -125,6 +125,7 @@ export default function App() {
         onBuzz={(team) => socket.buzz(team)}
         onStartChrono={() => socket.startChrono()}
         onStopChrono={() => socket.stopChrono()}
+        onCultureBuzz={(team) => socket.cultureBuzz(team)}
       />
     </>
   );

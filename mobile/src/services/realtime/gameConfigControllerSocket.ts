@@ -135,6 +135,22 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'stopchrono.next-team' });
   }
 
+  startCulture(): void {
+    this.sendMessage({ type: 'culture.start' });
+  }
+
+  cultureBuzzer(team: string): void {
+    this.sendMessage({ type: 'culture.buzzer', payload: { team } });
+  }
+
+  cultureAnswer(isCorrect: boolean): void {
+    this.sendMessage({ type: 'culture.answer', payload: { is_correct: isCorrect } });
+  }
+
+  nextCultureQuestion(): void {
+    this.sendMessage({ type: 'culture.next-question' });
+  }
+
   nextManche(): void {
     this.sendMessage({ type: 'game.next-manche' });
   }

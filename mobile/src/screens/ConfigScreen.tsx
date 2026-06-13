@@ -2,10 +2,16 @@ import { useMemo } from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
 import { Field } from '../components/Field';
 import { colors, styles } from '../theme';
-import { GameDraft, GameKey } from '../types/gameConfig';
+import { CultureDifficulty, GameDraft, GameKey } from '../types/gameConfig';
 
-const GAME_LABELS: Record<GameKey, string> = { blindtest: 'Blindtest', stopchrono: 'Stop Chrono' };
-const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono'];
+const GAME_LABELS: Record<GameKey, string> = { blindtest: 'Blindtest', stopchrono: 'Stop Chrono', culture: 'Culture générale' };
+const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono', 'culture'];
+const CULTURE_DIFFICULTIES: { key: CultureDifficulty; label: string }[] = [
+  { key: 'toutes', label: 'Toutes' },
+  { key: 'facile', label: 'Facile' },
+  { key: 'moyen', label: 'Moyen' },
+  { key: 'difficile', label: 'Difficile' },
+];
 
 type Props = {
   draft: GameDraft;
@@ -75,6 +81,12 @@ export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, o
     const total = Math.min(Math.max(Number.parseInt(value || '1', 10) || 1, 1), 30);
     const next = cloneDraft(draft);
     next.settings.total_rounds = total;
+    setDraft(next);
+  };
+
+  const updateCultureDifficulty = (difficulty: CultureDifficulty) => {
+    const next = cloneDraft(draft);
+    next.settings.culture_difficulty = difficulty;
     setDraft(next);
   };
 
@@ -165,6 +177,26 @@ export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, o
           value={String(draft.settings.total_rounds)}
           onChangeText={updateTotalRounds}
         />
+
+        {isGameEnabled('culture') ? (
+          <>
+            <Text style={styles.inputLabel}>Difficulté culture générale (optionnel)</Text>
+            <View style={styles.gamePickerRow}>
+              {CULTURE_DIFFICULTIES.map((option) => {
+                const active = draft.settings.culture_difficulty === option.key;
+                return (
+                  <Pressable
+                    key={option.key}
+                    style={[styles.difficultyChip, active && styles.gameChipActive]}
+                    onPress={() => updateCultureDifficulty(option.key)}
+                  >
+                    <Text style={[styles.gameChipText, active && styles.gameChipTextActive]}>{option.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
       </View>
 
       <View style={styles.sectionCard}>
