@@ -43,7 +43,6 @@ export function CultureBoard({ gameConfig }: Props) {
               <div className="culture-answer">
                 <span className="culture-answer-label">Réponse</span>
                 <p className="culture-answer-text">{question.answer}</p>
-                {question.explanation ? <p className="culture-answer-explanation">{question.explanation}</p> : null}
               </div>
             ) : culture.current_buzzer_team ? (
               <div className="culture-buzzer">Au buzzer : {culture.current_buzzer_team}</div>
