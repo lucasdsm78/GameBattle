@@ -11,7 +11,7 @@ type Props = {
   onBack: () => void;
 };
 
-const seconds = (ms: number): string => `${(ms / 1000).toFixed(2)} s`;
+const seconds = (ms: number): string => `${(ms / 1000).toFixed(3).replace('.', ',')} s`;
 
 export function StopChronoLiveScreen({ snapshot, errorMessage, onStart, onStop, onNext, onBack }: Props) {
   const chrono = snapshot.session.stopchrono;

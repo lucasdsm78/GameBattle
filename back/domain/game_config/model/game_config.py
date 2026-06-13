@@ -305,7 +305,7 @@ class GameConfig:
         )
         if game_key == "stopchrono":
             stopchrono = StopChronoState(
-                target_ms=random.randint(STOPCHRONO_MIN_TARGET_MS, STOPCHRONO_MAX_TARGET_MS),
+                target_ms=random.randint(STOPCHRONO_MIN_TARGET_MS // 1000, STOPCHRONO_MAX_TARGET_MS // 1000) * 1000,
                 phase="idle",
                 current_team_index=0,
                 results={},
@@ -638,6 +638,8 @@ class GameConfig:
         if chrono.current_team_index >= len(self.settings.teams):
             raise InvalidGameConfigError("Aucune équipe courante pour arrêter le chrono.")
         team = self.settings.teams[chrono.current_team_index]
+        # Temps mesuré précisément en ms : le temps est affiché en secondes rondes côté UI,
+        # mais l'écart à la cible est montré en ms pour départager finement.
         elapsed_ms = max(int(now_ms) - chrono.started_at_ms, 0)
         results = dict(chrono.results)
         results[team] = elapsed_ms
@@ -714,7 +716,7 @@ class GameConfig:
                 },
                 "stopchrono": {
                     **asdict(self.session.stopchrono),
-                    "target_seconds": round(self.session.stopchrono.target_ms / 1000, 2),
+                    "target_seconds": self.session.stopchrono.target_ms // 1000,
                     "current_team": (
                         self.settings.teams[self.session.stopchrono.current_team_index]
                         if 0 <= self.session.stopchrono.current_team_index < len(self.settings.teams)

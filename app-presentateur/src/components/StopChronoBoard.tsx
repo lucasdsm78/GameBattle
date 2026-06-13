@@ -4,7 +4,7 @@ type Props = {
   gameConfig: GameConfigSnapshot;
 };
 
-const seconds = (ms: number): string => `${(ms / 1000).toFixed(2)}s`;
+const seconds = (ms: number): string => `${(ms / 1000).toFixed(3).replace('.', ',')} s`;
 
 export function StopChronoBoard({ gameConfig }: Props) {
   const chrono = gameConfig.session.stopchrono;
@@ -28,7 +28,6 @@ export function StopChronoBoard({ gameConfig }: Props) {
 
             {chrono.phase === 'running' ? (
               <div className="chrono-running">
-                <span className="chrono-pulse" />
                 <span className="chrono-running-label">Chrono en cours…</span>
               </div>
             ) : null}
