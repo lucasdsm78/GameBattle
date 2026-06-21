@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
-from application.game_config.game_config_command_usecase import GameConfigCommandUseCase
+from application.game_config.command import GameConfigCommandUseCase
 from application.game_config.game_config_models import BlindtestBuzzerCommandModel, GameConfigReadModel
 from dependency_injections import authorize_hardware_token, game_config_command_usecase
 

@@ -8,8 +8,7 @@ from domain.game_config.repository.game_config_repository import GameConfigRepos
 
 class GameConfigQueryUseCase(ABC):
     @abstractmethod
-    async def get_current(self) -> GameConfigReadModel:
-        raise NotImplementedError
+    async def get_current(self) -> GameConfigReadModel: ...
 
 
 class GameConfigQueryUseCaseImpl(GameConfigQueryUseCase):

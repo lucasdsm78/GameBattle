@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from application.game_config.game_config_command_usecase import GameConfigCommandUseCase
+from application.game_config.command import GameConfigCommandUseCase
 from application.game_config.game_config_models import (
     BlindtestAnswerCommandModel,
     BlindtestBuzzerCommandModel,
