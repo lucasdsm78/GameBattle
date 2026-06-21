@@ -4,7 +4,7 @@ import secrets
 from functools import lru_cache
 from typing import Optional
 
-from application.game_config.game_config_command_usecase import (
+from application.game_config.command import (
     GameConfigCommandUseCase,
     GameConfigCommandUseCaseImpl,
 )
