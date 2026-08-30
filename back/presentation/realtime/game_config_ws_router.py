@@ -7,17 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 
 from application.game_config.command import GameConfigCommandUseCase
-from application.game_config.game_config_models import (
-    BlindtestAnswerCommandModel,
-    BlindtestBuzzerCommandModel,
-    BlindtestPlaybackCommandModel,
-    BlindtestPlaybackSyncCommandModel,
-    BlindtestPlaylistCommandModel,
-    CultureDifficultyCommandModel,
-    GameConfigEnvelope,
-    GameConfigUpsertModel,
-    SpotifyPlaylistImportCommandModel,
-)
+from application.game_config.game_config_models import GameConfigReadModel
 from application.game_config.game_config_query_usecase import GameConfigQueryUseCase
 from dependency_injections import (
     authorize_client,
@@ -25,46 +15,15 @@ from dependency_injections import (
     game_config_query_usecase,
     websocket_hub_singleton,
 )
-from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
 from infrastructure.realtime.websocket_hub import WebSocketHub
+from presentation.realtime.game_config_ws_handler import (
+    build_broadcast_envelopes,
+    build_client_envelope,
+    dispatch_game_config_event,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws", tags=["realtime"])
-
-
-def _public_envelope(event_type: str, payload, client_type: str) -> dict:
-    """Construit l'enveloppe envoyée aux clients en retirant les informations non publiques."""
-    envelope = GameConfigEnvelope(type=event_type, payload=payload).model_dump()
-    session = envelope.get("payload", {}).get("session")
-    if isinstance(session, dict):
-        session.pop("round_sequence", None)
-        culture = session.get("culture")
-        if isinstance(culture, dict):
-            # On ne révèle pas toutes les questions/réponses à venir aux clients.
-            culture.pop("questions", None)
-        blindtest = session.get("blindtest")
-        if client_type == "display" and isinstance(blindtest, dict):
-            # L'écran public ne doit pas recevoir la réponse complète avant validation.
-            # On conserve track_id pour permettre au Web Playback SDK de lancer le bon titre,
-            # mais on masque titre/artiste/pochette/preview et toute la liste des pistes à venir.
-            current_track = blindtest.get("current_track")
-            if not blindtest.get("revealed") and isinstance(current_track, dict):
-                blindtest["current_track"] = {
-                    **current_track,
-                    "title": "Titre masqué",
-                    "artist": "Artiste masqué",
-                    "preview_url": "",
-                    "artwork_url": "",
-                }
-            blindtest["tracks"] = []
-    return envelope
-
-
-def _envelopes_by_client_type(event_type: str, payload) -> dict[str, dict]:
-    return {
-        "controller": _public_envelope(event_type, payload, "controller"),
-        "display": _public_envelope(event_type, payload, "display"),
-    }
 
 
 @router.websocket("/game-config")
@@ -85,7 +44,7 @@ async def game_config_websocket(
 
     try:
         current = await query_usecase.get_current()
-        await websocket.send_json(_public_envelope("game.config.snapshot", current, client_type))
+        await websocket.send_json(build_client_envelope("game.config.snapshot", current, client_type))
 
         while True:
             raw_message = await websocket.receive_text()
@@ -95,88 +54,30 @@ async def game_config_websocket(
                 await websocket.send_json({"type": "error", "detail": "Message JSON invalide."})
                 continue
 
-            event_type = message.get("type")
-            if event_type == "ping":
-                await websocket.send_json({"type": "pong"})
+            event_type = str(message.get("type", ""))
+            if not event_type:
+                await websocket.send_json({"type": "error", "detail": "Type d'évènement manquant."})
                 continue
 
-            if event_type == "spotify.user-token":
-                token = str((message.get("payload") or {}).get("access_token", ""))
-                await command_usecase.set_spotify_user_token(token)
+            payload = message.get("payload") or {}
+            if not isinstance(payload, dict):
+                await websocket.send_json({"type": "error", "detail": "Payload JSON invalide."})
                 continue
 
-            # L'écran (display) peut envoyer le buzz et piloter le chrono (touches clavier).
-            display_allowed_events = {"blindtest.buzzer", "stopchrono.start", "stopchrono.stop", "culture.buzzer"}
-            if client_type != "controller" and event_type not in display_allowed_events:
-                await websocket.send_json({"type": "error", "detail": "Le client display est en lecture seule."})
+            result = await dispatch_game_config_event(
+                client_type=client_type,
+                event_type=event_type,
+                payload=payload,
+                command_usecase=command_usecase,
+            )
+            if result is None:
+                continue
+            if isinstance(result, dict):
+                await websocket.send_json(result)
                 continue
 
-            try:
-                if event_type == "game.config.replace":
-                    payload = GameConfigUpsertModel(**message.get("payload", {}))
-                    updated = await command_usecase.replace_config(payload)
-                elif event_type == "game.config.launch":
-                    updated = await command_usecase.launch_game()
-                elif event_type == "blindtest.playlist.load":
-                    payload = BlindtestPlaylistCommandModel(**message.get("payload", {}))
-                    updated = await command_usecase.load_blindtest_playlist(payload)
-                elif event_type == "blindtest.playlist.import-spotify":
-                    payload = SpotifyPlaylistImportCommandModel(**message.get("payload", {}))
-                    updated = await command_usecase.import_blindtest_playlist_from_spotify(payload)
-                elif event_type == "blindtest.playlist.reload":
-                    updated = await command_usecase.reload_default_playlist()
-                elif event_type == "blindtest.buzzer":
-                    payload = BlindtestBuzzerCommandModel(**message.get("payload", {}))
-                    updated = await command_usecase.register_blindtest_buzzer(payload)
-                elif event_type == "blindtest.answer":
-                    payload = BlindtestAnswerCommandModel(**message.get("payload", {}))
-                    updated = await command_usecase.answer_blindtest(payload)
-                elif event_type == "blindtest.playback.control":
-                    payload = BlindtestPlaybackCommandModel(**message.get("payload", {}))
-                    updated = await command_usecase.control_blindtest_playback(payload)
-                elif event_type == "blindtest.playback.sync":
-                    payload = BlindtestPlaybackSyncCommandModel(**message.get("payload", {}))
-                    updated = await command_usecase.sync_blindtest_playback(payload)
-                elif event_type == "blindtest.next-track":
-                    updated = await command_usecase.next_blindtest_track()
-                elif event_type == "stopchrono.start":
-                    updated = await command_usecase.start_stopchrono()
-                elif event_type == "stopchrono.stop":
-                    updated = await command_usecase.stop_stopchrono()
-                elif event_type == "stopchrono.next-team":
-                    updated = await command_usecase.next_stopchrono_team()
-                elif event_type == "culture.start":
-                    updated = await command_usecase.start_culture()
-                elif event_type == "culture.select-difficulty":
-                    payload = CultureDifficultyCommandModel(**message.get("payload", {}))
-                    updated = await command_usecase.select_culture_difficulty(payload)
-                elif event_type == "culture.buzzer":
-                    payload = BlindtestBuzzerCommandModel(**message.get("payload", {}))
-                    updated = await command_usecase.register_culture_buzzer(payload)
-                elif event_type == "culture.answer":
-                    payload = BlindtestAnswerCommandModel(**message.get("payload", {}))
-                    updated = await command_usecase.answer_culture(payload)
-                elif event_type == "culture.next-question":
-                    updated = await command_usecase.next_culture_question()
-                elif event_type == "game.next-manche":
-                    updated = await command_usecase.next_manche()
-                elif event_type == "ranking.reveal-next":
-                    updated = await command_usecase.reveal_next_ranking()
-                else:
-                    await websocket.send_json({"type": "error", "detail": "Type d'évènement non supporté."})
-                    continue
-            except InvalidGameConfigError as exc:
-                await websocket.send_json({"type": "error", "detail": exc.message})
-                continue
-            except GameConfigurationNotReadyError as exc:
-                await websocket.send_json({"type": "error", "detail": exc.message})
-                continue
-            except Exception:
-                logger.exception("game_config.websocket.replace_failed")
-                await websocket.send_json({"type": "error", "detail": "Erreur interne lors de la mise à jour."})
-                continue
-
-            await hub.broadcast_json_by_client_type(_envelopes_by_client_type("game.config.updated", updated))
+            updated: GameConfigReadModel = result
+            await hub.broadcast_json_by_client_type(build_broadcast_envelopes("game.config.updated", updated))
     except WebSocketDisconnect:
         logger.info("game_config.websocket.disconnected", extra={"client_type": client_type})
     finally:
