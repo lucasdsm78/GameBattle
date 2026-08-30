@@ -43,3 +43,22 @@ class WebSocketHub:
                 for client in stale_clients:
                     self._clients.discard(client)
 
+    async def broadcast_json_by_client_type(self, messages: dict[str, dict]) -> None:
+        async with self._lock:
+            clients = list(self._clients)
+
+        stale_clients: list[WebSocketClient] = []
+        for client in clients:
+            message = messages.get(client.client_type)
+            if message is None:
+                continue
+            try:
+                await client.websocket.send_json(message)
+            except Exception:
+                stale_clients.append(client)
+
+        if stale_clients:
+            async with self._lock:
+                for client in stale_clients:
+                    self._clients.discard(client)
+

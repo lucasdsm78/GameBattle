@@ -4,6 +4,7 @@ import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { GameConfigControllerSocket } from './src/services/realtime/gameConfigControllerSocket';
 import { useGameConfigStore } from './src/store/gameConfigStore';
 import { ConfigScreen } from './src/screens/ConfigScreen';
+import { PlaylistSetupScreen } from './src/screens/PlaylistSetupScreen';
 import { LiveScreen } from './src/screens/LiveScreen';
 import { StopChronoLiveScreen } from './src/screens/StopChronoLiveScreen';
 import { CultureLiveScreen } from './src/screens/CultureLiveScreen';
@@ -12,7 +13,7 @@ import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
 
-type Step = 'config' | 'live';
+type Step = 'config' | 'playlist' | 'live';
 
 export default function App() {
   const { draft, remoteSnapshot, connectionState, errorMessage, setDraft, setRemoteSnapshot, setConnectionState, setErrorMessage } =
@@ -32,7 +33,7 @@ export default function App() {
   const validateConfig = () => {
     socket.replaceConfig({ ...draft, status: 'ready' });
     socket.launchGame();
-    setStep('live');
+    setStep('playlist');
   };
 
   const session = remoteSnapshot?.session;
@@ -52,6 +53,17 @@ export default function App() {
             connectionState={connectionState}
             errorMessage={errorMessage}
             onValidate={validateConfig}
+          />
+        ) : null}
+
+        {step === 'playlist' ? (
+          <PlaylistSetupScreen
+            snapshot={remoteSnapshot}
+            connectionState={connectionState}
+            errorMessage={errorMessage}
+            onReloadPlaylist={() => socket.reloadPlaylist()}
+            onContinue={() => setStep('live')}
+            onBack={() => setStep('config')}
           />
         ) : null}
 

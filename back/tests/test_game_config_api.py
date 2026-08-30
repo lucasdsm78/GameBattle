@@ -66,22 +66,42 @@ def _payload(title: str = "Soirée des champions") -> dict:
 
 
 def _playlist_payload() -> dict:
+    seed_tracks = [
+        ("Blinding Lights", "The Weeknd"),
+        ("One More Time", "Daft Punk"),
+        ("Bad Guy", "Billie Eilish"),
+        ("Get Lucky", "Daft Punk"),
+        ("Levitating", "Dua Lipa"),
+        ("Flowers", "Miley Cyrus"),
+        ("Uptown Funk", "Mark Ronson"),
+        ("Rolling in the Deep", "Adele"),
+        ("Can’t Stop", "Red Hot Chili Peppers"),
+        ("Freed from Desire", "Gala"),
+    ]
     return {
         "tracks": [
             {
-                "title": "Blinding Lights",
-                "artist": "The Weeknd",
-                "preview_url": "https://example.com/audio1.mp3",
-                "artwork_url": "https://example.com/art1.jpg",
-            },
-            {
-                "title": "One More Time",
-                "artist": "Daft Punk",
-                "preview_url": "https://example.com/audio2.mp3",
-                "artwork_url": "https://example.com/art2.jpg",
-            },
+                "title": title,
+                "artist": artist,
+                "preview_url": f"https://example.com/audio{index}.mp3",
+                "artwork_url": f"https://example.com/art{index}.jpg",
+            }
+            for index, (title, artist) in enumerate(seed_tracks, start=1)
         ]
     }
+
+
+def _spotify_tracks(prefix: str = "spotify-track") -> list[SpotifyPlaylistTrackData]:
+    return [
+        SpotifyPlaylistTrackData(
+            track_id=f"{prefix}-{index}",
+            title=f"Track {index}",
+            artist=f"Artist {index}",
+            preview_url="" if index == 1 else f"https://p.scdn.co/mp3-preview/{prefix}-{index}",
+            artwork_url=f"https://i.scdn.co/image/{prefix}-{index}",
+        )
+        for index in range(1, 11)
+    ]
 
 
 def test_get_default_config() -> None:
@@ -119,7 +139,9 @@ def test_launch_game_and_drive_blindtest_via_http() -> None:
         playlist_response = client.put("/api/game-config/blindtest/playlist", json=_playlist_payload())
         assert playlist_response.status_code == 200
         playlist_body = playlist_response.json()
-        assert playlist_body["session"]["blindtest"]["current_track"]["title"] == "Blinding Lights"
+        assert playlist_body["session"]["blindtest"]["total_tracks"] == 10
+        assert playlist_body["session"]["blindtest"]["tracks_remaining"] == 10
+        assert playlist_body["session"]["blindtest"]["current_track"]["title"]
 
         buzzer_response = client.post("/api/game-config/blindtest/buzzer", json={"team": "Rouges"})
         assert buzzer_response.status_code == 200
@@ -135,7 +157,8 @@ def test_launch_game_and_drive_blindtest_via_http() -> None:
         assert next_response.status_code == 200
         next_body = next_response.json()
         assert next_body["session"]["blindtest"]["current_track_index"] == 2
-        assert next_body["session"]["blindtest"]["current_track"]["artist"] == "Daft Punk"
+        assert next_body["session"]["blindtest"]["tracks_remaining"] == 9
+        assert next_body["session"]["blindtest"]["current_track"]["artist"]
 
 
 def test_import_spotify_playlist_via_http() -> None:
@@ -147,22 +170,7 @@ def test_import_spotify_playlist_via_http() -> None:
             playlist_id="37i9dQZF1DXcBWIGoYBM5M",
             playlist_name="Today's Top Hits",
             playlist_url="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M",
-            tracks=[
-                SpotifyPlaylistTrackData(
-                    track_id="track-spotify-1",
-                    title="Flowers",
-                    artist="Miley Cyrus",
-                    preview_url="",
-                    artwork_url="https://i.scdn.co/image/abc123",
-                ),
-                SpotifyPlaylistTrackData(
-                    track_id="track-spotify-2",
-                    title="Levitating",
-                    artist="Dua Lipa",
-                    preview_url="https://p.scdn.co/mp3-preview/demo",
-                    artwork_url="https://i.scdn.co/image/def456",
-                ),
-            ],
+            tracks=_spotify_tracks("top-hits"),
         )
 
         with patch(
@@ -179,9 +187,9 @@ def test_import_spotify_playlist_via_http() -> None:
         assert body["session"]["blindtest"]["playlist_provider"] == "spotify"
         assert body["session"]["blindtest"]["playlist_name"] == "Today's Top Hits"
         assert body["session"]["blindtest"]["playlist_source_url"] == spotify_result.playlist_url
-        assert body["session"]["blindtest"]["total_tracks"] == 2
-        assert body["session"]["blindtest"]["current_track"]["title"] == "Flowers"
-        assert body["session"]["blindtest"]["tracks"][0]["preview_url"] == ""
+        assert body["session"]["blindtest"]["total_tracks"] == 10
+        assert len(body["session"]["blindtest"]["tracks"]) == 10
+        assert body["session"]["blindtest"]["current_track"]["title"].startswith("Track ")
 
 
 def test_first_buzzer_is_locked_until_answer() -> None:
@@ -286,8 +294,12 @@ def test_websocket_blindtest_flow() -> None:
                 controller_ws.send_json({"type": "blindtest.playlist.load", "payload": _playlist_payload()})
                 playlist_controller = controller_ws.receive_json()
                 playlist_display = display_ws.receive_json()
-                assert playlist_controller["payload"]["session"]["blindtest"]["current_track"]["title"] == "Blinding Lights"
-                assert playlist_display["payload"]["session"]["blindtest"]["total_tracks"] == 2
+                assert playlist_controller["payload"]["session"]["blindtest"]["current_track"]["title"]
+                assert len(playlist_controller["payload"]["session"]["blindtest"]["tracks"]) == 10
+                assert playlist_display["payload"]["session"]["blindtest"]["total_tracks"] == 10
+                assert playlist_display["payload"]["session"]["blindtest"]["current_track"]["title"] == "Titre masqué"
+                assert playlist_display["payload"]["session"]["blindtest"]["current_track"]["artwork_url"] == ""
+                assert playlist_display["payload"]["session"]["blindtest"]["tracks"] == []
 
                 controller_ws.send_json({"type": "blindtest.buzzer", "payload": {"team": "Bleus"}})
                 buzzer_display = display_ws.receive_json()
@@ -311,15 +323,7 @@ def test_websocket_spotify_import_broadcast() -> None:
                     playlist_id="37i9dQZF1DX0XUsuxWHRQd",
                     playlist_name="RapCaviar",
                     playlist_url="https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd",
-                    tracks=[
-                        SpotifyPlaylistTrackData(
-                            track_id="spotify-track-3",
-                            title="Track A",
-                            artist="Artist A",
-                            preview_url="https://p.scdn.co/mp3-preview/track-a",
-                            artwork_url="https://i.scdn.co/image/ghi789",
-                        )
-                    ],
+                    tracks=_spotify_tracks("rapcaviar"),
                 )
 
                 with patch(
@@ -337,7 +341,9 @@ def test_websocket_spotify_import_broadcast() -> None:
 
                 assert updated_for_controller["payload"]["session"]["blindtest"]["playlist_provider"] == "spotify"
                 assert updated_for_display["payload"]["session"]["blindtest"]["playlist_name"] == "RapCaviar"
-                assert updated_for_display["payload"]["session"]["blindtest"]["current_track"]["artist"] == "Artist A"
+                assert updated_for_display["payload"]["session"]["blindtest"]["current_track"]["artist"] == "Artiste masqué"
+                assert updated_for_display["payload"]["session"]["blindtest"]["current_track"]["artwork_url"] == ""
+                assert updated_for_display["payload"]["session"]["blindtest"]["tracks"] == []
 
 
 def test_display_client_cannot_write() -> None:

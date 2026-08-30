@@ -37,6 +37,7 @@ export function LiveScreen({
 
   // Une équipe a buzzé et attend la validation du présentateur.
   const answerPending = Boolean(blindtest.current_buzzer_team) && !blindtest.revealed;
+  const canGoNext = Boolean(blindtest.current_buzzer_team) && blindtest.revealed && !blindtest.winner_team;
 
   // Boutons volume physiques (actifs uniquement en APK / dev build) :
   //  - Volume haut → Vrai (+1) si une équipe a buzzé ; sinon Suivant si la réponse est révélée ; sinon rien.
@@ -46,7 +47,7 @@ export function LiveScreen({
     onVolumeUp: () => {
       if (answerPending) {
         onAnswer(true);
-      } else if (blindtest.revealed) {
+      } else if (canGoNext) {
         onNext();
       }
     },
@@ -135,24 +136,30 @@ export function LiveScreen({
         <Text style={styles.sectionTitle}>Validation présentateur</Text>
         <View style={styles.actionRowWrap}>
           <Pressable
-            style={[styles.primaryButtonCompact, styles.successButton]}
+            style={[styles.primaryButtonCompact, styles.successButton, !answerPending && styles.primaryButtonDisabled]}
             onPress={() => onAnswer(true)}
+            disabled={!answerPending}
           >
             <Text style={styles.primaryButtonText}>Vrai (+1)</Text>
           </Pressable>
           <Pressable
-            style={[styles.primaryButtonCompact, styles.falseButton]}
+            style={[styles.primaryButtonCompact, styles.falseButton, !answerPending && styles.primaryButtonDisabled]}
             onPress={() => onAnswer(false)}
+            disabled={!answerPending}
           >
             <Text style={styles.primaryButtonText}>Faux</Text>
           </Pressable>
-          <Pressable style={styles.primaryButtonCompact} onPress={onNext}>
+          <Pressable
+            style={[styles.primaryButtonCompact, !canGoNext && styles.primaryButtonDisabled]}
+            onPress={onNext}
+            disabled={!canGoNext}
+          >
             <Text style={styles.primaryButtonText}>Musique suivante</Text>
           </Pressable>
         </View>
         <Text style={styles.helperText}>
           {volumeButtonsActive
-            ? '🔊 Volume haut = Vrai / Suivant · 🔉 Volume bas = Faux'
+            ? '🔊 Volume haut = Vrai puis Suivant après révélation · 🔉 Volume bas = Faux'
             : 'Boutons volume inactifs (uniquement en APK / dev build). Utilise les boutons ci-dessus.'}
         </Text>
         {blindtest.winner_team ? (
