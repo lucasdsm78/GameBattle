@@ -39,14 +39,15 @@ export function CultureLiveScreen({
 
   // Une équipe a buzzé et attend la validation (réponse pas encore validée).
   const answerPending = Boolean(culture.current_buzzer_team) && !culture.answered;
+  const canGoNext = culture.phase === 'question' && culture.answered;
 
-  // Boutons volume physiques (APK) : haut = Vrai si buzz en attente, sinon question suivante ; bas = Faux.
+  // Boutons volume physiques (APK) : haut = Vrai si buzz en attente, puis question suivante après révélation ; bas = Faux.
   const volumeButtonsActive = useVolumeButtons({
     enabled: culture.phase === 'question',
     onVolumeUp: () => {
       if (answerPending) {
         onAnswer(true);
-      } else {
+      } else if (canGoNext) {
         onNext();
       }
     },
@@ -138,19 +139,31 @@ export function CultureLiveScreen({
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Validation présentateur</Text>
             <View style={styles.actionRowWrap}>
-              <Pressable style={[styles.primaryButtonCompact, styles.successButton]} onPress={() => onAnswer(true)}>
+              <Pressable
+                style={[styles.primaryButtonCompact, styles.successButton, !answerPending && styles.primaryButtonDisabled]}
+                onPress={() => onAnswer(true)}
+                disabled={!answerPending}
+              >
                 <Text style={styles.primaryButtonText}>Vrai (+1)</Text>
               </Pressable>
-              <Pressable style={[styles.primaryButtonCompact, styles.falseButton]} onPress={() => onAnswer(false)}>
+              <Pressable
+                style={[styles.primaryButtonCompact, styles.falseButton, !answerPending && styles.primaryButtonDisabled]}
+                onPress={() => onAnswer(false)}
+                disabled={!answerPending}
+              >
                 <Text style={styles.primaryButtonText}>Faux</Text>
               </Pressable>
-              <Pressable style={styles.primaryButtonCompact} onPress={onNext}>
+              <Pressable
+                style={[styles.primaryButtonCompact, !canGoNext && styles.primaryButtonDisabled]}
+                onPress={onNext}
+                disabled={!canGoNext}
+              >
                 <Text style={styles.primaryButtonText}>Question suivante</Text>
               </Pressable>
             </View>
             <Text style={styles.helperText}>
               {volumeButtonsActive
-                ? '🔊 Volume haut = Vrai / Suivant · 🔉 Volume bas = Faux'
+                ? '🔊 Volume haut = Vrai puis Suivant après validation · 🔉 Volume bas = Faux'
                 : 'Boutons volume inactifs (uniquement en APK).'}
             </Text>
           </View>

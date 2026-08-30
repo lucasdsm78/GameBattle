@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from collections import Counter
 
+import pytest
+
+from domain.game_config.exception.game_config_exception import InvalidGameConfigError
 from domain.game_config.model.game_config import build_default_game_config, build_round_sequence
 
 
@@ -37,4 +40,21 @@ def test_read_model_does_not_expose_round_sequence() -> None:
 
     read_model_payload = GameConfigReadModel.from_domain(config).model_dump()
     assert "round_sequence" not in read_model_payload["session"]
+
+
+def test_culture_next_question_requires_correct_answer() -> None:
+    config = build_default_game_config()
+    config.games[0].enabled = False
+    config.games[2].enabled = True
+    config = config.start_session().start_culture().select_culture_difficulty("facile")
+
+    with pytest.raises(InvalidGameConfigError):
+        config.next_culture_question()
+
+    answered = config.register_culture_buzzer(config.settings.teams[0]).answer_culture(True)
+    next_question = answered.next_culture_question()
+
+    assert next_question.session.culture.phase == "selecting"
+    assert next_question.session.culture.current_index == 2
+
 

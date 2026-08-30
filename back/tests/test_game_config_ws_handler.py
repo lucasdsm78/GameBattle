@@ -33,6 +33,18 @@ def _blindtest_read_model(revealed: bool = False) -> GameConfigReadModel:
     return GameConfigReadModel.from_domain(config)
 
 
+def _culture_read_model(answered: bool = False) -> GameConfigReadModel:
+    config = build_default_game_config()
+    config.games = [
+        type(config.games[0])(game_key="blindtest", label="Blindtest", enabled=False, round_count=0),
+        type(config.games[0])(game_key="culture", label="Culture générale", enabled=True, round_count=0),
+    ]
+    config = config.start_session().start_culture().select_culture_difficulty("facile")
+    if answered:
+        config = config.register_culture_buzzer(config.settings.teams[0]).answer_culture(True)
+    return GameConfigReadModel.from_domain(config)
+
+
 def test_display_envelope_masks_blindtest_answer_before_reveal() -> None:
     envelope = build_client_envelope("game.config.snapshot", _blindtest_read_model(revealed=False), "display")
     blindtest = envelope["payload"]["session"]["blindtest"]
@@ -54,6 +66,23 @@ def test_display_envelope_reveals_blindtest_answer_after_correct_answer() -> Non
     assert blindtest["current_track"]["artist"].startswith("Artist ")
     assert blindtest["current_track"]["artwork_url"].startswith("https://example.com/")
     assert blindtest["tracks"] == []
+
+
+def test_display_envelope_masks_culture_answer_before_validation() -> None:
+    envelope = build_client_envelope("game.config.snapshot", _culture_read_model(answered=False), "display")
+    question = envelope["payload"]["session"]["culture"]["current_question"]
+
+    assert question["question"]
+    assert question["answer"] == "Réponse masquée"
+    assert question["explanation"] == ""
+
+
+def test_display_envelope_reveals_culture_answer_without_explanation() -> None:
+    envelope = build_client_envelope("game.config.snapshot", _culture_read_model(answered=True), "display")
+    question = envelope["payload"]["session"]["culture"]["current_question"]
+
+    assert question["answer"] != "Réponse masquée"
+    assert question["explanation"] == ""
 
 
 def test_display_cannot_dispatch_controller_only_event() -> None:
@@ -79,5 +108,6 @@ def test_spotify_user_token_event_is_not_broadcast() -> None:
 
     assert result is None
     assert command_usecase.spotify_token == "spotify-user-token"
+
 
 

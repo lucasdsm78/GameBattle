@@ -7,11 +7,6 @@ from domain.game_config.repository.game_config_repository import GameConfigRepos
 
 
 class SessionCommandUseCase(GameConfigCommandBase):
-    """Commandes du cycle de vie de la partie : configuration, lancement, manches et classement.
-
-    Dépend du use case Blindtest car l'entrée dans une manche blindtest déclenche
-    l'auto-import best-effort de la playlist fixe.
-    """
 
     def __init__(self, repository: GameConfigRepository, blindtest: BlindtestCommandUseCase) -> None:
         super().__init__(repository)

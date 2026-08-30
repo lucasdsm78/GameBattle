@@ -16,11 +16,6 @@ from domain.game_config.model.game_config import (
 
 
 def game_config_from_payload(payload: dict) -> GameConfig:
-    """Hydrate l’agrégat GameConfig depuis le payload JSON persisté.
-
-    Ce mapper garde l’infrastructure responsable de la sérialisation, et évite de dupliquer la
-    logique entre PostgreSQL, SQLite de test et éventuel stockage fichier local.
-    """
     session_payload = payload.get("session", {})
     blindtest_payload = session_payload.get("blindtest", {})
     stopchrono_payload = session_payload.get("stopchrono", {})

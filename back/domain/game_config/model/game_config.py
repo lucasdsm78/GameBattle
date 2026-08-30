@@ -809,6 +809,8 @@ class GameConfig:
         culture = self._ensure_culture_active()
         if culture.phase != "question":
             raise InvalidGameConfigError("Commence d'abord la manche de culture générale.")
+        if not culture.answered:
+            raise InvalidGameConfigError("Valide d'abord une bonne réponse avant de passer à la question suivante.")
         next_index = culture.current_index + 1
         if next_index <= culture.total_questions:
             # On revient au choix de la difficulté pour la question suivante.
@@ -1022,12 +1024,6 @@ def compute_ranking(teams: list[str], manches_won: dict[str, int]) -> list[dict[
 
 
 def pick_blindtest_round_tracks(tracks: list[BlindtestTrack], count: int) -> list[BlindtestTrack]:
-    """Retourne exactement `count` titres pour une manche blindtest.
-
-    Le nombre de titres joués par manche ne dépend jamais de la taille de la playlist Spotify :
-    une playlist longue est mélangée puis tronquée, une playlist trop courte est refusée pour éviter
-    des répétitions ou une fin de manche impossible à comprendre côté UX.
-    """
     if len(tracks) < count:
         raise InvalidGameConfigError(f"La playlist blindtest doit contenir au moins {count} musiques.")
     shuffled = list(tracks)
