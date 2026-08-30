@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 class BlindtestCommandUseCase(GameConfigCommandBase):
-    """Commandes du jeu Blindtest : playlists, buzzers, réponses et lecture audio."""
 
     def __init__(
         self,
