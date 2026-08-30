@@ -32,8 +32,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws", tags=["realtime"])
 
 
-def _public_envelope(event_type: str, payload) -> dict:
-    """Construit l'enveloppe envoyée aux clients en retirant la séquence des prochains jeux."""
+def _public_envelope(event_type: str, payload, client_type: str) -> dict:
+    """Construit l'enveloppe envoyée aux clients en retirant les informations non publiques."""
     envelope = GameConfigEnvelope(type=event_type, payload=payload).model_dump()
     session = envelope.get("payload", {}).get("session")
     if isinstance(session, dict):
@@ -42,7 +42,29 @@ def _public_envelope(event_type: str, payload) -> dict:
         if isinstance(culture, dict):
             # On ne révèle pas toutes les questions/réponses à venir aux clients.
             culture.pop("questions", None)
+        blindtest = session.get("blindtest")
+        if client_type == "display" and isinstance(blindtest, dict):
+            # L'écran public ne doit pas recevoir la réponse complète avant validation.
+            # On conserve track_id pour permettre au Web Playback SDK de lancer le bon titre,
+            # mais on masque titre/artiste/pochette/preview et toute la liste des pistes à venir.
+            current_track = blindtest.get("current_track")
+            if not blindtest.get("revealed") and isinstance(current_track, dict):
+                blindtest["current_track"] = {
+                    **current_track,
+                    "title": "Titre masqué",
+                    "artist": "Artiste masqué",
+                    "preview_url": "",
+                    "artwork_url": "",
+                }
+            blindtest["tracks"] = []
     return envelope
+
+
+def _envelopes_by_client_type(event_type: str, payload) -> dict[str, dict]:
+    return {
+        "controller": _public_envelope(event_type, payload, "controller"),
+        "display": _public_envelope(event_type, payload, "display"),
+    }
 
 
 @router.websocket("/game-config")
@@ -63,7 +85,7 @@ async def game_config_websocket(
 
     try:
         current = await query_usecase.get_current()
-        await websocket.send_json(_public_envelope("game.config.snapshot", current))
+        await websocket.send_json(_public_envelope("game.config.snapshot", current, client_type))
 
         while True:
             raw_message = await websocket.receive_text()
@@ -154,8 +176,7 @@ async def game_config_websocket(
                 await websocket.send_json({"type": "error", "detail": "Erreur interne lors de la mise à jour."})
                 continue
 
-            event = _public_envelope("game.config.updated", updated)
-            await hub.broadcast_json(event)
+            await hub.broadcast_json_by_client_type(_envelopes_by_client_type("game.config.updated", updated))
     except WebSocketDisconnect:
         logger.info("game_config.websocket.disconnected", extra={"client_type": client_type})
     finally:

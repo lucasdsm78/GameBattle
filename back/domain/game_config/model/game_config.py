@@ -141,7 +141,7 @@ class BlindtestState:
             raise InvalidGameConfigError("Les scores du blindtest contiennent une équipe inconnue.")
         if self.current_buzzer_team and self.current_buzzer_team not in allowed_teams:
             raise InvalidGameConfigError("L'équipe qui a buzzé est inconnue.")
-        if self.winner_team and self.winner_team not in allowed_teams:
+        if self.winner_team and self.winner_team not in allowed_teams and self.winner_team != TIE_LABEL:
             raise InvalidGameConfigError("Le gagnant de manche est inconnu.")
         for track in self.tracks:
             track.validate()
@@ -158,7 +158,9 @@ class BlindtestState:
 
     @property
     def tracks_remaining(self) -> int:
-        return max(self.total_tracks - self.current_track_index, 0)
+        if self.winner_team or self.current_track is None:
+            return 0
+        return max(self.total_tracks - self.current_track_index + 1, 0)
 
 
 @dataclass(slots=True)
@@ -434,17 +436,12 @@ class GameConfig:
     ) -> "GameConfig":
         if self.session.active_round is None or self.session.active_round.game_key != "blindtest":
             raise InvalidGameConfigError("Aucune manche blindtest active n'est disponible.")
-        planned = next(
-            (plan.planned_track_count for plan in self.rounds if plan.id == self.session.active_round.round_id),
-            TRACKS_PER_RANDOM_BLINDTEST_ROUND,
-        )
-        if tracks:
-            tracks = random.sample(tracks, min(planned, len(tracks)))
+        tracks = pick_blindtest_round_tracks(tracks, TRACKS_PER_RANDOM_BLINDTEST_ROUND)
         active_index = min(max(self.session.blindtest.current_track_index, 1), len(tracks)) if tracks else 0
         current_track = tracks[active_index - 1] if active_index else None
         blindtest_state = BlindtestState(
             round_id=self.session.blindtest.round_id,
-            total_tracks=len(tracks),
+            total_tracks=TRACKS_PER_RANDOM_BLINDTEST_ROUND,
             current_track_index=active_index,
             current_track=current_track,
             current_buzzer_team=None,
@@ -618,6 +615,8 @@ class GameConfig:
         blindtest = self.session.blindtest
         if not blindtest.tracks:
             raise InvalidGameConfigError("Aucune playlist blindtest n'est chargée.")
+        if not blindtest.revealed:
+            raise InvalidGameConfigError("Valide d'abord une bonne réponse avant de passer à la musique suivante.")
 
         next_index = blindtest.current_track_index + 1
         winner_team = blindtest.winner_team
@@ -633,6 +632,7 @@ class GameConfig:
             winners = [team for team, score in blindtest.scores.items() if score == max_score]
             winner_team = winners[0] if len(winners) == 1 else TIE_LABEL
             next_index = blindtest.total_tracks
+            current_track = blindtest.current_track
             manche_finished = True
             manche_winner = winner_team
             if active_round is not None:
@@ -649,7 +649,7 @@ class GameConfig:
             current_track_index=next_index,
             current_track=current_track,
             current_buzzer_team=None,
-            revealed=False,
+            revealed=blindtest.revealed if winner_team else False,
             playback_state=playback_state,
             scores=dict(blindtest.scores),
             winner_team=winner_team,
@@ -923,7 +923,7 @@ class GameConfig:
             "status": self.status,
             "updated_at": self.updated_at,
             "summary": {
-                "round_count": self.session.total_rounds,
+                "round_count": self.session.total_rounds or self.settings.total_rounds,
                 "enabled_game_count": len([game for game in self.games if game.enabled]),
                 "teams": len(self.settings.teams),
             },
@@ -1015,6 +1015,20 @@ def compute_ranking(teams: list[str], manches_won: dict[str, int]) -> list[dict[
         ranking.append({"team": team, "manches_won": score, "rank": rank})
     # Inverse : dernier d'abord, premier en dernier.
     return list(reversed(ranking))
+
+
+def pick_blindtest_round_tracks(tracks: list[BlindtestTrack], count: int) -> list[BlindtestTrack]:
+    """Retourne exactement `count` titres pour une manche blindtest.
+
+    Le nombre de titres joués par manche ne dépend jamais de la taille de la playlist Spotify :
+    une playlist longue est mélangée puis tronquée, une playlist trop courte est refusée pour éviter
+    des répétitions ou une fin de manche impossible à comprendre côté UX.
+    """
+    if len(tracks) < count:
+        raise InvalidGameConfigError(f"La playlist blindtest doit contenir au moins {count} musiques.")
+    shuffled = list(tracks)
+    random.shuffle(shuffled)
+    return shuffled[:count]
 
 
 def build_default_buzzer_keys(team_count: int) -> list[str]:
