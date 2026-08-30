@@ -4,8 +4,9 @@ import asyncio
 import json
 from pathlib import Path
 
-from domain.game_config.model.game_config import GameConfig, GameRound, GameSettings, build_default_game_config
+from domain.game_config.model.game_config import GameConfig, build_default_game_config
 from domain.game_config.repository.game_config_repository import GameConfigRepository
+from infrastructure.game_config_payload_mapper import game_config_from_payload
 
 
 class FileGameConfigRepository(GameConfigRepository):
@@ -28,14 +29,7 @@ class FileGameConfigRepository(GameConfigRepository):
 
     def _read(self) -> GameConfig:
         payload = json.loads(self.state_file.read_text(encoding="utf-8"))
-        config = GameConfig(
-            settings=GameSettings(**payload["settings"]),
-            rounds=[GameRound(**round_payload) for round_payload in payload["rounds"]],
-            status=payload.get("status", "configuring"),
-            updated_at=payload.get("updated_at", ""),
-        )
-        config.validate()
-        return config
+        return game_config_from_payload(payload)
 
     async def _write(self, game_config: GameConfig) -> None:
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
