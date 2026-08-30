@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from application.blindtest.spotify_playlist_port import SpotifyPlaylistProvider
 from application.game_config.command.base import GameConfigCommandBase
 from application.game_config.game_config_models import (
     BlindtestAnswerCommandModel,
@@ -15,7 +16,6 @@ from application.game_config.game_config_models import (
 from domain.game_config.exception.game_config_exception import InvalidGameConfigError
 from domain.game_config.model.game_config import GameConfig, build_blindtest_track
 from domain.game_config.repository.game_config_repository import GameConfigRepository
-from infrastructure.spotify.spotify_playlist_service import SpotifyPlaylistService
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class BlindtestCommandUseCase(GameConfigCommandBase):
     def __init__(
         self,
         repository: GameConfigRepository,
-        spotify_playlist_service: SpotifyPlaylistService,
+        spotify_playlist_service: SpotifyPlaylistProvider,
         default_playlist_url: str = "",
     ) -> None:
         super().__init__(repository)

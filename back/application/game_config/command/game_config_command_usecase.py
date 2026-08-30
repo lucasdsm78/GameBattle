@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from application.blindtest.spotify_playlist_port import SpotifyPlaylistProvider
 from application.blindtest.blindtest_command_usecase import BlindtestCommandUseCase
 from application.culture.culture_command_usecase import CultureCommandUseCase
 from application.session.session_command_usecase import SessionCommandUseCase
@@ -18,7 +19,6 @@ from application.game_config.game_config_models import (
     SpotifyPlaylistImportCommandModel,
 )
 from domain.game_config.repository.game_config_repository import GameConfigRepository
-from infrastructure.spotify.spotify_playlist_service import SpotifyPlaylistService
 
 
 class GameConfigCommandUseCase(ABC):
@@ -97,7 +97,7 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     def __init__(
         self,
         repository: GameConfigRepository,
-        spotify_playlist_service: SpotifyPlaylistService,
+        spotify_playlist_service: SpotifyPlaylistProvider,
         default_playlist_url: str = "",
     ) -> None:
         self._blindtest = BlindtestCommandUseCase(repository, spotify_playlist_service, default_playlist_url)
