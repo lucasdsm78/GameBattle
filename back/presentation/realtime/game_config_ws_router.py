@@ -4,18 +4,15 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-from application.game_config.command import GameConfigCommandUseCase
 from application.game_config.game_config_models import GameConfigReadModel
-from application.game_config.game_config_query_usecase import GameConfigQueryUseCase
-from dependency_injections import (
+from presentation.dependencies import (
+    GameConfigCommandDep,
+    GameConfigQueryDep,
+    WebSocketHubDep,
     authorize_client,
-    game_config_command_usecase,
-    game_config_query_usecase,
-    websocket_hub_singleton,
 )
-from infrastructure.realtime.websocket_hub import WebSocketHub
 from presentation.realtime.game_config_ws_handler import (
     build_broadcast_envelopes,
     build_client_envelope,
@@ -29,11 +26,11 @@ router = APIRouter(prefix="/ws", tags=["realtime"])
 @router.websocket("/game-config")
 async def game_config_websocket(
     websocket: WebSocket,
+    hub: WebSocketHubDep,
+    query_usecase: GameConfigQueryDep,
+    command_usecase: GameConfigCommandDep,
     client_type: str = Query(..., pattern="^(controller|display)$"),
     token: Optional[str] = Query(default=None),
-    hub: WebSocketHub = Depends(websocket_hub_singleton),
-    query_usecase: GameConfigQueryUseCase = Depends(game_config_query_usecase),
-    command_usecase: GameConfigCommandUseCase = Depends(game_config_command_usecase),
 ) -> None:
     if not authorize_client(client_type=client_type, token=token):
         await websocket.close(code=1008, reason="unauthorized")
