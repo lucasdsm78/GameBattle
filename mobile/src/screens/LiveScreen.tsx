@@ -65,7 +65,7 @@ export function LiveScreen({
       </Pressable>
 
       <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>Blindtest en direct</Text>
+        <Text style={styles.eyebrow}>Live</Text>
         <Text style={styles.title}>{snapshot.settings.game_title}</Text>
         <View style={styles.badgeRow}>
           <View style={styles.badge}>

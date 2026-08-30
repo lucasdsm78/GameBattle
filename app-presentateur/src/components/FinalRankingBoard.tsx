@@ -15,7 +15,7 @@ export function FinalRankingBoard({ gameConfig, connectionState }: Props) {
     <main className="screen blindtest-screen">
       <section className="hero glass-card">
         <div>
-          <p className="eyebrow">Partie terminée</p>
+          <p className="eyebrow">Résultats</p>
           <h1>Classement final</h1>
           <p className="meta">
             <span>{gameConfig.settings.game_title}</span>

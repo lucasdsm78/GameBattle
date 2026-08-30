@@ -46,7 +46,7 @@ export function PlaylistSetupScreen({
       </Pressable>
 
       <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>Blindtest</Text>
+        <Text style={styles.eyebrow}>Préparation</Text>
         <Text style={styles.title}>Playlist fixe</Text>
         <Text style={styles.subtitle}>
           GameBattle utilise toujours la playlist configurée côté serveur. Une manche blindtest jouera exactement 10 musiques,
@@ -106,5 +106,6 @@ export function PlaylistSetupScreen({
     </>
   );
 }
+
 
 
