@@ -984,18 +984,22 @@ def _round_robin(pool: list[str], counts: dict[str, int]) -> list[str]:
 
 
 def _shuffle_spread(counts: dict[str, int]) -> list[str]:
-    items: list[str] = []
-    for key, value in counts.items():
-        items.extend([key] * value)
-    random.shuffle(items)
-    # Réduit les répétitions consécutives quand c'est possible (« pas retomber souvent sur le même »).
-    for i in range(1, len(items)):
-        if items[i] == items[i - 1]:
-            for j in range(i + 1, len(items)):
-                if items[j] != items[i - 1]:
-                    items[i], items[j] = items[j], items[i]
-                    break
-    return items
+    remaining = dict(counts)
+    sequence: list[str] = []
+
+    while any(value > 0 for value in remaining.values()):
+        previous = sequence[-1] if sequence else None
+        candidates = [(game_key, count) for game_key, count in remaining.items() if count > 0 and game_key != previous]
+        if not candidates:
+            candidates = [(game_key, count) for game_key, count in remaining.items() if count > 0]
+
+        max_remaining = max(count for _, count in candidates)
+        best_candidates = [game_key for game_key, count in candidates if count == max_remaining]
+        picked = random.choice(best_candidates)
+        sequence.append(picked)
+        remaining[picked] -= 1
+
+    return sequence
 
 
 def compute_ranking(teams: list[str], manches_won: dict[str, int]) -> list[dict[str, Any]]:

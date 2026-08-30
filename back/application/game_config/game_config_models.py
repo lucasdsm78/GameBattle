@@ -71,6 +71,11 @@ class GameConfigReadModel(BaseModel):
     @classmethod
     def from_domain(cls, game_config: GameConfig) -> "GameConfigReadModel":
         payload = game_config.to_dict()
+        session = payload.get("session")
+        if isinstance(session, dict):
+            # La séquence complète des prochains jeux reste persistée dans l'agrégat, mais ne doit
+            # jamais être exposée aux clients (mobile, écran, API HTTP) pour préserver la surprise.
+            session.pop("round_sequence", None)
         return cls(**payload)
 
 

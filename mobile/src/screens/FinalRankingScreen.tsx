@@ -18,7 +18,7 @@ export function FinalRankingScreen({ snapshot, onRevealNext, onBack }: Props) {
   return (
     <>
       <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>Partie terminée</Text>
+        <Text style={styles.eyebrow}>Résultats</Text>
         <Text style={styles.title}>Classement final</Text>
         <Text style={styles.helperText}>
           {session.total_rounds} manches jouées. Appuie sur « Suivant » pour révéler chaque équipe, du dernier au premier.

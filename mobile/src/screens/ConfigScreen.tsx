@@ -113,7 +113,7 @@ export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, o
   return (
     <>
       <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>GameBattle Controller</Text>
+        <Text style={styles.eyebrow}>Configuration</Text>
         <Text style={styles.title}>Configuration de la partie</Text>
         <Text style={styles.subtitle}>Choisis le jeu, règle le mode et les équipes, puis valide pour lancer la partie.</Text>
         <View style={styles.badgeRow}>
@@ -125,7 +125,7 @@ export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, o
       </View>
 
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Partie</Text>
+        <Text style={styles.sectionTitle}>Réglages</Text>
         <Field label="Titre de la partie" value={draft.settings.game_title} onChangeText={updateTitle} />
 
         <View style={styles.switchRow}>

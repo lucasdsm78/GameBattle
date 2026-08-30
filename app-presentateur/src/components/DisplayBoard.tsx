@@ -289,7 +289,7 @@ export function DisplayBoard({
       <main className="screen blindtest-screen">
       <section className="hero glass-card">
         <div>
-          <p className="eyebrow">Blindtest live</p>
+          <p className="eyebrow">Live</p>
           <h1>{settings.game_title}</h1>
           <p className="meta">
             <span>Mode {settings.random_round_order ? 'aléatoire' : 'manuel'}</span>
