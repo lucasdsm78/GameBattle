@@ -39,6 +39,11 @@ def build_client_envelope(event_type: str, payload: GameConfigReadModel, client_
     culture = session.get("culture")
     if isinstance(culture, dict):
         culture.pop("questions", None)
+        current_question = culture.get("current_question")
+        if client_type == "display" and isinstance(current_question, dict):
+            if not culture.get("answered"):
+                current_question["answer"] = "Réponse masquée"
+            current_question["explanation"] = ""
 
     blindtest = session.get("blindtest")
     if client_type == "display" and isinstance(blindtest, dict):
@@ -134,4 +139,5 @@ async def dispatch_game_config_event(
     except Exception:
         logger.exception("game_config.websocket.dispatch_failed", extra={"event_type": event_type})
         return {"type": "error", "detail": "Erreur interne lors de la mise à jour."}
+
 
