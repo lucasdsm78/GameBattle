@@ -89,10 +89,6 @@ class GameConfigCommandUseCase(ABC):
 
 
 class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
-    """Façade qui expose le contrat unifié en déléguant à un use case par jeu.
-
-    Tous les sous-use-cases partagent le même agrégat GameConfig via le dépôt injecté.
-    """
 
     def __init__(
         self,

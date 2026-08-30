@@ -10,8 +10,6 @@ from application.game_config.game_config_models import (
 
 
 class CultureCommandUseCase(GameConfigCommandBase):
-    """Commandes du jeu Culture : difficulté, buzzers, réponses et progression des questions."""
-
     async def start(self) -> GameConfigReadModel:
         return await self._mutate(lambda config: config.start_culture())
 
