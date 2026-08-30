@@ -11,7 +11,6 @@ from application.game_config.command import (
 from application.game_config.game_config_query_usecase import GameConfigQueryUseCase, GameConfigQueryUseCaseImpl
 from domain.game_config.repository.game_config_repository import GameConfigRepository
 from infrastructure.config import Settings
-from infrastructure.postgresql.database import configure_database
 from infrastructure.postgresql.game_config.postgresql_game_config_repository import PostgreSQLGameConfigRepository
 from infrastructure.realtime.websocket_hub import WebSocketHub
 from infrastructure.spotify.spotify_playlist_service import SpotifyPlaylistService
@@ -19,14 +18,11 @@ from infrastructure.spotify.spotify_playlist_service import SpotifyPlaylistServi
 
 @lru_cache()
 def get_settings() -> Settings:
-    settings = Settings()
-    configure_database(settings)
-    return settings
+    return Settings()
 
 
 @lru_cache()
 def game_config_repository_singleton() -> GameConfigRepository:
-    get_settings()
     return PostgreSQLGameConfigRepository()
 
 
@@ -60,14 +56,26 @@ def game_config_query_usecase() -> GameConfigQueryUseCase:
 def authorize_client(client_type: str, token: Optional[str]) -> bool:
     settings = get_settings()
     if client_type == "controller":
-        return bool(token) and secrets.compare_digest(token, settings.controller_token)
+        return _constant_time_equals(token, settings.controller_token)
     if client_type == "display":
-        return bool(token) and secrets.compare_digest(token, settings.display_token)
+        return _constant_time_equals(token, settings.display_token)
     return False
 
 
 def authorize_hardware_token(token: Optional[str]) -> bool:
     settings = get_settings()
-    return bool(token) and secrets.compare_digest(token, settings.hardware_token)
+    return _constant_time_equals(token, settings.hardware_token)
+
+
+def _constant_time_equals(candidate: Optional[str], expected: str) -> bool:
+    return bool(candidate) and secrets.compare_digest(candidate, expected)
+
+
+def reset_dependency_caches() -> None:
+    """Réinitialise les singletons applicatifs pour les tests ou les changements d'environnement."""
+    get_settings.cache_clear()
+    game_config_repository_singleton.cache_clear()
+    websocket_hub_singleton.cache_clear()
+    spotify_playlist_service_singleton.cache_clear()
 
 

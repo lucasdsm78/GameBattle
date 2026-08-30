@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -34,6 +34,19 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_environment(cls, value: str) -> str:
         return value.strip().lower()
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        if self.is_production:
+            default_tokens = {
+                "controller_token": "change-me-controller",
+                "display_token": "change-me-display",
+                "hardware_token": "change-me-hardware",
+            }
+            for field_name, default_value in default_tokens.items():
+                if getattr(self, field_name) == default_value:
+                    raise ValueError(f"{field_name} doit être changé en production.")
+        return self
 
     @property
     def cors_allowed_origins_list(self) -> list[str]:
