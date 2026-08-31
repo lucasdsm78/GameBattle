@@ -42,6 +42,9 @@ export type BombeState = {
   deadline_at_ms: number;
   exploded_team: string | null;
   winner_team: string | null;
+  scores: Record<string, number>;
+  eligible_team_indices: number[];
+  tiebreak_round: number;
 };
 
 export type RankingEntry = {

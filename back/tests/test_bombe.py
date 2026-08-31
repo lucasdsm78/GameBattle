@@ -42,6 +42,8 @@ def test_bombe_start_uses_secret_bounded_timer_and_random_team() -> None:
     assert bombe.turn_history == [2]
     assert bombe.started_at_ms == 1_000_000
     assert BOMBE_MIN_DURATION_MS <= bombe.deadline_at_ms - bombe.started_at_ms <= BOMBE_MAX_DURATION_MS
+    assert bombe.scores == {"Rouges": 0, "Bleus": 0, "Verts": 0}
+    assert bombe.eligible_team_indices == [0, 1, 2]
 
 
 def test_bombe_only_current_team_can_pass_then_presenter_can_go_back() -> None:
@@ -73,7 +75,7 @@ def test_bombe_cannot_go_back_without_previous_team() -> None:
 
 
 def test_bombe_rejects_early_explosion_and_explodes_at_exact_deadline() -> None:
-    config = _bombe_config(teams=["Rouges", "Bleus", "Verts"])
+    config = _bombe_config(teams=["Rouges", "Bleus"])
     with (
         patch("domain.game_config.model.game_config.random.randrange", return_value=0),
         patch("domain.game_config.model.game_config.random.randint", return_value=BOMBE_MIN_DURATION_MS),
@@ -88,11 +90,44 @@ def test_bombe_rejects_early_explosion_and_explodes_at_exact_deadline() -> None:
     assert exploded.session.bombe.phase == "exploded"
     assert exploded.session.bombe.exploded_team == "Bleus"
     assert exploded.session.bombe.winner_team == "Rouges"
+    assert exploded.session.bombe.scores == {"Rouges": 0, "Bleus": 1}
     assert exploded.session.manche_finished is True
     assert exploded.session.manche_winner == "Rouges"
     assert exploded.session.active_round is not None
     assert exploded.session.active_round.completed is True
     assert exploded.explode_bombe(now_ms=exploded.session.bombe.deadline_at_ms + 1) is exploded
+
+
+def test_bombe_tiebreak_keeps_lowest_scores_until_one_winner_remains() -> None:
+    config = _bombe_config(teams=["Rouges", "Bleus", "Verts"])
+    with patch("domain.game_config.model.game_config.random.randrange", return_value=0):
+        started = config.start_bombe(now_ms=20_000)
+    passed = started.register_bombe_buzzer("Rouges", now_ms=20_001)
+
+    tied = passed.explode_bombe(now_ms=passed.session.bombe.deadline_at_ms)
+
+    assert tied.session.bombe.scores == {"Rouges": 0, "Bleus": 1, "Verts": 0}
+    assert tied.session.bombe.eligible_team_indices == [0, 2]
+    assert tied.session.bombe.winner_team is None
+    assert tied.session.manche_finished is False
+    assert tied.session.active_round is not None
+    assert tied.session.active_round.completed is False
+
+    with patch("domain.game_config.model.game_config.random.randrange", return_value=0):
+        restarted = tied.start_bombe(now_ms=tied.session.bombe.deadline_at_ms + 1)
+
+    assert restarted.session.bombe.tiebreak_round == 1
+    assert restarted.session.bombe.current_team_index == 0
+    assert restarted.session.bombe.scores == tied.session.bombe.scores
+    assert restarted.session.bombe.eligible_team_indices == [0, 2]
+
+    decided = restarted.explode_bombe(now_ms=restarted.session.bombe.deadline_at_ms)
+
+    assert decided.session.bombe.scores == {"Rouges": 1, "Bleus": 1, "Verts": 0}
+    assert decided.session.bombe.eligible_team_indices == [2]
+    assert decided.session.bombe.winner_team == "Verts"
+    assert decided.session.manche_finished is True
+    assert decided.session.manche_winner == "Verts"
 
 
 def test_late_buzz_explodes_instead_of_passing_the_bombe() -> None:
@@ -116,6 +151,20 @@ def test_bombe_payload_round_trip_preserves_running_state() -> None:
     assert restored.session.bombe == passed.session.bombe
     assert restored.session.round_sequence == passed.session.round_sequence
     assert restored.to_dict()["session"]["bombe"] == passed.to_dict()["session"]["bombe"]
+
+
+def test_legacy_running_bombe_payload_initializes_scores_and_eligible_teams() -> None:
+    started = _bombe_config(teams=["Rouges", "Bleus", "Verts"]).start_bombe(now_ms=45_000)
+    payload = started.to_dict()
+    payload["session"]["bombe"].pop("scores")
+    payload["session"]["bombe"].pop("eligible_team_indices")
+    payload["session"]["bombe"].pop("tiebreak_round")
+
+    restored = game_config_from_payload(payload)
+
+    assert restored.session.bombe.scores == {"Rouges": 0, "Bleus": 0, "Verts": 0}
+    assert restored.session.bombe.eligible_team_indices == [0, 1, 2]
+    assert restored.session.bombe.tiebreak_round == 0
 
 
 def test_bombe_winner_is_counted_in_final_ranking() -> None:

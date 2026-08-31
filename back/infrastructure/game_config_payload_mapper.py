@@ -17,6 +17,7 @@ from domain.game_config.model.game_config import (
 
 
 def game_config_from_payload(payload: dict) -> GameConfig:
+    teams_payload = list(payload["settings"].get("teams", []))
     session_payload = payload.get("session", {})
     blindtest_payload = session_payload.get("blindtest", {})
     stopchrono_payload = session_payload.get("stopchrono", {})
@@ -28,7 +29,7 @@ def game_config_from_payload(payload: dict) -> GameConfig:
         settings=GameSettings(
             game_title=payload["settings"].get("game_title", "GameBattle Night"),
             random_round_order=payload["settings"].get("random_round_order", True),
-            teams=payload["settings"].get("teams", []),
+            teams=teams_payload,
             buzzer_keys=payload["settings"].get("buzzer_keys", []),
             total_rounds=payload["settings"].get("total_rounds", 1),
             culture_difficulty=payload["settings"].get("culture_difficulty", "toutes"),
@@ -99,6 +100,12 @@ def game_config_from_payload(payload: dict) -> GameConfig:
                 deadline_at_ms=bombe_payload.get("deadline_at_ms", 0),
                 exploded_team=bombe_payload.get("exploded_team"),
                 winner_team=bombe_payload.get("winner_team"),
+                scores=bombe_payload.get("scores", {}) or {team: 0 for team in teams_payload},
+                eligible_team_indices=list(
+                    bombe_payload.get("eligible_team_indices", [])
+                    or (range(len(teams_payload)) if bombe_payload.get("phase") == "running" else [])
+                ),
+                tiebreak_round=bombe_payload.get("tiebreak_round", 0),
             ),
             round_sequence=list(session_payload.get("round_sequence", []) or []),
             round_index=session_payload.get("round_index", 0),
@@ -115,4 +122,3 @@ def game_config_from_payload(payload: dict) -> GameConfig:
     )
     config.validate()
     return config
-
