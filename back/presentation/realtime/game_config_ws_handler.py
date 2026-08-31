@@ -103,6 +103,8 @@ async def dispatch_game_config_event(
     try:
         if event_type == "game.config.replace":
             return await command_usecase.replace_config(GameConfigUpsertModel(**payload))
+        if event_type == "game.config.validate-and-launch":
+            return await command_usecase.validate_and_launch(GameConfigUpsertModel(**payload))
         if event_type == "game.config.launch":
             return await command_usecase.launch_game()
         if event_type == "blindtest.playlist.load":
@@ -155,4 +157,3 @@ async def dispatch_game_config_event(
     except Exception:
         logger.exception("game_config.websocket.dispatch_failed", extra={"event_type": event_type})
         return {"type": "error", "detail": "Erreur interne lors de la mise à jour."}
-

@@ -378,9 +378,10 @@ def test_websocket_bombe_flow_accepts_and_broadcasts_hardware_buzzer() -> None:
 
             with client.websocket_connect("/ws/game-config?client_type=controller&token=controller-test-token") as controller_ws:
                 controller_ws.receive_json()
-                controller_ws.send_json({"type": "game.config.launch"})
-                controller_ws.receive_json()
+                controller_ws.send_json({"type": "game.config.validate-and-launch", "payload": _bombe_payload()})
+                launched_controller = controller_ws.receive_json()
                 launch_display = display_ws.receive_json()
+                assert launched_controller["payload"]["session"]["active_round"]["game_key"] == "bombe"
                 assert launch_display["payload"]["session"]["active_round"]["game_key"] == "bombe"
 
                 controller_ws.send_json({"type": "bombe.start"})
@@ -404,4 +405,22 @@ def test_websocket_bombe_flow_accepts_and_broadcasts_hardware_buzzer() -> None:
                 assert next_index != bombe["current_team_index"]
                 assert hardware_controller["payload"]["session"]["bombe"]["current_team_index"] == next_index
                 assert hardware_display["payload"]["session"]["bombe"]["current_team_index"] == next_index
+
+
+def test_atomic_validation_failure_does_not_launch_previous_config() -> None:
+    with TestClient(app) as client:
+        client.put("/api/game-config/current", json=_payload())
+        invalid_payload = _bombe_payload()
+        invalid_payload["games"][0]["enabled"] = False
+
+        with client.websocket_connect("/ws/game-config?client_type=controller&token=controller-test-token") as controller_ws:
+            controller_ws.receive_json()
+            controller_ws.send_json({"type": "game.config.validate-and-launch", "payload": invalid_payload})
+            error = controller_ws.receive_json()
+
+        current = client.get("/api/game-config/current").json()
+        assert error["type"] == "error"
+        assert current["status"] == "ready"
+        assert current["session"]["active_round"] is None
+        assert [(game["game_key"], game["enabled"]) for game in current["games"]] == [("blindtest", True)]
 

@@ -14,13 +14,14 @@ import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
 
-type Step = 'config' | 'playlist' | 'live';
+type Step = 'config' | 'launching' | 'playlist' | 'live';
 
 export default function App() {
   const { draft, remoteSnapshot, connectionState, errorMessage, setDraft, setRemoteSnapshot, setConnectionState, setErrorMessage } =
     useGameConfigStore();
   // On démarre toujours sur l'écran de configuration.
   const [step, setStep] = useState<Step>('config');
+  const [launchBaselineUpdatedAt, setLaunchBaselineUpdatedAt] = useState<string | null>(null);
 
   useEffect(() => {
     socket.connect({
@@ -32,15 +33,31 @@ export default function App() {
   }, [setConnectionState, setErrorMessage, setRemoteSnapshot]);
 
   const validateConfig = () => {
-    socket.replaceConfig({ ...draft, status: 'ready' });
-    socket.launchGame();
-    setStep('playlist');
+    setErrorMessage(null);
+    setLaunchBaselineUpdatedAt(remoteSnapshot?.updated_at ?? '');
+    setStep('launching');
+    socket.validateAndLaunch({ ...draft, status: 'ready' });
   };
 
   const session = remoteSnapshot?.session;
   const activeGameKey = session?.active_round?.game_key;
   const partyFinished = remoteSnapshot?.status === 'finished';
   const mancheFinished = Boolean(session?.manche_finished) && !partyFinished;
+
+  useEffect(() => {
+    if (
+      step !== 'launching'
+      || !remoteSnapshot
+      || remoteSnapshot.updated_at === launchBaselineUpdatedAt
+      || remoteSnapshot.status !== 'live'
+      || !activeGameKey
+    ) {
+      return;
+    }
+
+    setLaunchBaselineUpdatedAt(null);
+    setStep(activeGameKey === 'blindtest' ? 'playlist' : 'live');
+  }, [activeGameKey, launchBaselineUpdatedAt, remoteSnapshot, step]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -55,6 +72,20 @@ export default function App() {
             errorMessage={errorMessage}
             onValidate={validateConfig}
           />
+        ) : null}
+
+        {step === 'launching' ? (
+          <>
+            <Pressable style={styles.backButton} onPress={() => setStep('config')}>
+              <Text style={styles.backButtonText}>‹ Modifier la configuration</Text>
+            </Pressable>
+            <View style={styles.heroCard}>
+              <Text style={styles.eyebrow}>Préparation</Text>
+              <Text style={styles.title}>Tirage de la première manche…</Text>
+              <Text style={styles.subtitle}>Le backend prépare le jeu et synchronise les deux écrans.</Text>
+              {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+            </View>
+          </>
         ) : null}
 
         {step === 'playlist' ? (

@@ -1,7 +1,17 @@
 import { create } from 'zustand';
-import { GameConfigSnapshot } from '../types/gameConfig';
+import { GameConfigSnapshot, GameDefinition } from '../types/gameConfig';
 
 type GameDraft = Pick<GameConfigSnapshot, 'settings' | 'games' | 'rounds' | 'status'>;
+
+const GAME_CATALOG: GameDefinition[] = [
+  { game_key: 'blindtest', label: 'Blindtest', enabled: true, round_count: 0 },
+  { game_key: 'stopchrono', label: 'Stop Chrono', enabled: false, round_count: 0 },
+  { game_key: 'culture', label: 'Culture générale', enabled: false, round_count: 0 },
+  { game_key: 'bombe', label: 'La Bombe', enabled: false, round_count: 0 },
+];
+
+const withCompleteGameCatalog = (games: GameDefinition[]): GameDefinition[] =>
+  GAME_CATALOG.map((fallback) => games.find((game) => game.game_key === fallback.game_key) ?? fallback);
 
 const defaultDraft: GameDraft = {
   settings: {
@@ -12,11 +22,7 @@ const defaultDraft: GameDraft = {
     total_rounds: 4,
     culture_difficulty: 'toutes',
   },
-  games: [
-    { game_key: 'blindtest', label: 'Blindtest', enabled: true, round_count: 0 },
-    { game_key: 'stopchrono', label: 'Stop Chrono', enabled: false, round_count: 0 },
-    { game_key: 'culture', label: 'Culture générale', enabled: false, round_count: 0 },
-  ],
+  games: GAME_CATALOG,
   rounds: [],
   status: 'configuring',
 };
@@ -43,7 +49,7 @@ export const useGameConfigStore = create<State>((set) => ({
       remoteSnapshot,
       draft: {
         settings: remoteSnapshot.settings,
-        games: remoteSnapshot.games,
+        games: withCompleteGameCatalog(remoteSnapshot.games),
         rounds: remoteSnapshot.rounds,
         status: remoteSnapshot.status,
       },
