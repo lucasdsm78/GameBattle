@@ -21,7 +21,6 @@ export default function App() {
     useGameConfigStore();
   // On démarre toujours sur l'écran de configuration.
   const [step, setStep] = useState<Step>('config');
-  const [launchBaselineUpdatedAt, setLaunchBaselineUpdatedAt] = useState<string | null>(null);
 
   useEffect(() => {
     socket.connect({
@@ -32,32 +31,26 @@ export default function App() {
     return () => socket.disconnect();
   }, [setConnectionState, setErrorMessage, setRemoteSnapshot]);
 
-  const validateConfig = () => {
+  const validateConfig = async () => {
     setErrorMessage(null);
-    setLaunchBaselineUpdatedAt(remoteSnapshot?.updated_at ?? '');
     setStep('launching');
-    socket.validateAndLaunch({ ...draft, status: 'ready' });
+    try {
+      const launched = await socket.validateAndLaunch({ ...draft, status: 'ready' });
+      const launchedGameKey = launched.session.active_round?.game_key;
+      if (!launchedGameKey) {
+        throw new Error('Le backend n’a retourné aucune manche active.');
+      }
+      setStep(launchedGameKey === 'blindtest' ? 'playlist' : 'live');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Impossible de lancer la partie.');
+      setStep('config');
+    }
   };
 
   const session = remoteSnapshot?.session;
   const activeGameKey = session?.active_round?.game_key;
   const partyFinished = remoteSnapshot?.status === 'finished';
   const mancheFinished = Boolean(session?.manche_finished) && !partyFinished;
-
-  useEffect(() => {
-    if (
-      step !== 'launching'
-      || !remoteSnapshot
-      || remoteSnapshot.updated_at === launchBaselineUpdatedAt
-      || remoteSnapshot.status !== 'live'
-      || !activeGameKey
-    ) {
-      return;
-    }
-
-    setLaunchBaselineUpdatedAt(null);
-    setStep(activeGameKey === 'blindtest' ? 'playlist' : 'live');
-  }, [activeGameKey, launchBaselineUpdatedAt, remoteSnapshot, step]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

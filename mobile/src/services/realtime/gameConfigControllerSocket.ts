@@ -12,6 +12,13 @@ type Handlers = {
   onError: (message: string) => void;
 };
 
+type PendingLaunch = {
+  enabledGamesSignature: string;
+  resolve: (snapshot: GameConfigSnapshot) => void;
+  reject: (error: Error) => void;
+  timeout: ReturnType<typeof setTimeout>;
+};
+
 const extra = (Constants.expoConfig?.extra ?? {}) as {
   backendWsUrl?: string;
   controllerToken?: string;
@@ -28,6 +35,14 @@ export class GameConfigControllerSocket {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private handlers: Handlers | null = null;
   private shouldReconnect = true;
+  private pendingLaunch: PendingLaunch | null = null;
+
+  private rejectPendingLaunch(message: string): void {
+    if (!this.pendingLaunch) return;
+    clearTimeout(this.pendingLaunch.timeout);
+    this.pendingLaunch.reject(new Error(message));
+    this.pendingLaunch = null;
+  }
 
   private closeSocket(): void {
     if (this.socket) {
@@ -60,9 +75,26 @@ export class GameConfigControllerSocket {
         const message = JSON.parse(event.data) as GameConfigMessage;
         if (message.payload) {
           handlers.onSnapshot(message.payload);
+          const enabledGamesSignature = message.payload.games
+            .filter((game) => game.enabled)
+            .map((game) => game.game_key)
+            .sort()
+            .join(',');
+          if (
+            this.pendingLaunch
+            && message.payload.status === 'live'
+            && message.payload.session.active_round
+            && enabledGamesSignature === this.pendingLaunch.enabledGamesSignature
+          ) {
+            const pending = this.pendingLaunch;
+            clearTimeout(pending.timeout);
+            this.pendingLaunch = null;
+            pending.resolve(message.payload);
+          }
         }
         if (message.type === 'error' && message.detail) {
           handlers.onError(message.detail);
+          this.rejectPendingLaunch(message.detail);
         }
       } catch {
         handlers.onError('Réponse WebSocket invalide.');
@@ -71,6 +103,7 @@ export class GameConfigControllerSocket {
     this.socket.onerror = () => handlers.onError('Connexion WebSocket indisponible.');
     this.socket.onclose = (event) => {
       handlers.onStatusChange('disconnected');
+      this.rejectPendingLaunch('Connexion au backend interrompue pendant le lancement.');
       if (event.code === 1008) {
         handlers.onError('Connexion refusée : vérifie le jeton contrôleur du mobile.');
       } else if (event.code !== 1000) {
@@ -89,8 +122,29 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'game.config.replace', payload: config });
   }
 
-  validateAndLaunch(config: GameDraft): void {
-    this.sendMessage({ type: 'game.config.validate-and-launch', payload: config });
+  validateAndLaunch(config: GameDraft): Promise<GameConfigSnapshot> {
+    if (this.socket?.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new Error('Le backend n’est pas connecté. Réessaie dans quelques secondes.'));
+    }
+    this.rejectPendingLaunch('Une nouvelle demande de lancement remplace la précédente.');
+    const enabledGamesSignature = config.games
+      .filter((game) => game.enabled)
+      .map((game) => game.game_key)
+      .sort()
+      .join(',');
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        if (this.pendingLaunch?.reject !== reject) return;
+        this.pendingLaunch = null;
+        reject(new Error('Le lancement prend trop de temps. Vérifie la connexion puis réessaie.'));
+      }, 10_000);
+      this.pendingLaunch = { enabledGamesSignature, resolve, reject, timeout };
+      this.socket?.send(JSON.stringify({
+        type: 'game.config.validate-and-launch',
+        payload: { ...config, rounds: [] },
+      }));
+    });
   }
 
   launchGame(): void {
@@ -189,6 +243,7 @@ export class GameConfigControllerSocket {
 
   disconnect(): void {
     this.shouldReconnect = false;
+    this.rejectPendingLaunch('Connexion fermée pendant le lancement.');
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
