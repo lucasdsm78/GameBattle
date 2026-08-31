@@ -50,7 +50,9 @@ export const useGameConfigStore = create<State>((set) => ({
       draft: {
         settings: remoteSnapshot.settings,
         games: withCompleteGameCatalog(remoteSnapshot.games),
-        rounds: remoteSnapshot.rounds,
+        // La séquence est générée au lancement depuis les jeux activés et total_rounds.
+        // Ne pas réinjecter d'anciens templates liés à des jeux désormais désactivés.
+        rounds: [],
         status: remoteSnapshot.status,
       },
       errorMessage: null,
