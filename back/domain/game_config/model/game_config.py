@@ -19,8 +19,11 @@ STOPCHRONO_MAX_TARGET_MS = 25000
 STOPCHRONO_PHASES = {"idle", "running", "revealed", "finished"}
 CULTURE_QUESTIONS_PER_ROUND = 10
 CULTURE_PHASES = {"idle", "selecting", "question", "finished"}
-BOMBE_PHASES = {"idle", "running", "exploded"}
+BOMBE_PHASES = {"idle", "awaiting_roll", "rolling", "running", "exploded"}
 BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
+BOMBE_SOUNDS = ("OL", "SEL", "NA", "TA")
+BOMBE_DIE_RESULTS = ("TIC", "TAC", "BOUM")
+BOMBE_DIE_ROLL_MS = 2_500
 BOMBE_MIN_DURATION_MS = 30_000
 BOMBE_MAX_DURATION_MS = 75_000
 ALLOWED_CULTURE_DIFFICULTIES = {"toutes", *CULTURE_DIFFICULTIES}
@@ -248,6 +251,10 @@ class BombeState:
     scores: dict[str, int] = field(default_factory=dict)
     eligible_team_indices: list[int] = field(default_factory=list)
     tiebreak_round: int = 0
+    sound: str = ""
+    die_result: str = ""
+    roller_team_index: Optional[int] = None
+    die_reveal_at_ms: int = 0
 
     def validate(self, teams: list[str]) -> None:
         allowed_teams = set(teams)
@@ -277,6 +284,18 @@ class BombeState:
             raise InvalidGameConfigError("La partie de La Bombe doit opposer au moins deux équipes en lice.")
         if self.tiebreak_round < 0:
             raise InvalidGameConfigError("Le numéro de départage de La Bombe est invalide.")
+        if self.sound and self.sound not in BOMBE_SOUNDS:
+            raise InvalidGameConfigError("Le son de La Bombe est invalide.")
+        if self.die_result and self.die_result not in BOMBE_DIE_RESULTS:
+            raise InvalidGameConfigError("Le résultat du dé de La Bombe est invalide.")
+        if self.roller_team_index is not None and self.roller_team_index not in self.eligible_team_indices:
+            raise InvalidGameConfigError("Le lanceur du dé de La Bombe est invalide.")
+        if self.phase in {"awaiting_roll", "rolling"} and self.roller_team_index is None:
+            raise InvalidGameConfigError("Aucune équipe n'est désignée pour lancer le dé de La Bombe.")
+        if self.phase == "rolling" and not self.die_result:
+            raise InvalidGameConfigError("Le dé de La Bombe doit avoir un résultat secret.")
+        if self.die_reveal_at_ms < 0:
+            raise InvalidGameConfigError("Le timer du dé de La Bombe est invalide.")
 
 
 @dataclass(slots=True)
@@ -311,6 +330,7 @@ class GameSession:
     manche_winner: Optional[str] = None
     final_ranking: list[dict[str, Any]] = field(default_factory=list)
     ranking_reveal_count: int = 0
+    last_bombe_roller_index: Optional[int] = None
     updated_at: str = field(default_factory=utc_now_iso)
 
     def validate(self, teams: list[str]) -> None:
@@ -327,6 +347,8 @@ class GameSession:
             raise InvalidGameConfigError("Le gagnant de manche est inconnu.")
         if any(game_key not in SUPPORTED_GAME_KEYS for game_key in self.round_sequence):
             raise InvalidGameConfigError("La séquence de manches contient un jeu non supporté.")
+        if self.last_bombe_roller_index is not None and not 0 <= self.last_bombe_roller_index < len(teams):
+            raise InvalidGameConfigError("Le dernier lanceur du dé de La Bombe est invalide.")
 
 
 @dataclass(slots=True)
@@ -907,27 +929,51 @@ class GameConfig:
         )
         if len(eligible_indices) < 2:
             raise InvalidGameConfigError("Au moins deux équipes sont requises pour lancer La Bombe.")
-        start_index = eligible_indices[random.randrange(len(eligible_indices))]
-        duration_ms = random.randint(BOMBE_MIN_DURATION_MS, BOMBE_MAX_DURATION_MS)
+        previous_roller = self.session.last_bombe_roller_index
+        if previous_roller is None:
+            roller_index = eligible_indices[random.randrange(len(eligible_indices))]
+        else:
+            roller_index = next(
+                index
+                for offset in range(1, len(self.settings.teams) + 1)
+                if (index := (previous_roller + offset) % len(self.settings.teams)) in eligible_indices
+            )
         return self._replace_session(
             bombe=replace(
                 bombe,
-                phase="running",
-                letter=random.choice(BOMBE_LETTERS),
-                current_team_index=start_index,
-                turn_history=[start_index],
-                started_at_ms=now_ms,
-                deadline_at_ms=now_ms + duration_ms,
+                phase="awaiting_roll",
+                letter="",
+                current_team_index=roller_index,
+                turn_history=[],
+                started_at_ms=0,
+                deadline_at_ms=0,
                 exploded_team=None,
                 winner_team=None,
                 scores=dict(bombe.scores) if is_tiebreak else {team: 0 for team in self.settings.teams},
                 eligible_team_indices=eligible_indices,
                 tiebreak_round=bombe.tiebreak_round + 1 if is_tiebreak else 0,
-            )
+                sound=random.choice(BOMBE_SOUNDS),
+                die_result="",
+                roller_team_index=roller_index,
+                die_reveal_at_ms=0,
+            ),
+            last_bombe_roller_index=roller_index,
         )
 
     def register_bombe_buzzer(self, team: str, now_ms: int) -> "GameConfig":
         bombe = self._ensure_bombe_active()
+        if bombe.phase == "awaiting_roll":
+            roller_team = self.settings.teams[bombe.roller_team_index or 0]
+            if team != roller_team:
+                raise InvalidGameConfigError(f"C'est à {roller_team} de lancer le dé.")
+            return self._replace_session(
+                bombe=replace(
+                    bombe,
+                    phase="rolling",
+                    die_result=random.choice(BOMBE_DIE_RESULTS),
+                    die_reveal_at_ms=now_ms + BOMBE_DIE_ROLL_MS,
+                )
+            )
         if bombe.phase != "running":
             raise InvalidGameConfigError("La Bombe n'est pas en cours.")
         if now_ms >= bombe.deadline_at_ms:
@@ -939,6 +985,28 @@ class GameConfig:
         next_index = bombe.eligible_team_indices[(current_position + 1) % len(bombe.eligible_team_indices)]
         return self._replace_session(
             bombe=replace(bombe, current_team_index=next_index, turn_history=[*bombe.turn_history, next_index])
+        )
+
+    def begin_bombe_after_roll(self, now_ms: int) -> "GameConfig":
+        bombe = self._ensure_bombe_active()
+        if bombe.phase == "running":
+            return self
+        if bombe.phase != "rolling":
+            raise InvalidGameConfigError("Le dé de La Bombe n'est pas en cours.")
+        if now_ms < bombe.die_reveal_at_ms:
+            raise InvalidGameConfigError("Le dé de La Bombe tourne encore.")
+        if bombe.roller_team_index is None:
+            raise InvalidGameConfigError("Aucune équipe n'est désignée pour commencer La Bombe.")
+        duration_ms = random.randint(BOMBE_MIN_DURATION_MS, BOMBE_MAX_DURATION_MS)
+        return self._replace_session(
+            bombe=replace(
+                bombe,
+                phase="running",
+                current_team_index=bombe.roller_team_index,
+                turn_history=[bombe.roller_team_index],
+                started_at_ms=now_ms,
+                deadline_at_ms=now_ms + duration_ms,
+            )
         )
 
     def previous_bombe_team(self, now_ms: int) -> "GameConfig":
@@ -1076,6 +1144,7 @@ class GameConfig:
                 "final_ranking": list(self.session.final_ranking),
                 "final_ranking_total": len(self.session.final_ranking),
                 "ranking_reveal_count": self.session.ranking_reveal_count,
+                "last_bombe_roller_index": self.session.last_bombe_roller_index,
                 "updated_at": self.session.updated_at,
             },
             "status": self.status,

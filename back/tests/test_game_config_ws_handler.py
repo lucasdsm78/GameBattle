@@ -62,6 +62,18 @@ def _culture_read_model(answered: bool = False) -> GameConfigReadModel:
     return GameConfigReadModel.from_domain(config)
 
 
+def _rolling_bombe_read_model(*, revealed: bool) -> GameConfigReadModel:
+    config = build_default_game_config()
+    for game in config.games:
+        game.enabled = game.game_key == "bombe"
+    prepared = config.start_session().start_bombe(now_ms=1_000)
+    roller = prepared.settings.teams[prepared.session.bombe.roller_team_index or 0]
+    rolling = prepared.register_bombe_buzzer(roller, now_ms=1_001)
+    if revealed:
+        rolling = rolling.begin_bombe_after_roll(rolling.session.bombe.die_reveal_at_ms)
+    return GameConfigReadModel.from_domain(rolling)
+
+
 def test_display_envelope_masks_blindtest_answer_before_reveal() -> None:
     envelope = build_client_envelope("game.config.snapshot", _blindtest_read_model(revealed=False), "display")
     blindtest = envelope["payload"]["session"]["blindtest"]
@@ -100,6 +112,16 @@ def test_display_envelope_reveals_culture_answer_without_explanation() -> None:
 
     assert question["answer"] != "Réponse masquée"
     assert question["explanation"] == ""
+
+
+def test_die_result_is_hidden_while_rolling_then_revealed() -> None:
+    rolling = build_client_envelope("game.config.updated", _rolling_bombe_read_model(revealed=False), "display")
+    running = build_client_envelope("game.config.updated", _rolling_bombe_read_model(revealed=True), "display")
+
+    assert rolling["payload"]["session"]["bombe"]["phase"] == "rolling"
+    assert rolling["payload"]["session"]["bombe"]["die_result"] == ""
+    assert running["payload"]["session"]["bombe"]["phase"] == "running"
+    assert running["payload"]["session"]["bombe"]["die_result"] in {"TIC", "TAC", "BOUM"}
 
 
 def test_display_cannot_dispatch_controller_only_event() -> None:

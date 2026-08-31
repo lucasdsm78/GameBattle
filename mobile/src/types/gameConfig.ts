@@ -34,7 +34,7 @@ export type CultureState = {
 };
 
 export type BombeState = {
-  phase: 'idle' | 'running' | 'exploded';
+  phase: 'idle' | 'awaiting_roll' | 'rolling' | 'running' | 'exploded';
   letter: string;
   current_team_index: number;
   turn_history: number[];
@@ -45,6 +45,10 @@ export type BombeState = {
   scores: Record<string, number>;
   eligible_team_indices: number[];
   tiebreak_round: number;
+  sound: 'OL' | 'SEL' | 'NA' | 'TA' | '';
+  die_result: 'TIC' | 'TAC' | 'BOUM' | '';
+  roller_team_index: number | null;
+  die_reveal_at_ms: number;
 };
 
 export type RankingEntry = {
@@ -132,6 +136,7 @@ export type GameSession = {
   final_ranking: RankingEntry[];
   final_ranking_total: number;
   ranking_reveal_count: number;
+  last_bombe_roller_index: number | null;
   updated_at: string;
 };
 

@@ -3,7 +3,14 @@ import { GameConfigSnapshot } from '../types/gameConfig';
 
 type Props = {
   gameConfig: GameConfigSnapshot;
+  onBeginAfterRoll: () => void;
   onExplode: () => void;
+};
+
+const dieInstruction = (result: string, sound: string): string => {
+  if (result === 'TIC') return `Le mot doit commencer par le son « ${sound} »`;
+  if (result === 'TAC') return `Le mot doit finir par le son « ${sound} »`;
+  return `Le mot doit commencer ou finir par le son « ${sound} »`;
 };
 
 const createAudioContext = (): AudioContext | null => {
@@ -11,10 +18,11 @@ const createAudioContext = (): AudioContext | null => {
   return AudioContextClass ? new AudioContextClass() : null;
 };
 
-export function BombeBoard({ gameConfig, onExplode }: Props) {
+export function BombeBoard({ gameConfig, onBeginAfterRoll, onExplode }: Props) {
   const bombe = gameConfig.session.bombe;
   const teams = gameConfig.settings.teams;
   const currentTeam = teams[bombe.current_team_index] ?? '—';
+  const rollerTeam = bombe.roller_team_index === null ? '—' : teams[bombe.roller_team_index] ?? '—';
   const audioContextRef = useRef<AudioContext | null>(null);
   const playedExplosionRef = useRef<number>(0);
   const [soundReady, setSoundReady] = useState(false);
@@ -63,6 +71,20 @@ export function BombeBoard({ gameConfig, onExplode }: Props) {
   }, [enableSound]);
 
   useEffect(() => {
+    if (bombe.phase !== 'rolling' || bombe.die_reveal_at_ms <= 0) return;
+    const delay = Math.max(bombe.die_reveal_at_ms - Date.now(), 0);
+    let retryTimer: number | undefined;
+    const timer = window.setTimeout(() => {
+      onBeginAfterRoll();
+      retryTimer = window.setInterval(onBeginAfterRoll, 1_000);
+    }, delay);
+    return () => {
+      window.clearTimeout(timer);
+      if (retryTimer !== undefined) window.clearInterval(retryTimer);
+    };
+  }, [bombe.die_reveal_at_ms, bombe.phase, onBeginAfterRoll]);
+
+  useEffect(() => {
     if (bombe.phase !== 'running' || bombe.deadline_at_ms <= 0) return;
     const delay = Math.max(bombe.deadline_at_ms - Date.now(), 0);
     let retryTimer: number | undefined;
@@ -94,12 +116,31 @@ export function BombeBoard({ gameConfig, onExplode }: Props) {
         </>
       ) : null}
 
+      {bombe.phase === 'awaiting_roll' ? (
+        <>
+          <p className="section-chip">Lancer du dé</p>
+          <div className="bombe-die">?</div>
+          <h2 className="bombe-current-team">{rollerTeam}, buzzez pour lancer le dé</h2>
+          <p className="bombe-instruction">Le dé choisira TIC, TAC ou BOUM.</p>
+        </>
+      ) : null}
+
+      {bombe.phase === 'rolling' ? (
+        <>
+          <p className="section-chip">Le dé tourne…</p>
+          <div className="bombe-die bombe-die-rolling" aria-label="Dé en rotation">TIC · TAC · BOUM</div>
+          <p className="bombe-current-team">{rollerTeam} lance le dé</p>
+        </>
+      ) : null}
+
       {bombe.phase === 'running' ? (
         <>
           {bombe.tiebreak_round > 0 ? <p className="section-chip">Départage {bombe.tiebreak_round}</p> : null}
+          <div className="bombe-die-result">{bombe.die_result}</div>
+          <p className="bombe-rule">{dieInstruction(bombe.die_result, bombe.sound)}</p>
           <div className="bombe-orb" aria-label="Bombe en cours">💣</div>
-          <p className="bombe-kicker">Trouvez un mot contenant</p>
-          <div className="bombe-letter">{bombe.letter}</div>
+          <p className="bombe-kicker">Son imposé</p>
+          <div className="bombe-letter bombe-sound">{bombe.sound}</div>
           <p className="bombe-current-team">À {currentTeam} de jouer</p>
           <p className="bombe-instruction">Dites un mot, puis buzzez pour passer la bombe.</p>
           <div className="bombe-scoreboard" aria-label="Points de pénalité">

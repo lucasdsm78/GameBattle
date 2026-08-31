@@ -106,6 +106,10 @@ def game_config_from_payload(payload: dict) -> GameConfig:
                     or (range(len(teams_payload)) if bombe_payload.get("phase") == "running" else [])
                 ),
                 tiebreak_round=bombe_payload.get("tiebreak_round", 0),
+                sound=bombe_payload.get("sound", ""),
+                die_result=bombe_payload.get("die_result", ""),
+                roller_team_index=bombe_payload.get("roller_team_index"),
+                die_reveal_at_ms=bombe_payload.get("die_reveal_at_ms", 0),
             ),
             round_sequence=list(session_payload.get("round_sequence", []) or []),
             round_index=session_payload.get("round_index", 0),
@@ -115,6 +119,7 @@ def game_config_from_payload(payload: dict) -> GameConfig:
             manche_winner=session_payload.get("manche_winner"),
             final_ranking=list(session_payload.get("final_ranking", []) or []),
             ranking_reveal_count=session_payload.get("ranking_reveal_count", 0),
+            last_bombe_roller_index=session_payload.get("last_bombe_roller_index"),
             updated_at=session_payload.get("updated_at", payload.get("updated_at", "")),
         ),
         status=payload.get("status", "configuring"),

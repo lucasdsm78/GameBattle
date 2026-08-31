@@ -81,6 +81,10 @@ export class GameConfigSocket {
     this.sendMessage({ type: 'bombe.buzzer', payload: { team } });
   }
 
+  beginBombeAfterRoll(): void {
+    this.sendMessage({ type: 'bombe.begin-after-roll' });
+  }
+
   explodeBombe(): void {
     this.sendMessage({ type: 'bombe.explode' });
   }

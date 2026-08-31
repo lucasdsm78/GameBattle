@@ -27,6 +27,7 @@ DISPLAY_ALLOWED_EVENTS = {
     "stopchrono.stop",
     "culture.buzzer",
     "bombe.buzzer",
+    "bombe.begin-after-roll",
     "bombe.explode",
 }
 
@@ -43,6 +44,10 @@ def build_client_envelope(event_type: str, payload: GameConfigReadModel, client_
         return envelope
 
     session.pop("round_sequence", None)
+
+    bombe = session.get("bombe")
+    if isinstance(bombe, dict) and bombe.get("phase") == "rolling":
+        bombe["die_result"] = ""
 
     culture = session.get("culture")
     if isinstance(culture, dict):
@@ -143,6 +148,8 @@ async def dispatch_game_config_event(
             return await command_usecase.start_bombe()
         if event_type == "bombe.buzzer":
             return await command_usecase.register_bombe_buzzer(BombeBuzzerCommandModel(**payload))
+        if event_type == "bombe.begin-after-roll":
+            return await command_usecase.begin_bombe_after_roll()
         if event_type == "bombe.previous-team":
             return await command_usecase.previous_bombe_team()
         if event_type == "bombe.explode":

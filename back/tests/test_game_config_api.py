@@ -389,8 +389,35 @@ def test_websocket_bombe_flow_accepts_and_broadcasts_hardware_buzzer() -> None:
                 started_display = display_ws.receive_json()
                 bombe = started_controller["payload"]["session"]["bombe"]
                 current_team = started_controller["payload"]["settings"]["teams"][bombe["current_team_index"]]
-                assert started_display["payload"]["session"]["bombe"]["letter"] == bombe["letter"]
-                assert bombe["deadline_at_ms"] > bombe["started_at_ms"]
+                assert bombe["phase"] == "awaiting_roll"
+                assert started_display["payload"]["session"]["bombe"]["sound"] == bombe["sound"]
+
+                roll_response = client.post(
+                    "/api/hardware/buzzer-events",
+                    json={"team": current_team},
+                    headers={"X-GameBattle-Hardware-Token": "hardware-test-token"},
+                )
+                roll_controller = controller_ws.receive_json()
+                roll_display = display_ws.receive_json()
+
+                assert roll_response.status_code == 200
+                assert roll_response.json()["session"]["bombe"]["phase"] == "rolling"
+                assert roll_controller["payload"]["session"]["bombe"]["phase"] == "rolling"
+                assert roll_display["payload"]["session"]["bombe"]["die_result"] == ""
+
+                reveal_at = roll_response.json()["session"]["bombe"]["die_reveal_at_ms"]
+                with patch(
+                    "application.bombe.bombe_command_usecase.BombeCommandUseCase._now_ms",
+                    return_value=reveal_at,
+                ):
+                    controller_ws.send_json({"type": "bombe.begin-after-roll"})
+                    running_controller = controller_ws.receive_json()
+                    running_display = display_ws.receive_json()
+
+                running_bombe = running_controller["payload"]["session"]["bombe"]
+                assert running_bombe["phase"] == "running"
+                assert running_bombe["deadline_at_ms"] > running_bombe["started_at_ms"]
+                assert running_display["payload"]["session"]["bombe"]["die_result"] in {"TIC", "TAC", "BOUM"}
 
                 hardware_response = client.post(
                     "/api/hardware/buzzer-events",
