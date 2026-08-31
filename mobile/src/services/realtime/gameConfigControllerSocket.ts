@@ -69,10 +69,18 @@ export class GameConfigControllerSocket {
       }
     };
     this.socket.onerror = () => handlers.onError('Connexion WebSocket indisponible.');
-    this.socket.onclose = () => {
+    this.socket.onclose = (event) => {
       handlers.onStatusChange('disconnected');
+      if (event.code === 1008) {
+        handlers.onError('Connexion refusée : vérifie le jeton contrôleur du mobile.');
+      } else if (event.code !== 1000) {
+        handlers.onError(`Connexion au backend interrompue (code ${event.code || 'réseau'}).`);
+      }
       if (this.shouldReconnect) {
-        this.reconnectTimer = setTimeout(() => this.connect(handlers), 2000);
+        this.reconnectTimer = setTimeout(() => {
+          this.reconnectTimer = null;
+          this.connect(handlers);
+        }, 2000);
       }
     };
   }
