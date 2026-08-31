@@ -10,9 +10,26 @@ from presentation.realtime.game_config_ws_handler import build_client_envelope, 
 class DummyCommandUseCase:
     def __init__(self) -> None:
         self.spotify_token = ""
+        self.calls: list[tuple[str, object]] = []
 
     async def set_spotify_user_token(self, access_token: str) -> None:
         self.spotify_token = access_token
+
+    async def start_bombe(self):
+        self.calls.append(("start", None))
+        return "bombe-started"
+
+    async def register_bombe_buzzer(self, payload):
+        self.calls.append(("buzzer", payload.team))
+        return "bombe-passed"
+
+    async def previous_bombe_team(self):
+        self.calls.append(("previous", None))
+        return "bombe-previous"
+
+    async def explode_bombe(self):
+        self.calls.append(("explode", None))
+        return "bombe-exploded"
 
 
 def _blindtest_read_model(revealed: bool = False) -> GameConfigReadModel:
@@ -110,4 +127,51 @@ def test_spotify_user_token_event_is_not_broadcast() -> None:
     assert command_usecase.spotify_token == "spotify-user-token"
 
 
+def test_display_can_dispatch_bombe_buzzer_and_explosion_only() -> None:
+    command_usecase = DummyCommandUseCase()
+
+    buzzer_result = asyncio.run(dispatch_game_config_event(
+        client_type="display",
+        event_type="bombe.buzzer",
+        payload={"team": "Rouges"},
+        command_usecase=command_usecase,  # type: ignore[arg-type]
+    ))
+    explosion_result = asyncio.run(dispatch_game_config_event(
+        client_type="display",
+        event_type="bombe.explode",
+        payload={},
+        command_usecase=command_usecase,  # type: ignore[arg-type]
+    ))
+    forbidden_result = asyncio.run(dispatch_game_config_event(
+        client_type="display",
+        event_type="bombe.previous-team",
+        payload={},
+        command_usecase=command_usecase,  # type: ignore[arg-type]
+    ))
+
+    assert buzzer_result == "bombe-passed"
+    assert explosion_result == "bombe-exploded"
+    assert forbidden_result == {"type": "error", "detail": "Le client display est en lecture seule."}
+    assert command_usecase.calls == [("buzzer", "Rouges"), ("explode", None)]
+
+
+def test_controller_can_start_and_go_back_in_bombe() -> None:
+    command_usecase = DummyCommandUseCase()
+
+    start_result = asyncio.run(dispatch_game_config_event(
+        client_type="controller",
+        event_type="bombe.start",
+        payload={},
+        command_usecase=command_usecase,  # type: ignore[arg-type]
+    ))
+    previous_result = asyncio.run(dispatch_game_config_event(
+        client_type="controller",
+        event_type="bombe.previous-team",
+        payload={},
+        command_usecase=command_usecase,  # type: ignore[arg-type]
+    ))
+
+    assert start_result == "bombe-started"
+    assert previous_result == "bombe-previous"
+    assert command_usecase.calls == [("start", None), ("previous", None)]
 

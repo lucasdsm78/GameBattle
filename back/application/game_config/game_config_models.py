@@ -22,7 +22,7 @@ class GameSettingsModel(BaseModel):
 
 
 class GameDefinitionModel(BaseModel):
-    game_key: Literal["blindtest", "stopchrono", "culture"]
+    game_key: Literal["blindtest", "stopchrono", "culture", "bombe"]
     label: str = Field(min_length=2, max_length=50)
     enabled: bool = True
     round_count: int = Field(ge=0, le=20)
@@ -31,7 +31,7 @@ class GameDefinitionModel(BaseModel):
 class GameRoundPlanModel(BaseModel):
     id: str = Field(min_length=3, max_length=50)
     label: str = Field(min_length=2, max_length=50)
-    game_key: Literal["blindtest", "stopchrono", "culture"]
+    game_key: Literal["blindtest", "stopchrono", "culture", "bombe"]
     planned_track_count: int = Field(ge=1, le=100)
     buzzer_enabled: bool = False
 
@@ -82,6 +82,10 @@ class BlindtestAnswerCommandModel(BaseModel):
 
 
 class BlindtestBuzzerCommandModel(BaseModel):
+    team: str = Field(min_length=2, max_length=40)
+
+
+class BombeBuzzerCommandModel(BaseModel):
     team: str = Field(min_length=2, max_length=40)
 
 

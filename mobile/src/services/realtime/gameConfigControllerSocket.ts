@@ -155,6 +155,18 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'culture.next-question' });
   }
 
+  startBombe(): void {
+    this.sendMessage({ type: 'bombe.start' });
+  }
+
+  bombeBuzzer(team: string): void {
+    this.sendMessage({ type: 'bombe.buzzer', payload: { team } });
+  }
+
+  previousBombeTeam(): void {
+    this.sendMessage({ type: 'bombe.previous-team' });
+  }
+
   nextManche(): void {
     this.sendMessage({ type: 'game.next-manche' });
   }

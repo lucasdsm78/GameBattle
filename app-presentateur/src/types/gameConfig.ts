@@ -1,4 +1,4 @@
-export type GameKey = 'blindtest' | 'stopchrono' | 'culture';
+export type GameKey = 'blindtest' | 'stopchrono' | 'culture' | 'bombe';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
 
@@ -101,11 +101,23 @@ export type CultureState = {
   current_question: CultureQuestion | null;
 };
 
+export type BombeState = {
+  phase: 'idle' | 'running' | 'exploded';
+  letter: string;
+  current_team_index: number;
+  turn_history: number[];
+  started_at_ms: number;
+  deadline_at_ms: number;
+  exploded_team: string | null;
+  winner_team: string | null;
+};
+
 export type GameSession = {
   active_round: ActiveRound | null;
   blindtest: BlindtestState;
   stopchrono: StopChronoState;
   culture: CultureState;
+  bombe: BombeState;
   round_index: number;
   total_rounds: number;
   manche_number: number;
