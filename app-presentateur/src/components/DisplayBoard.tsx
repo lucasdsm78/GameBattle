@@ -14,6 +14,7 @@ type Props = {
   onStopChrono: () => void;
   onCultureBuzz: (team: string) => void;
   onBombeBuzz: (team: string) => void;
+  onBombeBeginAfterRoll: () => void;
   onBombeExplode: () => void;
 };
 
@@ -92,6 +93,7 @@ export function DisplayBoard({
   onStopChrono,
   onCultureBuzz,
   onBombeBuzz,
+  onBombeBeginAfterRoll,
   onBombeExplode,
 }: Props) {
   const chronoPhase = gameConfig?.session.stopchrono.phase;
@@ -145,7 +147,7 @@ export function DisplayBoard({
       }
 
       if (activeGameKey === 'bombe') {
-        if (bombePhase !== 'running') return;
+        if (bombePhase !== 'running' && bombePhase !== 'awaiting_roll') return;
         const currentIndex = bombeTeamIndex ?? 0;
         if (matchesBinding(event, buzzerKeys[currentIndex] ?? '')) {
           onBombeBuzz(teams[currentIndex]);
@@ -313,7 +315,11 @@ export function DisplayBoard({
               <div className={`badge badge-${connectionState}`}>{connectionState}</div>
             </div>
           </section>
-          <BombeBoard gameConfig={gameConfig} onExplode={onBombeExplode} />
+          <BombeBoard
+            gameConfig={gameConfig}
+            onBeginAfterRoll={onBombeBeginAfterRoll}
+            onExplode={onBombeExplode}
+          />
           {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
         </main>
       </>

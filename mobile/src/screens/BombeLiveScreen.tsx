@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { styles } from '../theme';
 import { GameConfigSnapshot } from '../types/gameConfig';
@@ -7,17 +8,46 @@ type Props = {
   errorMessage: string | null;
   onStart: () => void;
   onBuzz: (team: string) => void;
+  onBeginAfterRoll: () => void;
   onPreviousTeam: () => void;
   onBack: () => void;
 };
 
-export function BombeLiveScreen({ snapshot, errorMessage, onStart, onBuzz, onPreviousTeam, onBack }: Props) {
+const dieInstruction = (result: string, sound: string): string => {
+  if (result === 'TIC') return `Le mot doit commencer par « ${sound} ».`;
+  if (result === 'TAC') return `Le mot doit finir par « ${sound} ».`;
+  return `Le mot doit commencer ou finir par « ${sound} ».`;
+};
+
+export function BombeLiveScreen({
+  snapshot,
+  errorMessage,
+  onStart,
+  onBuzz,
+  onBeginAfterRoll,
+  onPreviousTeam,
+  onBack,
+}: Props) {
   const bombe = snapshot.session.bombe;
   const teams = snapshot.settings.teams;
   const currentTeam = teams[bombe.current_team_index] ?? '—';
   const canGoBack = bombe.phase === 'running' && bombe.turn_history.length >= 2;
   const eligibleTeams = new Set(bombe.eligible_team_indices);
   const isTiebreakPending = bombe.phase === 'exploded' && !bombe.winner_team;
+  const rollerTeam = bombe.roller_team_index === null ? '—' : teams[bombe.roller_team_index] ?? '—';
+
+  useEffect(() => {
+    if (bombe.phase !== 'rolling' || bombe.die_reveal_at_ms <= 0) return;
+    let retryTimer: ReturnType<typeof setInterval> | undefined;
+    const timer = setTimeout(() => {
+      onBeginAfterRoll();
+      retryTimer = setInterval(onBeginAfterRoll, 1_000);
+    }, Math.max(bombe.die_reveal_at_ms - Date.now(), 0));
+    return () => {
+      clearTimeout(timer);
+      if (retryTimer) clearInterval(retryTimer);
+    };
+  }, [bombe.die_reveal_at_ms, bombe.phase, onBeginAfterRoll]);
 
   return (
     <>
@@ -34,10 +64,30 @@ export function BombeLiveScreen({ snapshot, errorMessage, onStart, onBuzz, onPre
 
       {bombe.phase === 'idle' ? (
         <View style={styles.bombeCard}>
-          <Text style={styles.bombeInstruction}>La durée est choisie secrètement et aléatoirement.</Text>
+          <Text style={styles.bombeInstruction}>Prépare le son et désigne l’équipe qui lancera le dé.</Text>
           <Pressable style={styles.primaryButton} onPress={onStart}>
-            <Text style={styles.primaryButtonText}>💣 Commencer</Text>
+            <Text style={styles.primaryButtonText}>🎲 Préparer la manche</Text>
           </Pressable>
+        </View>
+      ) : null}
+
+      {bombe.phase === 'awaiting_roll' ? (
+        <View style={styles.bombeCard}>
+          <Text style={styles.nowPlayingLabel}>Son imposé</Text>
+          <Text style={styles.bombeLetter}>{bombe.sound}</Text>
+          <Text style={styles.bombeTeam}>{rollerTeam} doit lancer le dé</Text>
+          <Text style={styles.bombeInstruction}>Utilise le buzzer de cette équipe pour choisir TIC, TAC ou BOUM.</Text>
+          <Pressable style={styles.primaryButton} onPress={() => onBuzz(rollerTeam)}>
+            <Text style={styles.primaryButtonText}>🎲 Tester le buzzer de {rollerTeam}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {bombe.phase === 'rolling' ? (
+        <View style={styles.bombeCard}>
+          <Text style={styles.bombeLetter}>🎲</Text>
+          <Text style={styles.bombeTeam}>Le dé tourne…</Text>
+          <Text style={styles.bombeInstruction}>Son de la manche : {bombe.sound}</Text>
         </View>
       ) : null}
 
@@ -45,11 +95,13 @@ export function BombeLiveScreen({ snapshot, errorMessage, onStart, onBuzz, onPre
         <>
           <View style={styles.bombeCard}>
             {bombe.tiebreak_round > 0 ? <Text style={styles.eyebrow}>Départage {bombe.tiebreak_round}</Text> : null}
-            <Text style={styles.nowPlayingLabel}>Lettre imposée</Text>
-            <Text style={styles.bombeLetter}>{bombe.letter}</Text>
+            <Text style={styles.bombeTeam}>🎲 {bombe.die_result}</Text>
+            <Text style={styles.bombeInstruction}>{dieInstruction(bombe.die_result, bombe.sound)}</Text>
+            <Text style={styles.nowPlayingLabel}>Son imposé</Text>
+            <Text style={styles.bombeLetter}>{bombe.sound}</Text>
             <Text style={styles.nowPlayingLabel}>À toi de jouer</Text>
             <Text style={styles.bombeTeam}>{currentTeam}</Text>
-            <Text style={styles.bombeInstruction}>Dis un mot contenant la lettre « {bombe.letter} », puis buzze.</Text>
+            <Text style={styles.bombeInstruction}>Respecte la règle du dé, puis buzze pour passer la bombe.</Text>
           </View>
 
           <View style={styles.sectionCard}>

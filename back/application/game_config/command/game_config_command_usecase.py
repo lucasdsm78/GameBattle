@@ -100,6 +100,9 @@ class GameConfigCommandUseCase(ABC):
     async def register_bombe_buzzer(self, payload: BombeBuzzerCommandModel) -> GameConfigReadModel: ...
 
     @abstractmethod
+    async def begin_bombe_after_roll(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
     async def previous_bombe_team(self) -> GameConfigReadModel: ...
 
     @abstractmethod
@@ -202,6 +205,9 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
 
     async def register_bombe_buzzer(self, payload: BombeBuzzerCommandModel) -> GameConfigReadModel:
         return await self._bombe.register_buzzer(payload)
+
+    async def begin_bombe_after_roll(self) -> GameConfigReadModel:
+        return await self._bombe.begin_after_roll()
 
     async def previous_bombe_team(self) -> GameConfigReadModel:
         return await self._bombe.previous_team()

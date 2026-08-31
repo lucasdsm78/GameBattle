@@ -123,6 +123,7 @@ export default function App() {
                 errorMessage={errorMessage}
                 onStart={() => socket.startBombe()}
                 onBuzz={(team) => socket.bombeBuzzer(team)}
+                onBeginAfterRoll={() => socket.beginBombeAfterRoll()}
                 onPreviousTeam={() => socket.previousBombeTeam()}
                 onBack={() => setStep('config')}
               />

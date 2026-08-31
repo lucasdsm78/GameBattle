@@ -229,6 +229,10 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'bombe.buzzer', payload: { team } });
   }
 
+  beginBombeAfterRoll(): void {
+    this.sendMessage({ type: 'bombe.begin-after-roll' });
+  }
+
   previousBombeTeam(): void {
     this.sendMessage({ type: 'bombe.previous-team' });
   }

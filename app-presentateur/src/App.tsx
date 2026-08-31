@@ -127,6 +127,7 @@ export default function App() {
         onStopChrono={() => socket.stopChrono()}
         onCultureBuzz={(team) => socket.cultureBuzz(team)}
         onBombeBuzz={(team) => socket.bombeBuzzer(team)}
+        onBombeBeginAfterRoll={() => socket.beginBombeAfterRoll()}
         onBombeExplode={() => socket.explodeBombe()}
       />
     </>
