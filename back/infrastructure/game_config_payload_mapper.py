@@ -4,6 +4,7 @@ from domain.game_config.model.game_config import (
     ActiveRound,
     BlindtestState,
     BlindtestTrack,
+    BombeState,
     CultureQuestion,
     CultureState,
     GameConfig,
@@ -20,6 +21,7 @@ def game_config_from_payload(payload: dict) -> GameConfig:
     blindtest_payload = session_payload.get("blindtest", {})
     stopchrono_payload = session_payload.get("stopchrono", {})
     culture_payload = session_payload.get("culture", {})
+    bombe_payload = session_payload.get("bombe", {})
     active_round_payload = session_payload.get("active_round")
 
     config = GameConfig(
@@ -87,6 +89,16 @@ def game_config_from_payload(payload: dict) -> GameConfig:
                 answered=culture_payload.get("answered", False),
                 scores=culture_payload.get("scores", {}) or {},
                 winner_team=culture_payload.get("winner_team"),
+            ),
+            bombe=BombeState(
+                phase=bombe_payload.get("phase", "idle"),
+                letter=bombe_payload.get("letter", ""),
+                current_team_index=bombe_payload.get("current_team_index", 0),
+                turn_history=list(bombe_payload.get("turn_history", []) or []),
+                started_at_ms=bombe_payload.get("started_at_ms", 0),
+                deadline_at_ms=bombe_payload.get("deadline_at_ms", 0),
+                exploded_team=bombe_payload.get("exploded_team"),
+                winner_team=bombe_payload.get("winner_team"),
             ),
             round_sequence=list(session_payload.get("round_sequence", []) or []),
             round_index=session_payload.get("round_index", 0),

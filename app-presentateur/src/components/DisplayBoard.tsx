@@ -3,6 +3,7 @@ import { GameConfigSnapshot } from '../types/gameConfig';
 import { StopChronoBoard } from './StopChronoBoard';
 import { CultureBoard } from './CultureBoard';
 import { FinalRankingBoard } from './FinalRankingBoard';
+import { BombeBoard } from './BombeBoard';
 
 type Props = {
   gameConfig: GameConfigSnapshot | null;
@@ -12,6 +13,8 @@ type Props = {
   onStartChrono: () => void;
   onStopChrono: () => void;
   onCultureBuzz: (team: string) => void;
+  onBombeBuzz: (team: string) => void;
+  onBombeExplode: () => void;
 };
 
 const KEYBOARD_BINDINGS = ['1', '2', '3', '4', '5', '6'];
@@ -88,10 +91,14 @@ export function DisplayBoard({
   onStartChrono,
   onStopChrono,
   onCultureBuzz,
+  onBombeBuzz,
+  onBombeExplode,
 }: Props) {
   const chronoPhase = gameConfig?.session.stopchrono.phase;
   const chronoTeamIndex = gameConfig?.session.stopchrono.current_team_index;
   const culturePhase = gameConfig?.session.culture.phase;
+  const bombePhase = gameConfig?.session.bombe.phase;
+  const bombeTeamIndex = gameConfig?.session.bombe.current_team_index;
   const activeGameKey = gameConfig?.session.active_round?.game_key ?? 'blindtest';
 
   useEffect(() => {
@@ -137,6 +144,15 @@ export function DisplayBoard({
         return;
       }
 
+      if (activeGameKey === 'bombe') {
+        if (bombePhase !== 'running') return;
+        const currentIndex = bombeTeamIndex ?? 0;
+        if (matchesBinding(event, buzzerKeys[currentIndex] ?? '')) {
+          onBombeBuzz(teams[currentIndex]);
+        }
+        return;
+      }
+
       for (let index = 0; index < teams.length; index += 1) {
         if (matchesBinding(event, buzzerKeys[index] ?? '')) {
           onBuzz(teams[index]);
@@ -149,7 +165,10 @@ export function DisplayBoard({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     culturePhase,
+    bombePhase,
+    bombeTeamIndex,
     onCultureBuzz,
+    onBombeBuzz,
     gameConfig?.settings.buzzer_keys,
     gameConfig?.settings.teams,
     activeGameKey,
@@ -272,6 +291,31 @@ export function DisplayBoard({
             <p className="winner-sub">{recap}</p>
           </div>
         ) : null}
+      </>
+    );
+  }
+
+  if (activeGameKey === 'bombe') {
+    return (
+      <>
+        <main className="screen blindtest-screen">
+          <section className="hero glass-card">
+            <div>
+              <p className="eyebrow">La Bombe</p>
+              <h1>{gameConfig.settings.game_title}</h1>
+              <p className="meta">
+                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
+                <span>•</span>
+                <span>{gameConfig.settings.teams.length} équipes</span>
+              </p>
+            </div>
+            <div className="hero-aside">
+              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
+            </div>
+          </section>
+          <BombeBoard gameConfig={gameConfig} onExplode={onBombeExplode} />
+          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
+        </main>
       </>
     );
   }

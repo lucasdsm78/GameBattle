@@ -86,9 +86,10 @@ export const styles = StyleSheet.create({
   actionRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
   // Game picker
-  gamePickerRow: { flexDirection: 'row', gap: 10 },
+  gamePickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   gameChip: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '45%',
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
@@ -155,6 +156,12 @@ export const styles = StyleSheet.create({
   scoreTileValue: { color: colors.text, fontSize: 28, fontWeight: '800', marginTop: 10 },
   scoreTileHint: { color: colors.muted, marginTop: 6, fontSize: 12 },
   winnerText: { color: '#bbf7d0', fontWeight: '800', fontSize: 16, marginTop: 8 },
+
+  // La Bombe
+  bombeCard: { backgroundColor: '#241118', borderRadius: 24, padding: 20, gap: 14, borderWidth: 1, borderColor: 'rgba(239,68,68,0.45)', alignItems: 'center' },
+  bombeLetter: { color: colors.text, fontSize: 88, lineHeight: 96, fontWeight: '900', textShadowColor: 'rgba(239,68,68,0.65)', textShadowRadius: 24 },
+  bombeTeam: { color: '#fecaca', fontSize: 22, fontWeight: '900', textAlign: 'center' },
+  bombeInstruction: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },
 
   // Manche suivante / classement final
   mancheBanner: { backgroundColor: 'rgba(34,197,94,0.16)', borderRadius: 20, padding: 16, gap: 12, borderWidth: 1, borderColor: colors.accent },

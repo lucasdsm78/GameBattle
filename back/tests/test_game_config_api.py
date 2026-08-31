@@ -91,6 +91,21 @@ def _playlist_payload() -> dict:
     }
 
 
+def _bombe_payload() -> dict:
+    payload = _payload("Soirée La Bombe")
+    payload["settings"]["total_rounds"] = 1
+    payload["games"] = [
+        {
+            "game_key": "bombe",
+            "label": "La Bombe",
+            "enabled": True,
+            "round_count": 0,
+        }
+    ]
+    payload["rounds"] = []
+    return payload
+
+
 def _spotify_tracks(prefix: str = "spotify-track") -> list[SpotifyPlaylistTrackData]:
     return [
         SpotifyPlaylistTrackData(
@@ -353,4 +368,40 @@ def test_display_client_cannot_write() -> None:
             display_ws.send_json({"type": "game.config.replace", "payload": _payload()})
             message = display_ws.receive_json()
             assert message["type"] == "error"
+
+
+def test_websocket_bombe_flow_accepts_and_broadcasts_hardware_buzzer() -> None:
+    with TestClient(app) as client:
+        client.put("/api/game-config/current", json=_bombe_payload())
+        with client.websocket_connect("/ws/game-config?client_type=display&token=display-test-token") as display_ws:
+            display_ws.receive_json()
+
+            with client.websocket_connect("/ws/game-config?client_type=controller&token=controller-test-token") as controller_ws:
+                controller_ws.receive_json()
+                controller_ws.send_json({"type": "game.config.launch"})
+                controller_ws.receive_json()
+                launch_display = display_ws.receive_json()
+                assert launch_display["payload"]["session"]["active_round"]["game_key"] == "bombe"
+
+                controller_ws.send_json({"type": "bombe.start"})
+                started_controller = controller_ws.receive_json()
+                started_display = display_ws.receive_json()
+                bombe = started_controller["payload"]["session"]["bombe"]
+                current_team = started_controller["payload"]["settings"]["teams"][bombe["current_team_index"]]
+                assert started_display["payload"]["session"]["bombe"]["letter"] == bombe["letter"]
+                assert bombe["deadline_at_ms"] > bombe["started_at_ms"]
+
+                hardware_response = client.post(
+                    "/api/hardware/buzzer-events",
+                    json={"team": current_team},
+                    headers={"X-GameBattle-Hardware-Token": "hardware-test-token"},
+                )
+                hardware_controller = controller_ws.receive_json()
+                hardware_display = display_ws.receive_json()
+
+                assert hardware_response.status_code == 200
+                next_index = hardware_response.json()["session"]["bombe"]["current_team_index"]
+                assert next_index != bombe["current_team_index"]
+                assert hardware_controller["payload"]["session"]["bombe"]["current_team_index"] == next_index
+                assert hardware_display["payload"]["session"]["bombe"]["current_team_index"] == next_index
 

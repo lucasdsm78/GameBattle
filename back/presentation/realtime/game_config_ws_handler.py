@@ -10,6 +10,7 @@ from application.game_config.game_config_models import (
     BlindtestPlaybackCommandModel,
     BlindtestPlaybackSyncCommandModel,
     BlindtestPlaylistCommandModel,
+    BombeBuzzerCommandModel,
     CultureDifficultyCommandModel,
     GameConfigEnvelope,
     GameConfigReadModel,
@@ -20,7 +21,14 @@ from domain.game_config.exception.game_config_exception import GameConfiguration
 
 logger = logging.getLogger(__name__)
 
-DISPLAY_ALLOWED_EVENTS = {"blindtest.buzzer", "stopchrono.start", "stopchrono.stop", "culture.buzzer"}
+DISPLAY_ALLOWED_EVENTS = {
+    "blindtest.buzzer",
+    "stopchrono.start",
+    "stopchrono.stop",
+    "culture.buzzer",
+    "bombe.buzzer",
+    "bombe.explode",
+}
 
 
 def build_client_envelope(event_type: str, payload: GameConfigReadModel, client_type: str) -> dict[str, Any]:
@@ -129,6 +137,14 @@ async def dispatch_game_config_event(
             return await command_usecase.answer_culture(BlindtestAnswerCommandModel(**payload))
         if event_type == "culture.next-question":
             return await command_usecase.next_culture_question()
+        if event_type == "bombe.start":
+            return await command_usecase.start_bombe()
+        if event_type == "bombe.buzzer":
+            return await command_usecase.register_bombe_buzzer(BombeBuzzerCommandModel(**payload))
+        if event_type == "bombe.previous-team":
+            return await command_usecase.previous_bombe_team()
+        if event_type == "bombe.explode":
+            return await command_usecase.explode_bombe()
         if event_type == "game.next-manche":
             return await command_usecase.next_manche()
         if event_type == "ranking.reveal-next":
@@ -139,5 +155,4 @@ async def dispatch_game_config_event(
     except Exception:
         logger.exception("game_config.websocket.dispatch_failed", extra={"event_type": event_type})
         return {"type": "error", "detail": "Erreur interne lors de la mise à jour."}
-
 

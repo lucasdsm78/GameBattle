@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from application.blindtest.spotify_playlist_port import SpotifyPlaylistProvider
 from application.blindtest.blindtest_command_usecase import BlindtestCommandUseCase
+from application.bombe import BombeCommandUseCase
 from application.culture.culture_command_usecase import CultureCommandUseCase
 from application.session.session_command_usecase import SessionCommandUseCase
 from application.stopchrono.stopchrono_command_usecase import StopchronoCommandUseCase
@@ -13,11 +14,13 @@ from application.game_config.game_config_models import (
     BlindtestPlaybackCommandModel,
     BlindtestPlaybackSyncCommandModel,
     BlindtestPlaylistCommandModel,
+    BombeBuzzerCommandModel,
     CultureDifficultyCommandModel,
     GameConfigReadModel,
     GameConfigUpsertModel,
     SpotifyPlaylistImportCommandModel,
 )
+from domain.game_config.exception.game_config_exception import InvalidGameConfigError
 from domain.game_config.repository.game_config_repository import GameConfigRepository
 
 
@@ -87,6 +90,21 @@ class GameConfigCommandUseCase(ABC):
     @abstractmethod
     async def next_culture_question(self) -> GameConfigReadModel: ...
 
+    @abstractmethod
+    async def start_bombe(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def register_bombe_buzzer(self, payload: BombeBuzzerCommandModel) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def previous_bombe_team(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def explode_bombe(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel: ...
+
 
 class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
 
@@ -96,9 +114,11 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
         spotify_playlist_service: SpotifyPlaylistProvider,
         default_playlist_url: str = "",
     ) -> None:
+        self._repository = repository
         self._blindtest = BlindtestCommandUseCase(repository, spotify_playlist_service, default_playlist_url)
         self._culture = CultureCommandUseCase(repository)
         self._stopchrono = StopchronoCommandUseCase(repository)
+        self._bombe = BombeCommandUseCase(repository)
         self._session = SessionCommandUseCase(repository, self._blindtest)
 
     # --- Session ---
@@ -169,3 +189,30 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
 
     async def next_culture_question(self) -> GameConfigReadModel:
         return await self._culture.next_question()
+
+    # --- La Bombe ---
+    async def start_bombe(self) -> GameConfigReadModel:
+        return await self._bombe.start()
+
+    async def register_bombe_buzzer(self, payload: BombeBuzzerCommandModel) -> GameConfigReadModel:
+        return await self._bombe.register_buzzer(payload)
+
+    async def previous_bombe_team(self) -> GameConfigReadModel:
+        return await self._bombe.previous_team()
+
+    async def explode_bombe(self) -> GameConfigReadModel:
+        return await self._bombe.explode()
+
+    # --- Matériel ---
+    async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel:
+        config = await self._repository.get_current()
+        active_round = config.session.active_round
+        if active_round is None:
+            raise InvalidGameConfigError("Aucune manche active pour utiliser un buzzer.")
+        if active_round.game_key == "blindtest":
+            return await self._blindtest.register_buzzer(payload)
+        if active_round.game_key == "culture":
+            return await self._culture.register_buzzer(payload)
+        if active_round.game_key == "bombe":
+            return await self._bombe.register_buzzer(BombeBuzzerCommandModel(team=payload.team))
+        raise InvalidGameConfigError("Le jeu actif ne prend pas en charge ce buzzer matériel.")

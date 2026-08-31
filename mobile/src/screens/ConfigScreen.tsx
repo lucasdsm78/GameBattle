@@ -4,8 +4,13 @@ import { Field } from '../components/Field';
 import { colors, styles } from '../theme';
 import { GameDraft, GameKey } from '../types/gameConfig';
 
-const GAME_LABELS: Record<GameKey, string> = { blindtest: 'Blindtest', stopchrono: 'Stop Chrono', culture: 'Culture générale' };
-const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono', 'culture'];
+const GAME_LABELS: Record<GameKey, string> = {
+  blindtest: 'Blindtest',
+  stopchrono: 'Stop Chrono',
+  culture: 'Culture générale',
+  bombe: 'La Bombe',
+};
+const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono', 'culture', 'bombe'];
 
 type Props = {
   draft: GameDraft;

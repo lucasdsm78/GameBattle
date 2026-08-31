@@ -8,6 +8,7 @@ import { PlaylistSetupScreen } from './src/screens/PlaylistSetupScreen';
 import { LiveScreen } from './src/screens/LiveScreen';
 import { StopChronoLiveScreen } from './src/screens/StopChronoLiveScreen';
 import { CultureLiveScreen } from './src/screens/CultureLiveScreen';
+import { BombeLiveScreen } from './src/screens/BombeLiveScreen';
 import { FinalRankingScreen } from './src/screens/FinalRankingScreen';
 import { styles } from './src/theme';
 
@@ -92,7 +93,16 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'stopchrono' ? (
+            {activeGameKey === 'bombe' ? (
+              <BombeLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStart={() => socket.startBombe()}
+                onBuzz={(team) => socket.bombeBuzzer(team)}
+                onPreviousTeam={() => socket.previousBombeTeam()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'stopchrono' ? (
               <StopChronoLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}

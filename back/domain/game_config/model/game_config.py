@@ -9,7 +9,7 @@ from uuid import uuid4
 from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
 from domain.game_config.model.culture_questions import CULTURE_DIFFICULTIES, pick_one_culture_question
 
-SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture"}
+SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture", "bombe"}
 ALLOWED_STATUSES = {"configuring", "ready", "live", "finished"}
 TRACKS_PER_RANDOM_BLINDTEST_ROUND = 10
 DEFAULT_BUZZER_KEYS = ["1", "2", "3", "4", "5", "6"]
@@ -19,6 +19,10 @@ STOPCHRONO_MAX_TARGET_MS = 25000
 STOPCHRONO_PHASES = {"idle", "running", "revealed", "finished"}
 CULTURE_QUESTIONS_PER_ROUND = 10
 CULTURE_PHASES = {"idle", "selecting", "question", "finished"}
+BOMBE_PHASES = {"idle", "running", "exploded"}
+BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
+BOMBE_MIN_DURATION_MS = 30_000
+BOMBE_MAX_DURATION_MS = 75_000
 ALLOWED_CULTURE_DIFFICULTIES = {"toutes", *CULTURE_DIFFICULTIES}
 TIE_LABEL = "Égalité"
 MAX_TOTAL_ROUNDS = 30
@@ -232,6 +236,35 @@ class CultureState:
 
 
 @dataclass(slots=True)
+class BombeState:
+    phase: str = "idle"
+    letter: str = ""
+    current_team_index: int = 0
+    turn_history: list[int] = field(default_factory=list)
+    started_at_ms: int = 0
+    deadline_at_ms: int = 0
+    exploded_team: Optional[str] = None
+    winner_team: Optional[str] = None
+
+    def validate(self, teams: list[str]) -> None:
+        allowed_teams = set(teams)
+        if self.phase not in BOMBE_PHASES:
+            raise InvalidGameConfigError("La phase de La Bombe est invalide.")
+        if self.letter and self.letter not in BOMBE_LETTERS:
+            raise InvalidGameConfigError("La lettre de La Bombe est invalide.")
+        if self.current_team_index < 0 or (teams and self.current_team_index >= len(teams)):
+            raise InvalidGameConfigError("L'équipe courante de La Bombe est invalide.")
+        if any(index < 0 or index >= len(teams) for index in self.turn_history):
+            raise InvalidGameConfigError("L'historique des équipes de La Bombe est invalide.")
+        if self.started_at_ms < 0 or self.deadline_at_ms < 0:
+            raise InvalidGameConfigError("Le timer de La Bombe est invalide.")
+        if self.exploded_team and self.exploded_team not in allowed_teams:
+            raise InvalidGameConfigError("L'équipe éliminée de La Bombe est inconnue.")
+        if self.winner_team and self.winner_team not in allowed_teams:
+            raise InvalidGameConfigError("Le gagnant de La Bombe est inconnu.")
+
+
+@dataclass(slots=True)
 class ActiveRound:
     round_id: str
     label: str
@@ -252,6 +285,7 @@ class GameSession:
     blindtest: BlindtestState = field(default_factory=BlindtestState)
     stopchrono: StopChronoState = field(default_factory=StopChronoState)
     culture: CultureState = field(default_factory=CultureState)
+    bombe: BombeState = field(default_factory=BombeState)
     # Séquence des jeux pour chaque manche, déterminée au lancement et JAMAIS exposée aux apps
     # (le mobile et l'écran ne voient que la manche courante).
     round_sequence: list[str] = field(default_factory=list)
@@ -271,6 +305,7 @@ class GameSession:
         self.blindtest.validate(teams)
         self.stopchrono.validate(teams)
         self.culture.validate(teams)
+        self.bombe.validate(teams)
         if set(self.manches_won.keys()) - allowed_teams:
             raise InvalidGameConfigError("Le classement contient une équipe inconnue.")
         if self.manche_winner and self.manche_winner not in allowed_teams and self.manche_winner != TIE_LABEL:
@@ -348,7 +383,7 @@ class GameConfig:
 
     def _build_manche_states(
         self, game_key: str, index: int
-    ) -> tuple[ActiveRound, BlindtestState, StopChronoState, CultureState]:
+    ) -> tuple[ActiveRound, BlindtestState, StopChronoState, CultureState, BombeState]:
         active_round = ActiveRound(
             round_id=f"{game_key}-manche-{index + 1}",
             label=f"Manche {index + 1}",
@@ -365,7 +400,7 @@ class GameConfig:
                 results={},
                 scores=teams_scores,
             )
-            return active_round, BlindtestState(), stopchrono, CultureState()
+            return active_round, BlindtestState(), stopchrono, CultureState(), BombeState()
         if game_key == "culture":
             # Les questions ne sont PAS pré-tirées : le présentateur choisit la difficulté avant
             # chaque question, et une question est tirée à la demande.
@@ -378,7 +413,9 @@ class GameConfig:
                 asked_questions=[],
                 scores=teams_scores,
             )
-            return active_round, BlindtestState(), StopChronoState(), culture
+            return active_round, BlindtestState(), StopChronoState(), culture, BombeState()
+        if game_key == "bombe":
+            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState()
         blindtest = BlindtestState(
             round_id=active_round.round_id,
             total_tracks=TRACKS_PER_RANDOM_BLINDTEST_ROUND,
@@ -386,16 +423,17 @@ class GameConfig:
             scores=teams_scores,
             playback_state="stopped",
         )
-        return active_round, blindtest, StopChronoState(), CultureState()
+        return active_round, blindtest, StopChronoState(), CultureState(), BombeState()
 
     def _start_manche(self, index: int) -> "GameConfig":
         game_key = self.session.round_sequence[index]
-        active_round, blindtest, stopchrono, culture = self._build_manche_states(game_key, index)
+        active_round, blindtest, stopchrono, culture, bombe = self._build_manche_states(game_key, index)
         return self._replace_session(
             active_round=active_round,
             blindtest=blindtest,
             stopchrono=stopchrono,
             culture=culture,
+            bombe=bombe,
             round_index=index,
             manche_finished=False,
             manche_winner=None,
@@ -835,6 +873,81 @@ class GameConfig:
             changes["active_round"] = replace(active_round, completed=True)
         return self._replace_session(status="live", **changes)
 
+    # --- La Bombe ---
+
+    def _ensure_bombe_active(self) -> BombeState:
+        if self.status != "live" or self.session.active_round is None or self.session.active_round.game_key != "bombe":
+            raise InvalidGameConfigError("Aucune manche de La Bombe n'est active.")
+        return self.session.bombe
+
+    def start_bombe(self, now_ms: int) -> "GameConfig":
+        bombe = self._ensure_bombe_active()
+        if bombe.phase != "idle":
+            raise InvalidGameConfigError("La Bombe a déjà démarré.")
+        start_index = random.randrange(len(self.settings.teams))
+        duration_ms = random.randint(BOMBE_MIN_DURATION_MS, BOMBE_MAX_DURATION_MS)
+        return self._replace_session(
+            bombe=replace(
+                bombe,
+                phase="running",
+                letter=random.choice(BOMBE_LETTERS),
+                current_team_index=start_index,
+                turn_history=[start_index],
+                started_at_ms=now_ms,
+                deadline_at_ms=now_ms + duration_ms,
+                exploded_team=None,
+                winner_team=None,
+            )
+        )
+
+    def register_bombe_buzzer(self, team: str, now_ms: int) -> "GameConfig":
+        bombe = self._ensure_bombe_active()
+        if bombe.phase != "running":
+            raise InvalidGameConfigError("La Bombe n'est pas en cours.")
+        if now_ms >= bombe.deadline_at_ms:
+            return self.explode_bombe(now_ms)
+        current_team = self.settings.teams[bombe.current_team_index]
+        if team != current_team:
+            raise InvalidGameConfigError(f"C'est à {current_team} de jouer.")
+        next_index = (bombe.current_team_index + 1) % len(self.settings.teams)
+        return self._replace_session(
+            bombe=replace(bombe, current_team_index=next_index, turn_history=[*bombe.turn_history, next_index])
+        )
+
+    def previous_bombe_team(self, now_ms: int) -> "GameConfig":
+        bombe = self._ensure_bombe_active()
+        if bombe.phase != "running":
+            raise InvalidGameConfigError("La Bombe n'est pas en cours.")
+        if now_ms >= bombe.deadline_at_ms:
+            return self.explode_bombe(now_ms)
+        if len(bombe.turn_history) < 2:
+            raise InvalidGameConfigError("Aucune équipe précédente n'est disponible.")
+        history = bombe.turn_history[:-1]
+        return self._replace_session(bombe=replace(bombe, current_team_index=history[-1], turn_history=history))
+
+    def explode_bombe(self, now_ms: int) -> "GameConfig":
+        bombe = self._ensure_bombe_active()
+        if bombe.phase == "exploded":
+            return self
+        if bombe.phase != "running":
+            raise InvalidGameConfigError("La Bombe n'est pas en cours.")
+        if now_ms < bombe.deadline_at_ms:
+            raise InvalidGameConfigError("La Bombe n'a pas encore explosé.")
+
+        exploded_team = self.settings.teams[bombe.current_team_index]
+        if len(bombe.turn_history) >= 2:
+            winner_index = bombe.turn_history[-2]
+        else:
+            winner_index = (bombe.current_team_index + 1) % len(self.settings.teams)
+        winner_team = self.settings.teams[winner_index]
+        active_round = replace(self.session.active_round, completed=True) if self.session.active_round else None
+        return self._replace_session(
+            active_round=active_round,
+            bombe=replace(bombe, phase="exploded", exploded_team=exploded_team, winner_team=winner_team),
+            manche_finished=True,
+            manche_winner=winner_team,
+        )
+
     # --- Orchestration des manches / classement final ---
 
     def next_manche(self) -> "GameConfig":
@@ -908,6 +1021,7 @@ class GameConfig:
                         else None
                     ),
                 },
+                "bombe": asdict(self.session.bombe),
                 # Orchestration. `round_sequence` est persisté (round-trip DB) mais retiré du
                 # payload envoyé aux clients par la couche WebSocket (les apps ne voient pas les prochains jeux).
                 "round_sequence": list(self.session.round_sequence),
@@ -945,6 +1059,7 @@ def build_default_game_config() -> GameConfig:
             GameDefinition(game_key="blindtest", label="Blindtest", enabled=True, round_count=0),
             GameDefinition(game_key="stopchrono", label="Stop Chrono", enabled=False, round_count=0),
             GameDefinition(game_key="culture", label="Culture générale", enabled=False, round_count=0),
+            GameDefinition(game_key="bombe", label="La Bombe", enabled=False, round_count=0),
         ],
         rounds=[],
         session=GameSession(updated_at=utc_now_iso()),
