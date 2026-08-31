@@ -89,6 +89,10 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'game.config.replace', payload: config });
   }
 
+  validateAndLaunch(config: GameDraft): void {
+    this.sendMessage({ type: 'game.config.validate-and-launch', payload: config });
+  }
+
   launchGame(): void {
     this.sendMessage({ type: 'game.config.launch' });
   }

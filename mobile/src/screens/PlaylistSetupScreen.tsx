@@ -25,7 +25,7 @@ export function PlaylistSetupScreen({
   const blindtest = snapshot?.session.blindtest;
   const loadedCount = blindtest?.tracks.length ?? 0;
   const isBlindtestRound = activeGameKey === 'blindtest';
-  const playlistReady = !isBlindtestRound || loadedCount >= BLINDTEST_TRACKS_PER_ROUND;
+  const playlistReady = Boolean(activeGameKey) && (!isBlindtestRound || loadedCount >= BLINDTEST_TRACKS_PER_ROUND);
 
   return (
     <>
@@ -106,6 +106,3 @@ export function PlaylistSetupScreen({
     </>
   );
 }
-
-
-

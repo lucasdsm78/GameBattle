@@ -32,6 +32,9 @@ class GameConfigCommandUseCase(ABC):
     async def launch_game(self) -> GameConfigReadModel: ...
 
     @abstractmethod
+    async def validate_and_launch(self, payload: GameConfigUpsertModel) -> GameConfigReadModel: ...
+
+    @abstractmethod
     async def load_blindtest_playlist(self, payload: BlindtestPlaylistCommandModel) -> GameConfigReadModel: ...
 
     @abstractmethod
@@ -127,6 +130,9 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
 
     async def launch_game(self) -> GameConfigReadModel:
         return await self._session.launch_game()
+
+    async def validate_and_launch(self, payload: GameConfigUpsertModel) -> GameConfigReadModel:
+        return await self._session.validate_and_launch(payload)
 
     async def next_manche(self) -> GameConfigReadModel:
         return await self._session.next_manche()

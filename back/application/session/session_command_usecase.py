@@ -15,6 +15,10 @@ class SessionCommandUseCase(GameConfigCommandBase):
     async def replace_config(self, payload: GameConfigUpsertModel) -> GameConfigReadModel:
         return await self._persist(payload.to_domain().with_timestamp())
 
+    async def validate_and_launch(self, payload: GameConfigUpsertModel) -> GameConfigReadModel:
+        config = payload.to_domain().with_timestamp().start_session()
+        return await self._persist(await self._blindtest.autoimport(config))
+
     async def launch_game(self) -> GameConfigReadModel:
         return await self._mutate(lambda config: self._blindtest.autoimport(config.start_session()))
 
