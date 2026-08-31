@@ -776,6 +776,27 @@ button {
   font-weight: 900;
 }
 
+.bombe-scoreboard {
+  width: min(760px, 92%);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.bombe-score {
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.bombe-score span { color: var(--muted); font-weight: 700; }
+.bombe-score strong { font-size: 1.8rem; }
+.bombe-score-out { opacity: 0.42; }
+
 .sound-enable {
   border: 1px solid rgba(239, 68, 68, 0.7);
   border-radius: 999px;

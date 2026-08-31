@@ -245,6 +245,9 @@ class BombeState:
     deadline_at_ms: int = 0
     exploded_team: Optional[str] = None
     winner_team: Optional[str] = None
+    scores: dict[str, int] = field(default_factory=dict)
+    eligible_team_indices: list[int] = field(default_factory=list)
+    tiebreak_round: int = 0
 
     def validate(self, teams: list[str]) -> None:
         allowed_teams = set(teams)
@@ -262,6 +265,18 @@ class BombeState:
             raise InvalidGameConfigError("L'équipe éliminée de La Bombe est inconnue.")
         if self.winner_team and self.winner_team not in allowed_teams:
             raise InvalidGameConfigError("Le gagnant de La Bombe est inconnu.")
+        if set(self.scores) - allowed_teams or any(score < 0 for score in self.scores.values()):
+            raise InvalidGameConfigError("Les pénalités de La Bombe sont invalides.")
+        if len(set(self.eligible_team_indices)) != len(self.eligible_team_indices) or any(
+            index < 0 or index >= len(teams) for index in self.eligible_team_indices
+        ):
+            raise InvalidGameConfigError("Les équipes en lice pour La Bombe sont invalides.")
+        if self.phase == "running" and (
+            len(self.eligible_team_indices) < 2 or self.current_team_index not in self.eligible_team_indices
+        ):
+            raise InvalidGameConfigError("La partie de La Bombe doit opposer au moins deux équipes en lice.")
+        if self.tiebreak_round < 0:
+            raise InvalidGameConfigError("Le numéro de départage de La Bombe est invalide.")
 
 
 @dataclass(slots=True)
@@ -882,9 +897,17 @@ class GameConfig:
 
     def start_bombe(self, now_ms: int) -> "GameConfig":
         bombe = self._ensure_bombe_active()
-        if bombe.phase != "idle":
+        is_tiebreak = bombe.phase == "exploded" and bombe.winner_team is None
+        if bombe.phase != "idle" and not is_tiebreak:
             raise InvalidGameConfigError("La Bombe a déjà démarré.")
-        start_index = random.randrange(len(self.settings.teams))
+        eligible_indices = (
+            list(bombe.eligible_team_indices)
+            if is_tiebreak
+            else list(range(len(self.settings.teams)))
+        )
+        if len(eligible_indices) < 2:
+            raise InvalidGameConfigError("Au moins deux équipes sont requises pour lancer La Bombe.")
+        start_index = eligible_indices[random.randrange(len(eligible_indices))]
         duration_ms = random.randint(BOMBE_MIN_DURATION_MS, BOMBE_MAX_DURATION_MS)
         return self._replace_session(
             bombe=replace(
@@ -897,6 +920,9 @@ class GameConfig:
                 deadline_at_ms=now_ms + duration_ms,
                 exploded_team=None,
                 winner_team=None,
+                scores=dict(bombe.scores) if is_tiebreak else {team: 0 for team in self.settings.teams},
+                eligible_team_indices=eligible_indices,
+                tiebreak_round=bombe.tiebreak_round + 1 if is_tiebreak else 0,
             )
         )
 
@@ -909,7 +935,8 @@ class GameConfig:
         current_team = self.settings.teams[bombe.current_team_index]
         if team != current_team:
             raise InvalidGameConfigError(f"C'est à {current_team} de jouer.")
-        next_index = (bombe.current_team_index + 1) % len(self.settings.teams)
+        current_position = bombe.eligible_team_indices.index(bombe.current_team_index)
+        next_index = bombe.eligible_team_indices[(current_position + 1) % len(bombe.eligible_team_indices)]
         return self._replace_session(
             bombe=replace(bombe, current_team_index=next_index, turn_history=[*bombe.turn_history, next_index])
         )
@@ -935,16 +962,31 @@ class GameConfig:
             raise InvalidGameConfigError("La Bombe n'a pas encore explosé.")
 
         exploded_team = self.settings.teams[bombe.current_team_index]
-        if len(bombe.turn_history) >= 2:
-            winner_index = bombe.turn_history[-2]
-        else:
-            winner_index = (bombe.current_team_index + 1) % len(self.settings.teams)
-        winner_team = self.settings.teams[winner_index]
-        active_round = replace(self.session.active_round, completed=True) if self.session.active_round else None
+        scores = dict(bombe.scores)
+        scores[exploded_team] = scores.get(exploded_team, 0) + 1
+        minimum_score = min(scores[self.settings.teams[index]] for index in bombe.eligible_team_indices)
+        contenders = [
+            index
+            for index in bombe.eligible_team_indices
+            if scores[self.settings.teams[index]] == minimum_score
+        ]
+        winner_team = self.settings.teams[contenders[0]] if len(contenders) == 1 else None
+        active_round = (
+            replace(self.session.active_round, completed=True)
+            if winner_team and self.session.active_round
+            else self.session.active_round
+        )
         return self._replace_session(
             active_round=active_round,
-            bombe=replace(bombe, phase="exploded", exploded_team=exploded_team, winner_team=winner_team),
-            manche_finished=True,
+            bombe=replace(
+                bombe,
+                phase="exploded",
+                exploded_team=exploded_team,
+                winner_team=winner_team,
+                scores=scores,
+                eligible_team_indices=contenders,
+            ),
+            manche_finished=winner_team is not None,
             manche_winner=winner_team,
         )
 

@@ -96,11 +96,23 @@ export function BombeBoard({ gameConfig, onExplode }: Props) {
 
       {bombe.phase === 'running' ? (
         <>
+          {bombe.tiebreak_round > 0 ? <p className="section-chip">Départage {bombe.tiebreak_round}</p> : null}
           <div className="bombe-orb" aria-label="Bombe en cours">💣</div>
           <p className="bombe-kicker">Trouvez un mot contenant</p>
           <div className="bombe-letter">{bombe.letter}</div>
           <p className="bombe-current-team">À {currentTeam} de jouer</p>
           <p className="bombe-instruction">Dites un mot, puis buzzez pour passer la bombe.</p>
+          <div className="bombe-scoreboard" aria-label="Points de pénalité">
+            {teams.map((team, index) => (
+              <div
+                key={team}
+                className={`bombe-score ${bombe.eligible_team_indices.includes(index) ? '' : 'bombe-score-out'}`}
+              >
+                <span>{team}</span>
+                <strong>{bombe.scores[team] ?? 0}</strong>
+              </div>
+            ))}
+          </div>
           {!soundReady ? (
             <button type="button" className="sound-enable" onClick={enableSound}>Activer le son BOUM</button>
           ) : (
@@ -113,7 +125,19 @@ export function BombeBoard({ gameConfig, onExplode }: Props) {
         <div className="bombe-explosion" role="status" aria-live="assertive">
           <div className="bombe-boom">BOUM !</div>
           <p>La bombe a explosé chez <strong>{bombe.exploded_team}</strong></p>
-          <p className="bombe-winner">🏆 {bombe.winner_team} remporte la manche</p>
+          <div className="bombe-scoreboard" aria-label="Points de pénalité">
+            {teams.map((team) => (
+              <div key={team} className="bombe-score">
+                <span>{team}</span>
+                <strong>{bombe.scores[team] ?? 0}</strong>
+              </div>
+            ))}
+          </div>
+          {bombe.winner_team ? (
+            <p className="bombe-winner">🏆 {bombe.winner_team} remporte la manche avec le moins de pénalités</p>
+          ) : (
+            <p className="bombe-winner">Égalité au plus petit score — préparez la partie décisive !</p>
+          )}
           {!soundReady ? (
             <button
               type="button"
@@ -131,4 +155,3 @@ export function BombeBoard({ gameConfig, onExplode }: Props) {
     </section>
   );
 }
-
