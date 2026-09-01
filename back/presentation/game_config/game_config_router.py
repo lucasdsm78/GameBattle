@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Any, Optional
+
+from fastapi import APIRouter, Header
 
 from application.game_config.game_config_models import (
     BlindtestAnswerCommandModel,
@@ -12,7 +14,8 @@ from application.game_config.game_config_models import (
     GameConfigUpsertModel,
     SpotifyPlaylistImportCommandModel,
 )
-from presentation.dependencies import GameConfigCommandDep, GameConfigQueryDep
+from presentation.dependencies import GameConfigCommandDep, GameConfigQueryDep, authorize_client
+from presentation.realtime.game_config_ws_handler import build_client_envelope
 
 router = APIRouter(prefix="/api/game-config", tags=["game-config"])
 
@@ -20,8 +23,12 @@ router = APIRouter(prefix="/api/game-config", tags=["game-config"])
 @router.get("/current", response_model=GameConfigReadModel, summary="Lire la configuration courante")
 async def get_current_game_config(
     query_usecase: GameConfigQueryDep,
-) -> GameConfigReadModel:
-    return await query_usecase.get_current()
+    controller_token: Optional[str] = Header(default=None, alias="X-GameBattle-Controller-Token"),
+) -> GameConfigReadModel | dict[str, Any]:
+    current = await query_usecase.get_current()
+    if authorize_client(client_type="controller", token=controller_token):
+        return current
+    return build_client_envelope("game.config.snapshot", current, "display")["payload"]
 
 
 @router.put("/current", response_model=GameConfigReadModel, summary="Remplacer la configuration courante")
@@ -96,5 +103,3 @@ async def next_blindtest_track(
     command_usecase: GameConfigCommandDep,
 ) -> GameConfigReadModel:
     return await command_usecase.next_blindtest_track()
-
-

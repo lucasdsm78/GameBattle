@@ -9,6 +9,7 @@ import { LiveScreen } from './src/screens/LiveScreen';
 import { StopChronoLiveScreen } from './src/screens/StopChronoLiveScreen';
 import { CultureLiveScreen } from './src/screens/CultureLiveScreen';
 import { BombeLiveScreen } from './src/screens/BombeLiveScreen';
+import { MemoryLiveScreen } from './src/screens/MemoryLiveScreen';
 import { FinalRankingScreen } from './src/screens/FinalRankingScreen';
 import { styles } from './src/theme';
 
@@ -117,7 +118,16 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'bombe' ? (
+            {activeGameKey === 'memory' ? (
+              <MemoryLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStart={() => socket.startMemory()}
+                onValidate={() => socket.validateMemoryAnswer()}
+                onDisqualify={() => socket.disqualifyMemoryTeam()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'bombe' ? (
               <BombeLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}

@@ -4,6 +4,7 @@ import { StopChronoBoard } from './StopChronoBoard';
 import { CultureBoard } from './CultureBoard';
 import { FinalRankingBoard } from './FinalRankingBoard';
 import { BombeBoard } from './BombeBoard';
+import { MemoryBoard } from './MemoryBoard';
 
 type Props = {
   gameConfig: GameConfigSnapshot | null;
@@ -326,6 +327,42 @@ export function DisplayBoard({
     );
   }
 
+  if (activeGameKey === 'memory') {
+    const memory = gameConfig.session.memory;
+    return (
+      <>
+        <main className="screen memory-screen">
+          <section className="hero glass-card">
+            <div>
+              <p className="eyebrow">Mémoire en chaîne</p>
+              <h1>{gameConfig.settings.game_title}</h1>
+              <p className="meta">
+                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
+                <span>•</span>
+                <span>{gameConfig.settings.teams.length} équipes</span>
+              </p>
+            </div>
+            <div className="hero-aside">
+              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
+              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
+            </div>
+          </section>
+
+          <MemoryBoard memory={memory} teams={gameConfig.settings.teams} />
+          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
+        </main>
+
+        {memory.winner_team ? (
+          <div className="winner-overlay">
+            <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
+            <p className="winner-name">{memory.winner_team}</p>
+            <p className="winner-sub">Dernière équipe encore qualifiée</p>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
   const { settings, session, status, updated_at } = gameConfig;
   const { blindtest, active_round } = session;
   const currentTrack = blindtest.current_track;
@@ -475,4 +512,3 @@ export function DisplayBoard({
     </>
   );
 }
-
