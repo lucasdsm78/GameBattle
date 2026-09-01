@@ -49,6 +49,14 @@ def build_client_envelope(event_type: str, payload: GameConfigReadModel, client_
     if isinstance(bombe, dict) and bombe.get("phase") == "rolling":
         bombe["die_result"] = ""
 
+    memory = session.get("memory")
+    if client_type == "display" and isinstance(memory, dict):
+        memory["validated_answers"] = []
+        current_question = memory.get("current_question")
+        if isinstance(current_question, dict):
+            current_question["answer"] = "Réponse masquée"
+            current_question["explanation"] = ""
+
     culture = session.get("culture")
     if isinstance(culture, dict):
         culture.pop("questions", None)
@@ -154,6 +162,12 @@ async def dispatch_game_config_event(
             return await command_usecase.previous_bombe_team()
         if event_type == "bombe.explode":
             return await command_usecase.explode_bombe()
+        if event_type == "memory.start":
+            return await command_usecase.start_memory()
+        if event_type == "memory.validate-answer":
+            return await command_usecase.validate_memory_answer()
+        if event_type == "memory.disqualify-team":
+            return await command_usecase.disqualify_memory_team()
         if event_type == "game.next-manche":
             return await command_usecase.next_manche()
         if event_type == "ranking.reveal-next":

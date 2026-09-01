@@ -6,6 +6,7 @@ from application.blindtest.spotify_playlist_port import SpotifyPlaylistProvider
 from application.blindtest.blindtest_command_usecase import BlindtestCommandUseCase
 from application.bombe import BombeCommandUseCase
 from application.culture.culture_command_usecase import CultureCommandUseCase
+from application.memory import MemoryCommandUseCase
 from application.session.session_command_usecase import SessionCommandUseCase
 from application.stopchrono.stopchrono_command_usecase import StopchronoCommandUseCase
 from application.game_config.game_config_models import (
@@ -109,6 +110,15 @@ class GameConfigCommandUseCase(ABC):
     async def explode_bombe(self) -> GameConfigReadModel: ...
 
     @abstractmethod
+    async def start_memory(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def validate_memory_answer(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def disqualify_memory_team(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
     async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel: ...
 
 
@@ -123,6 +133,7 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
         self._repository = repository
         self._blindtest = BlindtestCommandUseCase(repository, spotify_playlist_service, default_playlist_url)
         self._culture = CultureCommandUseCase(repository)
+        self._memory = MemoryCommandUseCase(repository)
         self._stopchrono = StopchronoCommandUseCase(repository)
         self._bombe = BombeCommandUseCase(repository)
         self._session = SessionCommandUseCase(repository, self._blindtest)
@@ -214,6 +225,16 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
 
     async def explode_bombe(self) -> GameConfigReadModel:
         return await self._bombe.explode()
+
+    # --- Mémoire en chaîne ---
+    async def start_memory(self) -> GameConfigReadModel:
+        return await self._memory.start()
+
+    async def validate_memory_answer(self) -> GameConfigReadModel:
+        return await self._memory.validate_answer()
+
+    async def disqualify_memory_team(self) -> GameConfigReadModel:
+        return await self._memory.disqualify_team()
 
     # --- Matériel ---
     async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel:

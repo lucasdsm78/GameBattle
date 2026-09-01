@@ -22,7 +22,7 @@ class GameSettingsModel(BaseModel):
 
 
 class GameDefinitionModel(BaseModel):
-    game_key: Literal["blindtest", "stopchrono", "culture", "bombe"]
+    game_key: Literal["blindtest", "stopchrono", "culture", "bombe", "memory"]
     label: str = Field(min_length=2, max_length=50)
     enabled: bool = True
     round_count: int = Field(ge=0, le=20)
@@ -31,7 +31,7 @@ class GameDefinitionModel(BaseModel):
 class GameRoundPlanModel(BaseModel):
     id: str = Field(min_length=3, max_length=50)
     label: str = Field(min_length=2, max_length=50)
-    game_key: Literal["blindtest", "stopchrono", "culture", "bombe"]
+    game_key: Literal["blindtest", "stopchrono", "culture", "bombe", "memory"]
     planned_track_count: int = Field(ge=1, le=100)
     buzzer_enabled: bool = False
 
@@ -123,4 +123,3 @@ class SpotifyPlaylistImportCommandModel(BaseModel):
 class GameConfigEnvelope(BaseModel):
     type: str
     payload: GameConfigReadModel
-
