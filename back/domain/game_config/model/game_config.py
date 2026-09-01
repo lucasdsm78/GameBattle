@@ -19,7 +19,9 @@ STOPCHRONO_MAX_TARGET_MS = 25000
 STOPCHRONO_PHASES = {"idle", "running", "revealed", "finished"}
 CULTURE_QUESTIONS_PER_ROUND = 10
 CULTURE_PHASES = {"idle", "selecting", "question", "finished"}
-MEMORY_PHASES = {"idle", "question", "finished"}
+MEMORY_PHASES = {"idle", "question", "recitation", "finished"}
+MEMORY_CHAIN_LENGTH = 8
+MEMORY_RULES_VERSION = 2
 BOMBE_PHASES = {"idle", "awaiting_roll", "rolling", "running", "exploded"}
 BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
 BOMBE_SOUNDS = ("OL", "SEL", "NA", "TA")
@@ -310,6 +312,7 @@ class MemoryState:
     asked_questions: list[str] = field(default_factory=list)
     turn_number: int = 0
     winner_team: Optional[str] = None
+    rules_version: int = MEMORY_RULES_VERSION
 
     def validate(self, teams: list[str]) -> None:
         allowed_teams = set(teams)
@@ -321,20 +324,36 @@ class MemoryState:
             index < 0 or index >= len(teams) for index in self.qualified_team_indices
         ):
             raise InvalidGameConfigError("Les équipes qualifiées de Mémoire en chaîne sont invalides.")
-        if set(self.disqualified_teams) - allowed_teams:
+        if len(set(self.disqualified_teams)) != len(self.disqualified_teams) or set(self.disqualified_teams) - allowed_teams:
             raise InvalidGameConfigError("Une équipe disqualifiée de Mémoire en chaîne est inconnue.")
         if self.phase == "question" and (
             len(self.qualified_team_indices) < 2
             or self.current_team_index not in self.qualified_team_indices
             or self.current_question is None
+            or not 1 <= self.turn_number <= MEMORY_CHAIN_LENGTH
+            or len(self.validated_answers) != self.turn_number
         ):
             raise InvalidGameConfigError("Le tour de Mémoire en chaîne est invalide.")
-        if self.phase == "finished" and (len(self.qualified_team_indices) != 1 or not self.winner_team):
+        if self.phase == "recitation" and (
+            len(self.qualified_team_indices) < 2
+            or self.current_team_index not in self.qualified_team_indices
+            or self.current_question is not None
+            or self.turn_number != MEMORY_CHAIN_LENGTH
+            or len(self.validated_answers) != MEMORY_CHAIN_LENGTH
+        ):
+            raise InvalidGameConfigError("La récitation de Mémoire en chaîne est invalide.")
+        if self.phase == "finished" and (
+            len(self.qualified_team_indices) != 1
+            or not self.winner_team
+            or self.winner_team != teams[self.qualified_team_indices[0]]
+        ):
             raise InvalidGameConfigError("Le vainqueur de Mémoire en chaîne est invalide.")
         if self.winner_team and self.winner_team not in allowed_teams:
             raise InvalidGameConfigError("Le gagnant de Mémoire en chaîne est inconnu.")
         if any(not answer.strip() for answer in self.validated_answers) or self.turn_number < 0:
             raise InvalidGameConfigError("La chaîne de réponses de Mémoire en chaîne est invalide.")
+        if self.rules_version != MEMORY_RULES_VERSION:
+            raise InvalidGameConfigError("La version des règles de Mémoire en chaîne est invalide.")
 
 
 @dataclass(slots=True)
@@ -1128,38 +1147,53 @@ class GameConfig:
             raise InvalidGameConfigError("Mémoire en chaîne a déjà démarré.")
         qualified = list(range(len(self.settings.teams)))
         start_index = random.randrange(len(qualified))
-        return self._replace_session(
-            memory=MemoryState(
-                phase="question",
-                current_team_index=start_index,
-                qualified_team_indices=qualified,
-                current_question=self._pick_memory_question([]),
-                turn_number=1,
-            )
-        )
+        question = self._pick_memory_question([])
+        return self._replace_session(memory=MemoryState(
+            phase="question",
+            current_team_index=start_index,
+            qualified_team_indices=qualified,
+            current_question=question,
+            validated_answers=[question.answer],
+            asked_questions=[question.question],
+            turn_number=1,
+        ))
 
-    def validate_memory_answer(self) -> "GameConfig":
+    def next_memory_question(self) -> "GameConfig":
         memory = self._ensure_memory_active()
         if memory.phase != "question" or memory.current_question is None:
-            raise InvalidGameConfigError("Aucune réponse de Mémoire en chaîne n'est à valider.")
-        asked = [*memory.asked_questions, memory.current_question.question]
+            raise InvalidGameConfigError("Aucune question de Mémoire en chaîne n'est en cours.")
+        if memory.turn_number == MEMORY_CHAIN_LENGTH:
+            return self._replace_session(memory=replace(memory, phase="recitation", current_question=None))
+        question = self._pick_memory_question(memory.asked_questions)
+        return self._replace_session(memory=replace(
+            memory,
+            current_question=question,
+            validated_answers=[*memory.validated_answers, question.answer],
+            asked_questions=[*memory.asked_questions, question.question],
+            turn_number=memory.turn_number + 1,
+        ))
+
+    def validate_memory_sequence(self) -> "GameConfig":
+        memory = self._ensure_memory_active()
+        if memory.phase != "recitation":
+            raise InvalidGameConfigError("La séquence ne peut être validée qu'après les 8 questions.")
         position = memory.qualified_team_indices.index(memory.current_team_index)
         next_index = memory.qualified_team_indices[(position + 1) % len(memory.qualified_team_indices)]
-        return self._replace_session(
-            memory=replace(
-                memory,
-                current_team_index=next_index,
-                current_question=self._pick_memory_question(asked),
-                validated_answers=[*memory.validated_answers, memory.current_question.answer],
-                asked_questions=asked,
-                turn_number=memory.turn_number + 1,
-            )
-        )
+        question = self._pick_memory_question(memory.asked_questions)
+        return self._replace_session(memory=replace(
+            memory,
+            phase="question",
+            current_team_index=next_index,
+            current_question=question,
+            validated_answers=[question.answer],
+            asked_questions=[*memory.asked_questions, question.question],
+            turn_number=1,
+        ))
 
     def disqualify_memory_team(self) -> "GameConfig":
         memory = self._ensure_memory_active()
-        if memory.phase != "question" or memory.current_question is None:
-            raise InvalidGameConfigError("Aucune équipe de Mémoire en chaîne ne peut être disqualifiée.")
+        if memory.phase != "recitation":
+            raise InvalidGameConfigError("Une équipe ne peut être disqualifiée qu'après les 8 questions.")
         eliminated_team = self.settings.teams[memory.current_team_index]
         qualified = [index for index in memory.qualified_team_indices if index != memory.current_team_index]
         disqualified = [*memory.disqualified_teams, eliminated_team]
@@ -1185,18 +1219,18 @@ class GameConfig:
             for offset in range(1, len(self.settings.teams) + 1)
             if (index := (memory.current_team_index + offset) % len(self.settings.teams)) in qualified
         )
-        asked = [*memory.asked_questions, memory.current_question.question]
-        return self._replace_session(
-            memory=replace(
-                memory,
-                current_team_index=next_index,
-                qualified_team_indices=qualified,
-                disqualified_teams=disqualified,
-                current_question=self._pick_memory_question(asked),
-                asked_questions=asked,
-                turn_number=memory.turn_number + 1,
-            )
-        )
+        question = self._pick_memory_question(memory.asked_questions)
+        return self._replace_session(memory=replace(
+            memory,
+            phase="question",
+            current_team_index=next_index,
+            qualified_team_indices=qualified,
+            disqualified_teams=disqualified,
+            current_question=question,
+            validated_answers=[question.answer],
+            asked_questions=[*memory.asked_questions, question.question],
+            turn_number=1,
+        ))
 
     # --- Orchestration des manches / classement final ---
 
@@ -1275,6 +1309,7 @@ class GameConfig:
                 "memory": {
                     **asdict(self.session.memory),
                     "sequence_length": len(self.session.memory.validated_answers),
+                    "chain_length": MEMORY_CHAIN_LENGTH,
                     "current_question": (
                         asdict(self.session.memory.current_question)
                         if self.session.memory.current_question

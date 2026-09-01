@@ -52,12 +52,13 @@ export default function App() {
   const activeGameKey = session?.active_round?.game_key;
   const partyFinished = remoteSnapshot?.status === 'finished';
   const mancheFinished = Boolean(session?.manche_finished) && !partyFinished;
+  const memory = activeGameKey === 'memory' ? session?.memory : undefined;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ExpoStatusBar style="light" />
       <StatusBar barStyle="light-content" />
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
         {step === 'config' ? (
           <ConfigScreen
             draft={draft}
@@ -123,8 +124,6 @@ export default function App() {
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}
                 onStart={() => socket.startMemory()}
-                onValidate={() => socket.validateMemoryAnswer()}
-                onDisqualify={() => socket.disqualifyMemoryTeam()}
                 onBack={() => setStep('config')}
               />
             ) : activeGameKey === 'bombe' ? (
@@ -173,6 +172,37 @@ export default function App() {
           </>
         ) : null}
       </ScrollView>
+
+      {step === 'live' && (memory?.phase === 'question' || memory?.phase === 'recitation') ? (
+        <View style={styles.memoryFixedFooter}>
+          {memory.phase === 'question' ? (
+            <>
+              <Text style={styles.memoryActionLabel}>
+                {remoteSnapshot?.settings.teams[memory.current_team_index] ?? 'Équipe'} · Question {memory.turn_number}/{memory.chain_length}
+              </Text>
+              <Pressable
+                style={[styles.primaryButton, !memory.current_question && styles.primaryButtonDisabled]}
+                onPress={() => socket.nextMemoryQuestion()}
+                disabled={!memory.current_question}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {memory.turn_number === memory.chain_length ? '🎙 Passer à la récitation' : 'Question suivante →'}
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.memoryActionLabel}>Arbitrage de la récitation</Text>
+              <Pressable style={styles.primaryButton} onPress={() => socket.validateMemorySequence()}>
+                <Text style={styles.primaryButtonText}>✓ Séquence correcte</Text>
+              </Pressable>
+              <Pressable style={[styles.primaryButton, styles.falseButton]} onPress={() => socket.disqualifyMemoryTeam()}>
+                <Text style={styles.primaryButtonText}>✕ Faute — disqualifier</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -241,8 +241,12 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'memory.start' });
   }
 
-  validateMemoryAnswer(): void {
-    this.sendMessage({ type: 'memory.validate-answer' });
+  nextMemoryQuestion(): void {
+    this.sendMessage({ type: 'memory.next-question' });
+  }
+
+  validateMemorySequence(): void {
+    this.sendMessage({ type: 'memory.validate-sequence' });
   }
 
   disqualifyMemoryTeam(): void {

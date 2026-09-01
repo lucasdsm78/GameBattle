@@ -120,7 +120,7 @@ export type BombeState = {
 };
 
 export type MemoryState = {
-  phase: 'idle' | 'question' | 'finished';
+  phase: 'idle' | 'question' | 'recitation' | 'finished';
   current_team_index: number;
   qualified_team_indices: number[];
   disqualified_teams: string[];
@@ -128,8 +128,10 @@ export type MemoryState = {
   validated_answers: string[];
   asked_questions: string[];
   sequence_length: number;
+  chain_length: number;
   turn_number: number;
   winner_team: string | null;
+  rules_version: number;
 };
 
 export type GameSession = {

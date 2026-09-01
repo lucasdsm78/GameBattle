@@ -17,6 +17,7 @@ export const colors = {
 
 export const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.bg },
+  scrollView: { flex: 1 },
   container: { padding: 16, gap: 16, backgroundColor: colors.bg, paddingBottom: 48 },
 
   // Stepper
@@ -164,6 +165,8 @@ export const styles = StyleSheet.create({
   bombeInstruction: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },
 
   // Mémoire en chaîne
+  memoryFixedFooter: { flexShrink: 0, backgroundColor: '#102a3d', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14, gap: 10, borderTopWidth: 1, borderTopColor: '#38bdf8' },
+  memoryActionLabel: { color: '#bae6fd', fontSize: 15, fontWeight: '800', textAlign: 'center' },
   memoryCard: { backgroundColor: '#111d2d', borderRadius: 24, padding: 20, gap: 14, borderWidth: 1, borderColor: 'rgba(56,189,248,0.42)' },
   memoryInstruction: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   memoryAnswerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: colors.cardAlt },

@@ -986,7 +986,8 @@ button {
   font-weight: 700;
 }
 
-.memory-waiting h3 {
+.memory-waiting h3,
+.memory-recitation-card h3 {
   margin: 0;
   font-size: clamp(1.8rem, 4vw, 3.5rem);
 }
@@ -999,6 +1000,15 @@ button {
 .memory-brain {
   font-size: clamp(4rem, 9vw, 7rem);
   filter: drop-shadow(0 0 28px rgba(34, 197, 94, 0.35));
+}
+
+.memory-recitation-card {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.memory-recitation-card > p {
+  font-size: clamp(1.4rem, 3.2vw, 2.6rem);
 }
 
 .memory-winner-card span {

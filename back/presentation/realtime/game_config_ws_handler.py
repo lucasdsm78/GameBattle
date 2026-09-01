@@ -164,8 +164,10 @@ async def dispatch_game_config_event(
             return await command_usecase.explode_bombe()
         if event_type == "memory.start":
             return await command_usecase.start_memory()
-        if event_type == "memory.validate-answer":
-            return await command_usecase.validate_memory_answer()
+        if event_type == "memory.next-question":
+            return await command_usecase.next_memory_question()
+        if event_type == "memory.validate-sequence":
+            return await command_usecase.validate_memory_sequence()
         if event_type == "memory.disqualify-team":
             return await command_usecase.disqualify_memory_team()
         if event_type == "game.next-manche":

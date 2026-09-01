@@ -6,12 +6,15 @@ type Props = {
   snapshot: GameConfigSnapshot;
   errorMessage: string | null;
   onStart: () => void;
-  onValidate: () => void;
-  onDisqualify: () => void;
   onBack: () => void;
 };
 
-export function MemoryLiveScreen({ snapshot, errorMessage, onStart, onValidate, onDisqualify, onBack }: Props) {
+export function MemoryLiveScreen({
+  snapshot,
+  errorMessage,
+  onStart,
+  onBack,
+}: Props) {
   const memory = snapshot.session.memory;
   const teams = snapshot.settings.teams;
   const currentTeam = teams[memory.current_team_index] ?? '—';
@@ -26,7 +29,7 @@ export function MemoryLiveScreen({ snapshot, errorMessage, onStart, onValidate, 
       <View style={styles.heroCard}>
         <Text style={styles.eyebrow}>Mémoire en chaîne</Text>
         <Text style={styles.title}>{snapshot.settings.game_title}</Text>
-        <Text style={styles.subtitle}>Récitez toutes les réponses dans l’ordre, puis répondez à la nouvelle question.</Text>
+        <Text style={styles.subtitle}>Chaque équipe mémorise sa propre chaîne de 8 réponses, puis la récite dans l’ordre.</Text>
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
       </View>
 
@@ -42,33 +45,34 @@ export function MemoryLiveScreen({ snapshot, errorMessage, onStart, onValidate, 
       {memory.phase === 'question' && memory.current_question ? (
         <>
           <View style={styles.memoryCard}>
-            <Text style={styles.nowPlayingLabel}>Tour {memory.turn_number} · À {currentTeam}</Text>
+            <Text style={styles.nowPlayingLabel}>Question {memory.turn_number}/{memory.chain_length} · {currentTeam}</Text>
             <Text style={styles.questionText}>{memory.current_question.question}</Text>
             <View style={styles.answerCard}>
               <Text style={styles.nowPlayingLabel}>Réponse attendue</Text>
               <Text style={styles.answerText}>{memory.current_question.answer}</Text>
             </View>
           </View>
+        </>
+      ) : null}
 
+      {memory.phase === 'question' || memory.phase === 'recitation' ? (
+        <>
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Chaîne à réciter dans l’ordre</Text>
+            <Text style={styles.sectionTitle}>Chaîne de {currentTeam} · {memory.sequence_length}/{memory.chain_length}</Text>
             {memory.validated_answers.length ? memory.validated_answers.map((answer, index) => (
               <View key={`${index}-${answer}`} style={styles.memoryAnswerRow}>
                 <Text style={styles.memoryAnswerIndex}>{index + 1}</Text>
                 <Text style={styles.memoryAnswerText}>{answer}</Text>
               </View>
-            )) : <Text style={styles.helperText}>La chaîne est vide : répondez seulement à la question actuelle.</Text>}
+            )) : <Text style={styles.helperText}>La chaîne de cette équipe est vide.</Text>}
           </View>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Arbitrage</Text>
-            <Pressable style={styles.primaryButton} onPress={onValidate}>
-              <Text style={styles.primaryButtonText}>✓ Séquence et réponse correctes</Text>
-            </Pressable>
-            <Pressable style={[styles.primaryButton, styles.falseButton]} onPress={onDisqualify}>
-              <Text style={styles.primaryButtonText}>✕ Faute — disqualifier {currentTeam}</Text>
-            </Pressable>
-          </View>
+          {memory.phase === 'recitation' ? (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>🎙 {currentTeam} récite maintenant les 8 réponses</Text>
+              <Text style={styles.helperText}>Vérifiez que toutes les réponses sont données dans l’ordre exact.</Text>
+            </View>
+          ) : null}
         </>
       ) : null}
 

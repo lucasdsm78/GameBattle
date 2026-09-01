@@ -113,7 +113,10 @@ class GameConfigCommandUseCase(ABC):
     async def start_memory(self) -> GameConfigReadModel: ...
 
     @abstractmethod
-    async def validate_memory_answer(self) -> GameConfigReadModel: ...
+    async def next_memory_question(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def validate_memory_sequence(self) -> GameConfigReadModel: ...
 
     @abstractmethod
     async def disqualify_memory_team(self) -> GameConfigReadModel: ...
@@ -230,8 +233,11 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     async def start_memory(self) -> GameConfigReadModel:
         return await self._memory.start()
 
-    async def validate_memory_answer(self) -> GameConfigReadModel:
-        return await self._memory.validate_answer()
+    async def next_memory_question(self) -> GameConfigReadModel:
+        return await self._memory.next_question()
+
+    async def validate_memory_sequence(self) -> GameConfigReadModel:
+        return await self._memory.validate_sequence()
 
     async def disqualify_memory_team(self) -> GameConfigReadModel:
         return await self._memory.disqualify_team()
