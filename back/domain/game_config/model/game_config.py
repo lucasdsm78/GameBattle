@@ -9,7 +9,7 @@ from uuid import uuid4
 from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
 from domain.game_config.model.culture_questions import CULTURE_DIFFICULTIES, pick_one_culture_question
 
-SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture", "bombe"}
+SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture", "bombe", "memory"}
 ALLOWED_STATUSES = {"configuring", "ready", "live", "finished"}
 TRACKS_PER_RANDOM_BLINDTEST_ROUND = 10
 DEFAULT_BUZZER_KEYS = ["1", "2", "3", "4", "5", "6"]
@@ -19,6 +19,7 @@ STOPCHRONO_MAX_TARGET_MS = 25000
 STOPCHRONO_PHASES = {"idle", "running", "revealed", "finished"}
 CULTURE_QUESTIONS_PER_ROUND = 10
 CULTURE_PHASES = {"idle", "selecting", "question", "finished"}
+MEMORY_PHASES = {"idle", "question", "finished"}
 BOMBE_PHASES = {"idle", "awaiting_roll", "rolling", "running", "exploded"}
 BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
 BOMBE_SOUNDS = ("OL", "SEL", "NA", "TA")
@@ -299,6 +300,44 @@ class BombeState:
 
 
 @dataclass(slots=True)
+class MemoryState:
+    phase: str = "idle"
+    current_team_index: int = 0
+    qualified_team_indices: list[int] = field(default_factory=list)
+    disqualified_teams: list[str] = field(default_factory=list)
+    current_question: Optional[CultureQuestion] = None
+    validated_answers: list[str] = field(default_factory=list)
+    asked_questions: list[str] = field(default_factory=list)
+    turn_number: int = 0
+    winner_team: Optional[str] = None
+
+    def validate(self, teams: list[str]) -> None:
+        allowed_teams = set(teams)
+        if self.phase not in MEMORY_PHASES:
+            raise InvalidGameConfigError("La phase de Mémoire en chaîne est invalide.")
+        if self.current_team_index < 0 or (teams and self.current_team_index >= len(teams)):
+            raise InvalidGameConfigError("L'équipe courante de Mémoire en chaîne est invalide.")
+        if len(set(self.qualified_team_indices)) != len(self.qualified_team_indices) or any(
+            index < 0 or index >= len(teams) for index in self.qualified_team_indices
+        ):
+            raise InvalidGameConfigError("Les équipes qualifiées de Mémoire en chaîne sont invalides.")
+        if set(self.disqualified_teams) - allowed_teams:
+            raise InvalidGameConfigError("Une équipe disqualifiée de Mémoire en chaîne est inconnue.")
+        if self.phase == "question" and (
+            len(self.qualified_team_indices) < 2
+            or self.current_team_index not in self.qualified_team_indices
+            or self.current_question is None
+        ):
+            raise InvalidGameConfigError("Le tour de Mémoire en chaîne est invalide.")
+        if self.phase == "finished" and (len(self.qualified_team_indices) != 1 or not self.winner_team):
+            raise InvalidGameConfigError("Le vainqueur de Mémoire en chaîne est invalide.")
+        if self.winner_team and self.winner_team not in allowed_teams:
+            raise InvalidGameConfigError("Le gagnant de Mémoire en chaîne est inconnu.")
+        if any(not answer.strip() for answer in self.validated_answers) or self.turn_number < 0:
+            raise InvalidGameConfigError("La chaîne de réponses de Mémoire en chaîne est invalide.")
+
+
+@dataclass(slots=True)
 class ActiveRound:
     round_id: str
     label: str
@@ -320,6 +359,7 @@ class GameSession:
     stopchrono: StopChronoState = field(default_factory=StopChronoState)
     culture: CultureState = field(default_factory=CultureState)
     bombe: BombeState = field(default_factory=BombeState)
+    memory: MemoryState = field(default_factory=MemoryState)
     # Séquence des jeux pour chaque manche, déterminée au lancement et JAMAIS exposée aux apps
     # (le mobile et l'écran ne voient que la manche courante).
     round_sequence: list[str] = field(default_factory=list)
@@ -341,6 +381,7 @@ class GameSession:
         self.stopchrono.validate(teams)
         self.culture.validate(teams)
         self.bombe.validate(teams)
+        self.memory.validate(teams)
         if set(self.manches_won.keys()) - allowed_teams:
             raise InvalidGameConfigError("Le classement contient une équipe inconnue.")
         if self.manche_winner and self.manche_winner not in allowed_teams and self.manche_winner != TIE_LABEL:
@@ -420,7 +461,7 @@ class GameConfig:
 
     def _build_manche_states(
         self, game_key: str, index: int
-    ) -> tuple[ActiveRound, BlindtestState, StopChronoState, CultureState, BombeState]:
+    ) -> tuple[ActiveRound, BlindtestState, StopChronoState, CultureState, BombeState, MemoryState]:
         active_round = ActiveRound(
             round_id=f"{game_key}-manche-{index + 1}",
             label=f"Manche {index + 1}",
@@ -437,7 +478,7 @@ class GameConfig:
                 results={},
                 scores=teams_scores,
             )
-            return active_round, BlindtestState(), stopchrono, CultureState(), BombeState()
+            return active_round, BlindtestState(), stopchrono, CultureState(), BombeState(), MemoryState()
         if game_key == "culture":
             # Les questions ne sont PAS pré-tirées : le présentateur choisit la difficulté avant
             # chaque question, et une question est tirée à la demande.
@@ -450,9 +491,11 @@ class GameConfig:
                 asked_questions=[],
                 scores=teams_scores,
             )
-            return active_round, BlindtestState(), StopChronoState(), culture, BombeState()
+            return active_round, BlindtestState(), StopChronoState(), culture, BombeState(), MemoryState()
         if game_key == "bombe":
-            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState()
+            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState()
+        if game_key == "memory":
+            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState()
         blindtest = BlindtestState(
             round_id=active_round.round_id,
             total_tracks=TRACKS_PER_RANDOM_BLINDTEST_ROUND,
@@ -460,17 +503,18 @@ class GameConfig:
             scores=teams_scores,
             playback_state="stopped",
         )
-        return active_round, blindtest, StopChronoState(), CultureState(), BombeState()
+        return active_round, blindtest, StopChronoState(), CultureState(), BombeState(), MemoryState()
 
     def _start_manche(self, index: int) -> "GameConfig":
         game_key = self.session.round_sequence[index]
-        active_round, blindtest, stopchrono, culture, bombe = self._build_manche_states(game_key, index)
+        active_round, blindtest, stopchrono, culture, bombe, memory = self._build_manche_states(game_key, index)
         return self._replace_session(
             active_round=active_round,
             blindtest=blindtest,
             stopchrono=stopchrono,
             culture=culture,
             bombe=bombe,
+            memory=memory,
             round_index=index,
             manche_finished=False,
             manche_winner=None,
@@ -1058,6 +1102,102 @@ class GameConfig:
             manche_winner=winner_team,
         )
 
+    # --- Mémoire en chaîne ---
+
+    def _ensure_memory_active(self) -> MemoryState:
+        if self.status != "live" or self.session.active_round is None or self.session.active_round.game_key != "memory":
+            raise InvalidGameConfigError("Aucune manche de Mémoire en chaîne n'est active.")
+        return self.session.memory
+
+    @staticmethod
+    def _pick_memory_question(asked_questions: list[str]) -> CultureQuestion:
+        payload = pick_one_culture_question("toutes", set(asked_questions))
+        if payload is None:
+            raise InvalidGameConfigError("Aucune question de culture générale n'est disponible.")
+        return CultureQuestion(
+            id=f"memory-{uuid4().hex[:12]}",
+            question=payload["question"],
+            answer=payload["answer"],
+            explanation=payload.get("explanation", ""),
+            difficulty=payload["difficulty"],
+        )
+
+    def start_memory(self) -> "GameConfig":
+        memory = self._ensure_memory_active()
+        if memory.phase != "idle":
+            raise InvalidGameConfigError("Mémoire en chaîne a déjà démarré.")
+        qualified = list(range(len(self.settings.teams)))
+        start_index = random.randrange(len(qualified))
+        return self._replace_session(
+            memory=MemoryState(
+                phase="question",
+                current_team_index=start_index,
+                qualified_team_indices=qualified,
+                current_question=self._pick_memory_question([]),
+                turn_number=1,
+            )
+        )
+
+    def validate_memory_answer(self) -> "GameConfig":
+        memory = self._ensure_memory_active()
+        if memory.phase != "question" or memory.current_question is None:
+            raise InvalidGameConfigError("Aucune réponse de Mémoire en chaîne n'est à valider.")
+        asked = [*memory.asked_questions, memory.current_question.question]
+        position = memory.qualified_team_indices.index(memory.current_team_index)
+        next_index = memory.qualified_team_indices[(position + 1) % len(memory.qualified_team_indices)]
+        return self._replace_session(
+            memory=replace(
+                memory,
+                current_team_index=next_index,
+                current_question=self._pick_memory_question(asked),
+                validated_answers=[*memory.validated_answers, memory.current_question.answer],
+                asked_questions=asked,
+                turn_number=memory.turn_number + 1,
+            )
+        )
+
+    def disqualify_memory_team(self) -> "GameConfig":
+        memory = self._ensure_memory_active()
+        if memory.phase != "question" or memory.current_question is None:
+            raise InvalidGameConfigError("Aucune équipe de Mémoire en chaîne ne peut être disqualifiée.")
+        eliminated_team = self.settings.teams[memory.current_team_index]
+        qualified = [index for index in memory.qualified_team_indices if index != memory.current_team_index]
+        disqualified = [*memory.disqualified_teams, eliminated_team]
+        if len(qualified) == 1:
+            winner = self.settings.teams[qualified[0]]
+            active_round = replace(self.session.active_round, completed=True) if self.session.active_round else None
+            return self._replace_session(
+                active_round=active_round,
+                memory=replace(
+                    memory,
+                    phase="finished",
+                    current_team_index=qualified[0],
+                    qualified_team_indices=qualified,
+                    disqualified_teams=disqualified,
+                    current_question=None,
+                    winner_team=winner,
+                ),
+                manche_finished=True,
+                manche_winner=winner,
+            )
+        next_index = next(
+            index
+            for offset in range(1, len(self.settings.teams) + 1)
+            if (index := (memory.current_team_index + offset) % len(self.settings.teams)) in qualified
+        )
+        asked = [*memory.asked_questions, memory.current_question.question]
+        return self._replace_session(
+            memory=replace(
+                memory,
+                current_team_index=next_index,
+                qualified_team_indices=qualified,
+                disqualified_teams=disqualified,
+                current_question=self._pick_memory_question(asked),
+                asked_questions=asked,
+                turn_number=memory.turn_number + 1,
+            )
+        )
+
     # --- Orchestration des manches / classement final ---
 
     def next_manche(self) -> "GameConfig":
@@ -1132,6 +1272,15 @@ class GameConfig:
                     ),
                 },
                 "bombe": asdict(self.session.bombe),
+                "memory": {
+                    **asdict(self.session.memory),
+                    "sequence_length": len(self.session.memory.validated_answers),
+                    "current_question": (
+                        asdict(self.session.memory.current_question)
+                        if self.session.memory.current_question
+                        else None
+                    ),
+                },
                 # Orchestration. `round_sequence` est persisté (round-trip DB) mais retiré du
                 # payload envoyé aux clients par la couche WebSocket (les apps ne voient pas les prochains jeux).
                 "round_sequence": list(self.session.round_sequence),
@@ -1171,6 +1320,7 @@ def build_default_game_config() -> GameConfig:
             GameDefinition(game_key="stopchrono", label="Stop Chrono", enabled=False, round_count=0),
             GameDefinition(game_key="culture", label="Culture générale", enabled=False, round_count=0),
             GameDefinition(game_key="bombe", label="La Bombe", enabled=False, round_count=0),
+            GameDefinition(game_key="memory", label="Mémoire en chaîne", enabled=False, round_count=0),
         ],
         rounds=[],
         session=GameSession(updated_at=utc_now_iso()),
@@ -1277,5 +1427,3 @@ def build_blindtest_track(
         preview_url=preview_url,
         artwork_url=artwork_url,
     )
-
-

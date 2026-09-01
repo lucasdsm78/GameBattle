@@ -12,6 +12,7 @@ from domain.game_config.model.game_config import (
     GameRoundPlan,
     GameSession,
     GameSettings,
+    MemoryState,
     StopChronoState,
 )
 
@@ -23,6 +24,7 @@ def game_config_from_payload(payload: dict) -> GameConfig:
     stopchrono_payload = session_payload.get("stopchrono", {})
     culture_payload = session_payload.get("culture", {})
     bombe_payload = session_payload.get("bombe", {})
+    memory_payload = session_payload.get("memory", {})
     active_round_payload = session_payload.get("active_round")
 
     config = GameConfig(
@@ -110,6 +112,21 @@ def game_config_from_payload(payload: dict) -> GameConfig:
                 die_result=bombe_payload.get("die_result", ""),
                 roller_team_index=bombe_payload.get("roller_team_index"),
                 die_reveal_at_ms=bombe_payload.get("die_reveal_at_ms", 0),
+            ),
+            memory=MemoryState(
+                phase=memory_payload.get("phase", "idle"),
+                current_team_index=memory_payload.get("current_team_index", 0),
+                qualified_team_indices=list(memory_payload.get("qualified_team_indices", []) or []),
+                disqualified_teams=list(memory_payload.get("disqualified_teams", []) or []),
+                current_question=(
+                    CultureQuestion(**memory_payload["current_question"])
+                    if memory_payload.get("current_question")
+                    else None
+                ),
+                validated_answers=list(memory_payload.get("validated_answers", []) or []),
+                asked_questions=list(memory_payload.get("asked_questions", []) or []),
+                turn_number=memory_payload.get("turn_number", 0),
+                winner_team=memory_payload.get("winner_team"),
             ),
             round_sequence=list(session_payload.get("round_sequence", []) or []),
             round_index=session_payload.get("round_index", 0),
