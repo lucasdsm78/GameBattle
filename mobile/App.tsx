@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StatusBar, Text, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { GameConfigControllerSocket } from './src/services/realtime/gameConfigControllerSocket';
 import { useGameConfigStore } from './src/store/gameConfigStore';
 import { ConfigScreen } from './src/screens/ConfigScreen';
@@ -55,10 +56,11 @@ export default function App() {
   const memory = activeGameKey === 'memory' ? session?.memory : undefined;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ExpoStatusBar style="light" />
-      <StatusBar barStyle="light-content" />
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'right', 'bottom', 'left']}>
+        <ExpoStatusBar style="light" />
+        <StatusBar barStyle="light-content" />
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
         {step === 'config' ? (
           <ConfigScreen
             draft={draft}
@@ -171,10 +173,10 @@ export default function App() {
             )}
           </>
         ) : null}
-      </ScrollView>
+        </ScrollView>
 
-      {step === 'live' && (memory?.phase === 'question' || memory?.phase === 'recitation') ? (
-        <View style={styles.memoryFixedFooter}>
+        {step === 'live' && (memory?.phase === 'question' || memory?.phase === 'recitation') ? (
+          <View style={styles.memoryFixedFooter}>
           {memory.phase === 'question' ? (
             <>
               <Text style={styles.memoryActionLabel}>
@@ -201,8 +203,9 @@ export default function App() {
               </Pressable>
             </>
           )}
-        </View>
-      ) : null}
-    </SafeAreaView>
+          </View>
+        ) : null}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
