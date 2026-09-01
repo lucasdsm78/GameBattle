@@ -106,6 +106,23 @@ def _bombe_payload() -> dict:
     return payload
 
 
+def _memory_payload() -> dict:
+    payload = _payload("Mémoire des champions")
+    payload["settings"]["teams"] = ["Rouges", "Bleus", "Verts"]
+    payload["settings"]["buzzer_keys"] = ["a", "l", "v"]
+    payload["settings"]["total_rounds"] = 1
+    payload["games"] = [
+        {
+            "game_key": "memory",
+            "label": "Mémoire en chaîne",
+            "enabled": True,
+            "round_count": 0,
+        }
+    ]
+    payload["rounds"] = []
+    return payload
+
+
 def _spotify_tracks(prefix: str = "spotify-track") -> list[SpotifyPlaylistTrackData]:
     return [
         SpotifyPlaylistTrackData(
@@ -434,6 +451,62 @@ def test_websocket_bombe_flow_accepts_and_broadcasts_hardware_buzzer() -> None:
                 assert hardware_display["payload"]["session"]["bombe"]["current_team_index"] == next_index
 
 
+def test_websocket_memory_flow_masks_answers_and_finishes_with_one_winner() -> None:
+    with TestClient(app) as client:
+        with client.websocket_connect("/ws/game-config?client_type=display&token=display-test-token") as display_ws:
+            display_ws.receive_json()
+
+            with client.websocket_connect("/ws/game-config?client_type=controller&token=controller-test-token") as controller_ws:
+                controller_ws.receive_json()
+                controller_ws.send_json({"type": "game.config.validate-and-launch", "payload": _memory_payload()})
+                launched_controller = controller_ws.receive_json()
+                launched_display = display_ws.receive_json()
+                assert launched_controller["payload"]["session"]["active_round"]["game_key"] == "memory"
+                assert launched_display["payload"]["session"]["active_round"]["game_key"] == "memory"
+
+                controller_ws.send_json({"type": "memory.start"})
+                started_controller = controller_ws.receive_json()
+                started_display = display_ws.receive_json()
+                controller_memory = started_controller["payload"]["session"]["memory"]
+                display_memory = started_display["payload"]["session"]["memory"]
+                first_answer = controller_memory["current_question"]["answer"]
+                assert first_answer
+                assert display_memory["current_question"]["answer"] == "Réponse masquée"
+                assert first_answer not in str(started_display)
+
+                controller_ws.send_json({"type": "memory.validate-answer"})
+                validated_controller = controller_ws.receive_json()
+                validated_display = display_ws.receive_json()
+                assert validated_controller["payload"]["session"]["memory"]["validated_answers"] == [first_answer]
+                assert validated_display["payload"]["session"]["memory"]["validated_answers"] == []
+                assert validated_display["payload"]["session"]["memory"]["sequence_length"] == 1
+                assert first_answer not in str(validated_display)
+
+                public_current = client.get("/api/game-config/current").json()
+                controller_current = client.get(
+                    "/api/game-config/current",
+                    headers={"X-GameBattle-Controller-Token": "controller-test-token"},
+                ).json()
+                assert public_current["session"]["memory"]["validated_answers"] == []
+                assert public_current["session"]["memory"]["current_question"]["answer"] == "Réponse masquée"
+                assert first_answer not in str(public_current)
+                assert controller_current["session"]["memory"]["validated_answers"] == [first_answer]
+
+                controller_ws.send_json({"type": "memory.disqualify-team"})
+                controller_ws.receive_json()
+                display_ws.receive_json()
+                controller_ws.send_json({"type": "memory.disqualify-team"})
+                finished_controller = controller_ws.receive_json()
+                finished_display = display_ws.receive_json()
+
+                finished_memory = finished_controller["payload"]["session"]["memory"]
+                assert finished_memory["phase"] == "finished"
+                assert finished_memory["winner_team"] in _memory_payload()["settings"]["teams"]
+                assert len(finished_memory["qualified_team_indices"]) == 1
+                assert finished_controller["payload"]["session"]["manche_finished"] is True
+                assert finished_display["payload"]["session"]["memory"]["validated_answers"] == []
+
+
 def test_atomic_validation_failure_does_not_launch_previous_config() -> None:
     with TestClient(app) as client:
         client.put("/api/game-config/current", json=_payload())
@@ -450,4 +523,3 @@ def test_atomic_validation_failure_does_not_launch_previous_config() -> None:
         assert current["status"] == "ready"
         assert current["session"]["active_round"] is None
         assert [(game["game_key"], game["enabled"]) for game in current["games"]] == [("blindtest", True)]
-

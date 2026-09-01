@@ -163,6 +163,14 @@ export const styles = StyleSheet.create({
   bombeTeam: { color: '#fecaca', fontSize: 22, fontWeight: '900', textAlign: 'center' },
   bombeInstruction: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },
 
+  // Mémoire en chaîne
+  memoryCard: { backgroundColor: '#111d2d', borderRadius: 24, padding: 20, gap: 14, borderWidth: 1, borderColor: 'rgba(56,189,248,0.42)' },
+  memoryInstruction: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  memoryAnswerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: colors.cardAlt },
+  memoryAnswerIndex: { width: 32, height: 32, borderRadius: 16, textAlign: 'center', textAlignVertical: 'center', color: '#082f49', backgroundColor: '#7dd3fc', fontWeight: '900' },
+  memoryAnswerText: { flex: 1, color: colors.text, fontSize: 17, fontWeight: '800' },
+  memoryWinner: { color: '#7dd3fc', fontSize: 30, fontWeight: '900', textAlign: 'center' },
+
   // Manche suivante / classement final
   mancheBanner: { backgroundColor: 'rgba(34,197,94,0.16)', borderRadius: 20, padding: 16, gap: 12, borderWidth: 1, borderColor: colors.accent },
   mancheBannerTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },

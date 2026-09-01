@@ -9,8 +9,9 @@ const GAME_LABELS: Record<GameKey, string> = {
   stopchrono: 'Stop Chrono',
   culture: 'Culture générale',
   bombe: 'La Bombe',
+  memory: 'Mémoire en chaîne',
 };
-const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono', 'culture', 'bombe'];
+const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono', 'culture', 'bombe', 'memory'];
 
 type Props = {
   draft: GameDraft;

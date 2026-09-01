@@ -1,4 +1,4 @@
-export type GameKey = 'blindtest' | 'stopchrono' | 'culture' | 'bombe';
+export type GameKey = 'blindtest' | 'stopchrono' | 'culture' | 'bombe' | 'memory';
 export type CultureDifficulty = 'toutes' | 'facile' | 'moyen' | 'difficile';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
@@ -49,6 +49,19 @@ export type BombeState = {
   die_result: 'TIC' | 'TAC' | 'BOUM' | '';
   roller_team_index: number | null;
   die_reveal_at_ms: number;
+};
+
+export type MemoryState = {
+  phase: 'idle' | 'question' | 'finished';
+  current_team_index: number;
+  qualified_team_indices: number[];
+  disqualified_teams: string[];
+  current_question: CultureQuestion | null;
+  validated_answers: string[];
+  asked_questions: string[];
+  sequence_length: number;
+  turn_number: number;
+  winner_team: string | null;
 };
 
 export type RankingEntry = {
@@ -127,6 +140,7 @@ export type GameSession = {
   stopchrono: StopChronoState;
   culture: CultureState;
   bombe: BombeState;
+  memory: MemoryState;
   round_index: number;
   total_rounds: number;
   manche_number: number;

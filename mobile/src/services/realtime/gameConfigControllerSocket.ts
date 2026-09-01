@@ -237,6 +237,18 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'bombe.previous-team' });
   }
 
+  startMemory(): void {
+    this.sendMessage({ type: 'memory.start' });
+  }
+
+  validateMemoryAnswer(): void {
+    this.sendMessage({ type: 'memory.validate-answer' });
+  }
+
+  disqualifyMemoryTeam(): void {
+    this.sendMessage({ type: 'memory.disqualify-team' });
+  }
+
   nextManche(): void {
     this.sendMessage({ type: 'game.next-manche' });
   }
@@ -255,5 +267,3 @@ export class GameConfigControllerSocket {
     this.closeSocket();
   }
 }
-
-

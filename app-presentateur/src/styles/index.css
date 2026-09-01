@@ -890,3 +890,183 @@ button {
   .bombe-explosion { animation: none; }
 }
 
+/* --- Mémoire en chaîne --- */
+.memory-screen {
+  grid-template-rows: auto 1fr auto;
+}
+
+.memory-board {
+  display: grid;
+  align-content: start;
+  gap: 22px;
+  min-height: min(68vh, 760px);
+  padding: clamp(20px, 3vw, 36px);
+  border: 1px solid var(--panel-border);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 82% 12%, rgba(34, 197, 94, 0.18), transparent 30%),
+    linear-gradient(145deg, rgba(8, 20, 33, 0.94), rgba(6, 14, 26, 0.88));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+}
+
+.memory-scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.memory-kicker,
+.memory-turn,
+.memory-team-status {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.memory-scoreboard h2 {
+  margin: 8px 0 0;
+  font-size: clamp(1.8rem, 4vw, 3.4rem);
+}
+
+.memory-counter {
+  min-width: 190px;
+  padding: 16px 20px;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 20px;
+  background: rgba(34, 197, 94, 0.1);
+  text-align: center;
+}
+
+.memory-counter strong,
+.memory-counter span {
+  display: block;
+}
+
+.memory-counter strong {
+  color: #b6ffd5;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 1;
+}
+
+.memory-counter span {
+  margin-top: 8px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.memory-question-card {
+  display: grid;
+  place-items: center;
+  gap: 18px;
+  min-height: 270px;
+  padding: clamp(24px, 5vw, 56px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.045);
+  text-align: center;
+}
+
+.memory-question-card > p {
+  max-width: 1100px;
+  margin: 0;
+  font-size: clamp(1.8rem, 4.5vw, 4rem);
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.memory-secret {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.memory-waiting h3 {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 3.5rem);
+}
+
+.memory-waiting p {
+  color: var(--muted);
+  font-size: clamp(1rem, 2vw, 1.4rem);
+}
+
+.memory-brain {
+  font-size: clamp(4rem, 9vw, 7rem);
+  filter: drop-shadow(0 0 28px rgba(34, 197, 94, 0.35));
+}
+
+.memory-winner-card span {
+  color: var(--accent);
+  font-weight: 850;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.memory-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.memory-team {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 15px 17px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: opacity 180ms ease, transform 180ms ease, border-color 180ms ease;
+}
+
+.memory-team strong {
+  overflow-wrap: anywhere;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+}
+
+.memory-team.is-playing {
+  border-color: var(--accent);
+  background: rgba(34, 197, 94, 0.16);
+  box-shadow: 0 0 28px rgba(34, 197, 94, 0.16);
+  transform: translateY(-3px);
+}
+
+.memory-team.is-out {
+  opacity: 0.38;
+  filter: grayscale(0.8);
+}
+
+.memory-team.is-out .memory-team-status {
+  color: var(--danger);
+}
+
+@media (max-width: 700px) {
+  .memory-scoreboard {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .memory-counter {
+    min-width: 0;
+  }
+
+  .memory-question-card {
+    min-height: 220px;
+  }
+
+  .memory-team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .memory-team {
+    transition: none;
+  }
+}
