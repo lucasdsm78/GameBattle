@@ -10,6 +10,7 @@ from domain.game_config.model.game_config import (
     BOMBE_MAX_DURATION_MS,
     BOMBE_MIN_DURATION_MS,
     build_default_game_config,
+    generate_bombe_sound,
 )
 from infrastructure.game_config_payload_mapper import game_config_from_payload
 
@@ -37,11 +38,11 @@ def test_bombe_prepares_random_sound_and_starts_timer_only_after_die_roll() -> N
     with (
         patch("domain.game_config.model.game_config.random.randrange", return_value=2),
         patch("domain.game_config.model.game_config.random.randint", return_value=BOMBE_MIN_DURATION_MS),
-        patch("domain.game_config.model.game_config.random.choice", side_effect=["OL", "TIC"]),
+        patch("domain.game_config.model.game_config.random.choice", side_effect=["S", "O", "L", "BOUM"]),
     ):
         prepared = config.start_bombe(now_ms=1_000_000)
         assert prepared.session.bombe.phase == "awaiting_roll"
-        assert prepared.session.bombe.sound == "OL"
+        assert prepared.session.bombe.sound == "SOL"
         assert prepared.session.bombe.roller_team_index == 2
         assert prepared.session.bombe.deadline_at_ms == 0
 
@@ -50,7 +51,7 @@ def test_bombe_prepares_random_sound_and_starts_timer_only_after_die_roll() -> N
 
         rolling = prepared.register_bombe_buzzer("Verts", now_ms=1_000_001)
         assert rolling.session.bombe.phase == "rolling"
-        assert rolling.session.bombe.die_result == "TIC"
+        assert rolling.session.bombe.die_result == "BOUM"
         assert rolling.session.bombe.die_reveal_at_ms == 1_000_001 + BOMBE_DIE_ROLL_MS
 
         with pytest.raises(InvalidGameConfigError, match="tourne encore"):
@@ -65,6 +66,20 @@ def test_bombe_prepares_random_sound_and_starts_timer_only_after_die_roll() -> N
     assert BOMBE_MIN_DURATION_MS <= bombe.deadline_at_ms - bombe.started_at_ms <= BOMBE_MAX_DURATION_MS
     assert bombe.scores == {"Rouges": 0, "Bleus": 0, "Verts": 0}
     assert bombe.eligible_team_indices == [0, 1, 2]
+
+
+@pytest.mark.parametrize(
+    ("parts", "expected"),
+    [
+        (("S", "E", "L"), "SEL"),
+        (("N", "A", ""), "NA"),
+        (("T", "A", ""), "TA"),
+        (("V", "OU", "R"), "VOUR"),
+    ],
+)
+def test_bombe_sound_is_composed_dynamically(parts: tuple[str, str, str], expected: str) -> None:
+    with patch("domain.game_config.model.game_config.random.choice", side_effect=parts):
+        assert generate_bombe_sound() == expected
 
 
 def test_bombe_only_current_team_can_pass_then_presenter_can_go_back() -> None:
@@ -152,6 +167,21 @@ def test_bombe_tiebreak_keeps_lowest_scores_until_one_winner_remains() -> None:
     assert decided.session.bombe.winner_team == "Rouges"
     assert decided.session.manche_finished is True
     assert decided.session.manche_winner == "Rouges"
+
+
+def test_explosion_on_roller_keeps_a_valid_tiebreak_state() -> None:
+    config = _bombe_config(teams=["Rouges", "Bleus", "Verts"])
+    with patch("domain.game_config.model.game_config.random.randrange", return_value=0):
+        started = _running_bombe(config, now_ms=25_000)
+
+    tied = started.explode_bombe(now_ms=started.session.bombe.deadline_at_ms)
+
+    assert tied.session.bombe.exploded_team == "Rouges"
+    assert tied.session.bombe.roller_team_index == 0
+    assert tied.session.bombe.eligible_team_indices == [1, 2]
+    assert tied.session.bombe.winner_team is None
+    tied.validate()
+    assert game_config_from_payload(tied.to_dict()).session.bombe == tied.session.bombe
 
 
 def test_late_buzz_explodes_instead_of_passing_the_bombe() -> None:

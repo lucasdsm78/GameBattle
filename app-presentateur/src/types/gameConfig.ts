@@ -113,7 +113,7 @@ export type BombeState = {
   scores: Record<string, number>;
   eligible_team_indices: number[];
   tiebreak_round: number;
-  sound: 'OL' | 'SEL' | 'NA' | 'TA' | '';
+  sound: string;
   die_result: 'TIC' | 'TAC' | 'BOUM' | '';
   roller_team_index: number | null;
   die_reveal_at_ms: number;
