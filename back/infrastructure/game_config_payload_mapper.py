@@ -135,7 +135,11 @@ def game_config_from_payload(payload: dict) -> GameConfig:
                 scores=bombe_payload.get("scores", {}) or {team: 0 for team in teams_payload},
                 eligible_team_indices=list(
                     bombe_payload.get("eligible_team_indices", [])
-                    or (range(len(teams_payload)) if bombe_payload.get("phase") == "running" else [])
+                    or (
+                        range(len(teams_payload))
+                        if bombe_payload.get("phase") in {"awaiting_roll", "rolling", "running"}
+                        else []
+                    )
                 ),
                 tiebreak_round=bombe_payload.get("tiebreak_round", 0),
                 sound=bombe_payload.get("sound", ""),

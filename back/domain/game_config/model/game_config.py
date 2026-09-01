@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 import random
+import re
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -24,7 +25,10 @@ MEMORY_CHAIN_LENGTH = 8
 MEMORY_RULES_VERSION = 2
 BOMBE_PHASES = {"idle", "awaiting_roll", "rolling", "running", "exploded"}
 BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
-BOMBE_SOUNDS = ("OL", "SEL", "NA", "TA")
+BOMBE_SOUND_ONSETS = tuple("BDFGKLMNPRSTV")
+BOMBE_SOUND_VOWELS = ("A", "E", "I", "O", "OU")
+BOMBE_SOUND_CODAS = ("", "", "L", "M", "N", "R", "S")
+BOMBE_SOUND_PATTERN = re.compile(r"^[BDFGKLMNPRSTV]?(?:OU|[AEIO])[LMNRS]?$")
 BOMBE_DIE_RESULTS = ("TIC", "TAC", "BOUM")
 BOMBE_DIE_ROLL_MS = 2_500
 BOMBE_MIN_DURATION_MS = 30_000
@@ -36,6 +40,11 @@ MAX_TOTAL_ROUNDS = 30
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def generate_bombe_sound() -> str:
+    """Compose un son court et prononçable sans catalogue de résultats prédéfini."""
+    return f"{random.choice(BOMBE_SOUND_ONSETS)}{random.choice(BOMBE_SOUND_VOWELS)}{random.choice(BOMBE_SOUND_CODAS)}"
 
 
 @dataclass(slots=True)
@@ -287,11 +296,15 @@ class BombeState:
             raise InvalidGameConfigError("La partie de La Bombe doit opposer au moins deux équipes en lice.")
         if self.tiebreak_round < 0:
             raise InvalidGameConfigError("Le numéro de départage de La Bombe est invalide.")
-        if self.sound and self.sound not in BOMBE_SOUNDS:
+        if self.sound and not BOMBE_SOUND_PATTERN.fullmatch(self.sound):
             raise InvalidGameConfigError("Le son de La Bombe est invalide.")
         if self.die_result and self.die_result not in BOMBE_DIE_RESULTS:
             raise InvalidGameConfigError("Le résultat du dé de La Bombe est invalide.")
-        if self.roller_team_index is not None and self.roller_team_index not in self.eligible_team_indices:
+        if (
+            self.phase in {"awaiting_roll", "rolling"}
+            and self.roller_team_index is not None
+            and self.roller_team_index not in self.eligible_team_indices
+        ):
             raise InvalidGameConfigError("Le lanceur du dé de La Bombe est invalide.")
         if self.phase in {"awaiting_roll", "rolling"} and self.roller_team_index is None:
             raise InvalidGameConfigError("Aucune équipe n'est désignée pour lancer le dé de La Bombe.")
@@ -1015,7 +1028,7 @@ class GameConfig:
                 scores=dict(bombe.scores) if is_tiebreak else {team: 0 for team in self.settings.teams},
                 eligible_team_indices=eligible_indices,
                 tiebreak_round=bombe.tiebreak_round + 1 if is_tiebreak else 0,
-                sound=random.choice(BOMBE_SOUNDS),
+                sound=generate_bombe_sound(),
                 die_result="",
                 roller_team_index=roller_index,
                 die_reveal_at_ms=0,
