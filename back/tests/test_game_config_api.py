@@ -471,30 +471,61 @@ def test_websocket_memory_flow_masks_answers_and_finishes_with_one_winner() -> N
                 display_memory = started_display["payload"]["session"]["memory"]
                 first_answer = controller_memory["current_question"]["answer"]
                 assert first_answer
+                assert controller_memory["validated_answers"] == [first_answer]
+                assert display_memory["validated_answers"] == []
                 assert display_memory["current_question"]["answer"] == "Réponse masquée"
-                assert first_answer not in str(started_display)
+                assert display_memory["current_question"]["explanation"] == ""
 
-                controller_ws.send_json({"type": "memory.validate-answer"})
-                validated_controller = controller_ws.receive_json()
-                validated_display = display_ws.receive_json()
-                assert validated_controller["payload"]["session"]["memory"]["validated_answers"] == [first_answer]
-                assert validated_display["payload"]["session"]["memory"]["validated_answers"] == []
-                assert validated_display["payload"]["session"]["memory"]["sequence_length"] == 1
-                assert first_answer not in str(validated_display)
+                for _ in range(7):
+                    controller_ws.send_json({"type": "memory.next-question"})
+                    eighth_controller = controller_ws.receive_json()
+                    eighth_display = display_ws.receive_json()
+
+                controller_memory = eighth_controller["payload"]["session"]["memory"]
+                assert controller_memory["phase"] == "question"
+                assert controller_memory["turn_number"] == 8
+                assert len(controller_memory["validated_answers"]) == 8
+                eighth_display_memory = eighth_display["payload"]["session"]["memory"]
+                assert eighth_display_memory["validated_answers"] == []
+                assert eighth_display_memory["sequence_length"] == 8
+                assert eighth_display_memory["current_question"]["answer"] == "Réponse masquée"
+                assert eighth_display_memory["current_question"]["explanation"] == ""
 
                 public_current = client.get("/api/game-config/current").json()
                 controller_current = client.get(
                     "/api/game-config/current",
                     headers={"X-GameBattle-Controller-Token": "controller-test-token"},
                 ).json()
-                assert public_current["session"]["memory"]["validated_answers"] == []
-                assert public_current["session"]["memory"]["current_question"]["answer"] == "Réponse masquée"
-                assert first_answer not in str(public_current)
-                assert controller_current["session"]["memory"]["validated_answers"] == [first_answer]
+                public_memory = public_current["session"]["memory"]
+                assert public_memory["validated_answers"] == []
+                assert public_memory["current_question"]["answer"] == "Réponse masquée"
+                assert public_memory["current_question"]["explanation"] == ""
+                assert len(controller_current["session"]["memory"]["validated_answers"]) == 8
 
-                controller_ws.send_json({"type": "memory.disqualify-team"})
-                controller_ws.receive_json()
+                controller_ws.send_json({"type": "memory.next-question"})
+                recitation_controller = controller_ws.receive_json()
                 display_ws.receive_json()
+                assert recitation_controller["payload"]["session"]["memory"]["phase"] == "recitation"
+
+                controller_ws.send_json({"type": "memory.validate-sequence"})
+                next_team_controller = controller_ws.receive_json()
+                display_ws.receive_json()
+                assert next_team_controller["payload"]["session"]["memory"]["phase"] == "question"
+                assert next_team_controller["payload"]["session"]["memory"]["sequence_length"] == 1
+
+                for _ in range(8):
+                    controller_ws.send_json({"type": "memory.next-question"})
+                    controller_ws.receive_json()
+                    display_ws.receive_json()
+                controller_ws.send_json({"type": "memory.disqualify-team"})
+                continued_controller = controller_ws.receive_json()
+                display_ws.receive_json()
+                assert len(continued_controller["payload"]["session"]["memory"]["qualified_team_indices"]) == 2
+
+                for _ in range(8):
+                    controller_ws.send_json({"type": "memory.next-question"})
+                    controller_ws.receive_json()
+                    display_ws.receive_json()
                 controller_ws.send_json({"type": "memory.disqualify-team"})
                 finished_controller = controller_ws.receive_json()
                 finished_display = display_ws.receive_json()

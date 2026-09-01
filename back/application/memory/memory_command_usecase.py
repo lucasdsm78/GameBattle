@@ -10,8 +10,11 @@ class MemoryCommandUseCase(GameConfigCommandBase):
     async def start(self) -> GameConfigReadModel:
         return await self._mutate(lambda config: config.start_memory())
 
-    async def validate_answer(self) -> GameConfigReadModel:
-        return await self._mutate(lambda config: config.validate_memory_answer())
+    async def next_question(self) -> GameConfigReadModel:
+        return await self._mutate(lambda config: config.next_memory_question())
+
+    async def validate_sequence(self) -> GameConfigReadModel:
+        return await self._mutate(lambda config: config.validate_memory_sequence())
 
     async def disqualify_team(self) -> GameConfigReadModel:
         return await self._mutate(lambda config: config.disqualify_memory_team())

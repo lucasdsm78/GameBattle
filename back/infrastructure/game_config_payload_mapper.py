@@ -13,8 +13,38 @@ from domain.game_config.model.game_config import (
     GameSession,
     GameSettings,
     MemoryState,
+    MEMORY_RULES_VERSION,
     StopChronoState,
 )
+
+
+def _memory_state_from_payload(payload: dict, teams: list[str]) -> MemoryState:
+    if payload.get("rules_version") != MEMORY_RULES_VERSION:
+        winner = payload.get("winner_team")
+        if payload.get("phase") == "finished" and winner in teams:
+            winner_index = teams.index(winner)
+            return MemoryState(
+                phase="finished",
+                current_team_index=winner_index,
+                qualified_team_indices=[winner_index],
+                disqualified_teams=[team for team in teams if team != winner],
+                winner_team=winner,
+            )
+        return MemoryState()
+
+    question_payload = payload.get("current_question")
+    return MemoryState(
+        phase=payload.get("phase", "idle"),
+        current_team_index=payload.get("current_team_index", 0),
+        qualified_team_indices=list(payload.get("qualified_team_indices", []) or []),
+        disqualified_teams=list(payload.get("disqualified_teams", []) or []),
+        current_question=(CultureQuestion(**question_payload) if question_payload else None),
+        validated_answers=list(payload.get("validated_answers", []) or []),
+        asked_questions=list(payload.get("asked_questions", []) or []),
+        turn_number=payload.get("turn_number", 0),
+        winner_team=payload.get("winner_team"),
+        rules_version=MEMORY_RULES_VERSION,
+    )
 
 
 def game_config_from_payload(payload: dict) -> GameConfig:
@@ -113,21 +143,7 @@ def game_config_from_payload(payload: dict) -> GameConfig:
                 roller_team_index=bombe_payload.get("roller_team_index"),
                 die_reveal_at_ms=bombe_payload.get("die_reveal_at_ms", 0),
             ),
-            memory=MemoryState(
-                phase=memory_payload.get("phase", "idle"),
-                current_team_index=memory_payload.get("current_team_index", 0),
-                qualified_team_indices=list(memory_payload.get("qualified_team_indices", []) or []),
-                disqualified_teams=list(memory_payload.get("disqualified_teams", []) or []),
-                current_question=(
-                    CultureQuestion(**memory_payload["current_question"])
-                    if memory_payload.get("current_question")
-                    else None
-                ),
-                validated_answers=list(memory_payload.get("validated_answers", []) or []),
-                asked_questions=list(memory_payload.get("asked_questions", []) or []),
-                turn_number=memory_payload.get("turn_number", 0),
-                winner_team=memory_payload.get("winner_team"),
-            ),
+            memory=_memory_state_from_payload(memory_payload, teams_payload),
             round_sequence=list(session_payload.get("round_sequence", []) or []),
             round_index=session_payload.get("round_index", 0),
             total_rounds=session_payload.get("total_rounds", 0),
