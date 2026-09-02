@@ -5,6 +5,7 @@ import { CultureBoard } from './CultureBoard';
 import { FinalRankingBoard } from './FinalRankingBoard';
 import { BombeBoard } from './BombeBoard';
 import { MemoryBoard } from './MemoryBoard';
+import { SevenDifferencesBoard } from './SevenDifferencesBoard';
 
 type Props = {
   gameConfig: GameConfigSnapshot | null;
@@ -17,6 +18,8 @@ type Props = {
   onBombeBuzz: (team: string) => void;
   onBombeBeginAfterRoll: () => void;
   onBombeExplode: () => void;
+  onSevenDifferencesOpen: () => void;
+  onSevenDifferencesBuzz: (team: string) => void;
 };
 
 const KEYBOARD_BINDINGS = ['1', '2', '3', '4', '5', '6'];
@@ -96,12 +99,16 @@ export function DisplayBoard({
   onBombeBuzz,
   onBombeBeginAfterRoll,
   onBombeExplode,
+  onSevenDifferencesOpen,
+  onSevenDifferencesBuzz,
 }: Props) {
   const chronoPhase = gameConfig?.session.stopchrono.phase;
   const chronoTeamIndex = gameConfig?.session.stopchrono.current_team_index;
   const culturePhase = gameConfig?.session.culture.phase;
   const bombePhase = gameConfig?.session.bombe.phase;
   const bombeTeamIndex = gameConfig?.session.bombe.current_team_index;
+  const sevenDifferencesPhase = gameConfig?.session.seven_differences.phase;
+  const sevenDifferencesBlockedTeam = gameConfig?.session.seven_differences.blocked_team;
   const activeGameKey = gameConfig?.session.active_round?.game_key ?? 'blindtest';
 
   useEffect(() => {
@@ -156,6 +163,17 @@ export function DisplayBoard({
         return;
       }
 
+      if (activeGameKey === 'seven_differences') {
+        if (sevenDifferencesPhase !== 'open') return;
+        for (let index = 0; index < teams.length; index += 1) {
+          if (teams[index] !== sevenDifferencesBlockedTeam && matchesBinding(event, buzzerKeys[index] ?? '')) {
+            onSevenDifferencesBuzz(teams[index]);
+            return;
+          }
+        }
+        return;
+      }
+
       for (let index = 0; index < teams.length; index += 1) {
         if (matchesBinding(event, buzzerKeys[index] ?? '')) {
           onBuzz(teams[index]);
@@ -172,6 +190,7 @@ export function DisplayBoard({
     bombeTeamIndex,
     onCultureBuzz,
     onBombeBuzz,
+    onSevenDifferencesBuzz,
     gameConfig?.settings.buzzer_keys,
     gameConfig?.settings.teams,
     activeGameKey,
@@ -180,6 +199,8 @@ export function DisplayBoard({
     onBuzz,
     onStartChrono,
     onStopChrono,
+    sevenDifferencesBlockedTeam,
+    sevenDifferencesPhase,
   ]);
 
   if (!gameConfig) {
@@ -357,6 +378,43 @@ export function DisplayBoard({
             <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
             <p className="winner-name">{memory.winner_team}</p>
             <p className="winner-sub">Dernière équipe encore qualifiée</p>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
+  if (activeGameKey === 'seven_differences') {
+    const game = gameConfig.session.seven_differences;
+    const recap = gameConfig.settings.teams.map((team) => `${team} : ${game.scores[team] ?? 0}`).join('   •   ');
+    return (
+      <>
+        <main className="screen seven-screen">
+          <section className="hero glass-card">
+            <div>
+              <p className="eyebrow">Les 7 différences</p>
+              <h1>{gameConfig.settings.game_title}</h1>
+              <p className="meta">
+                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
+                <span>•</span>
+                <span>{gameConfig.settings.teams.length} équipes</span>
+              </p>
+            </div>
+            <div className="hero-aside">
+              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
+              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
+            </div>
+          </section>
+
+          <SevenDifferencesBoard gameConfig={gameConfig} onOpen={onSevenDifferencesOpen} />
+          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
+        </main>
+
+        {game.winner_team ? (
+          <div className="winner-overlay">
+            <p className="winner-eyebrow">Manche terminée</p>
+            <p className="winner-name">{game.winner_team === 'Égalité' ? 'Égalité !' : game.winner_team}</p>
+            <p className="winner-sub">{recap}</p>
           </div>
         ) : null}
       </>

@@ -10,8 +10,9 @@ const GAME_LABELS: Record<GameKey, string> = {
   culture: 'Culture générale',
   bombe: 'La Bombe',
   memory: 'Mémoire en chaîne',
+  seven_differences: 'Les 7 différences',
 };
-const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono', 'culture', 'bombe', 'memory'];
+const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono', 'culture', 'bombe', 'memory', 'seven_differences'];
 
 type Props = {
   draft: GameDraft;

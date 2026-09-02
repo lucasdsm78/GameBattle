@@ -22,7 +22,7 @@ class GameSettingsModel(BaseModel):
 
 
 class GameDefinitionModel(BaseModel):
-    game_key: Literal["blindtest", "stopchrono", "culture", "bombe", "memory"]
+    game_key: Literal["blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences"]
     label: str = Field(min_length=2, max_length=50)
     enabled: bool = True
     round_count: int = Field(ge=0, le=20)
@@ -31,7 +31,7 @@ class GameDefinitionModel(BaseModel):
 class GameRoundPlanModel(BaseModel):
     id: str = Field(min_length=3, max_length=50)
     label: str = Field(min_length=2, max_length=50)
-    game_key: Literal["blindtest", "stopchrono", "culture", "bombe", "memory"]
+    game_key: Literal["blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences"]
     planned_track_count: int = Field(ge=1, le=100)
     buzzer_enabled: bool = False
 
@@ -114,6 +114,10 @@ class BlindtestPlaybackSyncCommandModel(BaseModel):
 
 class CultureDifficultyCommandModel(BaseModel):
     difficulty: Literal["toutes", "facile", "moyen", "difficile"]
+
+
+class SevenDifferenceFoundCommandModel(BaseModel):
+    difference_id: str = Field(min_length=1, max_length=50, pattern=r"^[a-z0-9_-]+$")
 
 
 class SpotifyPlaylistImportCommandModel(BaseModel):

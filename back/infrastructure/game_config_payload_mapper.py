@@ -14,6 +14,8 @@ from domain.game_config.model.game_config import (
     GameSettings,
     MemoryState,
     MEMORY_RULES_VERSION,
+    SevenDifference,
+    SevenDifferencesState,
     StopChronoState,
 )
 
@@ -55,6 +57,7 @@ def game_config_from_payload(payload: dict) -> GameConfig:
     culture_payload = session_payload.get("culture", {})
     bombe_payload = session_payload.get("bombe", {})
     memory_payload = session_payload.get("memory", {})
+    seven_differences_payload = session_payload.get("seven_differences", {})
     active_round_payload = session_payload.get("active_round")
 
     config = GameConfig(
@@ -148,6 +151,20 @@ def game_config_from_payload(payload: dict) -> GameConfig:
                 die_reveal_at_ms=bombe_payload.get("die_reveal_at_ms", 0),
             ),
             memory=_memory_state_from_payload(memory_payload, teams_payload),
+            seven_differences=SevenDifferencesState(
+                phase=seven_differences_payload.get("phase", "idle"),
+                puzzle_id=seven_differences_payload.get("puzzle_id", ""),
+                title=seven_differences_payload.get("title", ""),
+                original_image_url=seven_differences_payload.get("original_image_url", ""),
+                modified_image_url=seven_differences_payload.get("modified_image_url", ""),
+                differences=[SevenDifference(**item) for item in seven_differences_payload.get("differences", [])],
+                found_difference_ids=list(seven_differences_payload.get("found_difference_ids", []) or []),
+                reveal_at_ms=seven_differences_payload.get("reveal_at_ms", 0),
+                current_buzzer_team=seven_differences_payload.get("current_buzzer_team"),
+                blocked_team=seven_differences_payload.get("blocked_team"),
+                scores=seven_differences_payload.get("scores", {}) or {},
+                winner_team=seven_differences_payload.get("winner_team"),
+            ),
             round_sequence=list(session_payload.get("round_sequence", []) or []),
             round_index=session_payload.get("round_index", 0),
             total_rounds=session_payload.get("total_rounds", 0),

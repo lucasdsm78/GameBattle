@@ -12,6 +12,7 @@ import { CultureLiveScreen } from './src/screens/CultureLiveScreen';
 import { BombeLiveScreen } from './src/screens/BombeLiveScreen';
 import { MemoryLiveScreen } from './src/screens/MemoryLiveScreen';
 import { FinalRankingScreen } from './src/screens/FinalRankingScreen';
+import { SevenDifferencesLiveScreen } from './src/screens/SevenDifferencesLiveScreen';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
@@ -121,7 +122,18 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'memory' ? (
+            {activeGameKey === 'seven_differences' ? (
+              <SevenDifferencesLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStart={() => socket.startSevenDifferences()}
+                onOpen={() => socket.openSevenDifferences()}
+                onBuzz={(team) => socket.sevenDifferencesBuzzer(team)}
+                onFound={(differenceId) => socket.markSevenDifferenceFound(differenceId)}
+                onReject={() => socket.rejectSevenDifferencesAnswer()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'memory' ? (
               <MemoryLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}

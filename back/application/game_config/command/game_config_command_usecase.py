@@ -9,6 +9,7 @@ from application.culture.culture_command_usecase import CultureCommandUseCase
 from application.memory import MemoryCommandUseCase
 from application.session.session_command_usecase import SessionCommandUseCase
 from application.stopchrono.stopchrono_command_usecase import StopchronoCommandUseCase
+from application.seven_differences import SevenDifferencesCommandUseCase
 from application.game_config.game_config_models import (
     BlindtestAnswerCommandModel,
     BlindtestBuzzerCommandModel,
@@ -20,6 +21,7 @@ from application.game_config.game_config_models import (
     GameConfigReadModel,
     GameConfigUpsertModel,
     SpotifyPlaylistImportCommandModel,
+    SevenDifferenceFoundCommandModel,
 )
 from domain.game_config.exception.game_config_exception import InvalidGameConfigError
 from domain.game_config.repository.game_config_repository import GameConfigRepository
@@ -122,6 +124,21 @@ class GameConfigCommandUseCase(ABC):
     async def disqualify_memory_team(self) -> GameConfigReadModel: ...
 
     @abstractmethod
+    async def start_seven_differences(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def open_seven_differences(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def register_seven_differences_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def mark_seven_difference_found(self, payload: SevenDifferenceFoundCommandModel) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def reject_seven_differences_answer(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
     async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel: ...
 
 
@@ -139,6 +156,7 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
         self._memory = MemoryCommandUseCase(repository)
         self._stopchrono = StopchronoCommandUseCase(repository)
         self._bombe = BombeCommandUseCase(repository)
+        self._seven_differences = SevenDifferencesCommandUseCase(repository)
         self._session = SessionCommandUseCase(repository, self._blindtest)
 
     # --- Session ---
@@ -242,6 +260,22 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     async def disqualify_memory_team(self) -> GameConfigReadModel:
         return await self._memory.disqualify_team()
 
+    # --- Les 7 différences ---
+    async def start_seven_differences(self) -> GameConfigReadModel:
+        return await self._seven_differences.start()
+
+    async def open_seven_differences(self) -> GameConfigReadModel:
+        return await self._seven_differences.open()
+
+    async def register_seven_differences_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel:
+        return await self._seven_differences.register_buzzer(payload)
+
+    async def mark_seven_difference_found(self, payload: SevenDifferenceFoundCommandModel) -> GameConfigReadModel:
+        return await self._seven_differences.mark_found(payload)
+
+    async def reject_seven_differences_answer(self) -> GameConfigReadModel:
+        return await self._seven_differences.reject_answer()
+
     # --- Matériel ---
     async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel:
         config = await self._repository.get_current()
@@ -254,4 +288,6 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
             return await self._culture.register_buzzer(payload)
         if active_round.game_key == "bombe":
             return await self._bombe.register_buzzer(BombeBuzzerCommandModel(team=payload.team))
+        if active_round.game_key == "seven_differences":
+            return await self._seven_differences.register_buzzer(payload)
         raise InvalidGameConfigError("Le jeu actif ne prend pas en charge ce buzzer matériel.")

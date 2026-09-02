@@ -89,6 +89,14 @@ export class GameConfigSocket {
     this.sendMessage({ type: 'bombe.explode' });
   }
 
+  openSevenDifferences(): void {
+    this.sendMessage({ type: 'seven-differences.open' });
+  }
+
+  sevenDifferencesBuzzer(team: string): void {
+    this.sendMessage({ type: 'seven-differences.buzzer', payload: { team } });
+  }
+
   // Pousse le token utilisateur Spotify vers le backend pour autoriser l'import de playlist.
   sendSpotifyToken(accessToken: string): void {
     this.sendMessage({ type: 'spotify.user-token', payload: { access_token: accessToken } });

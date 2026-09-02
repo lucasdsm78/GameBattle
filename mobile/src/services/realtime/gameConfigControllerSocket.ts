@@ -253,6 +253,26 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'memory.disqualify-team' });
   }
 
+  startSevenDifferences(): void {
+    this.sendMessage({ type: 'seven-differences.start' });
+  }
+
+  openSevenDifferences(): void {
+    this.sendMessage({ type: 'seven-differences.open' });
+  }
+
+  sevenDifferencesBuzzer(team: string): void {
+    this.sendMessage({ type: 'seven-differences.buzzer', payload: { team } });
+  }
+
+  markSevenDifferenceFound(differenceId: string): void {
+    this.sendMessage({ type: 'seven-differences.found', payload: { difference_id: differenceId } });
+  }
+
+  rejectSevenDifferencesAnswer(): void {
+    this.sendMessage({ type: 'seven-differences.reject' });
+  }
+
   nextManche(): void {
     this.sendMessage({ type: 'game.next-manche' });
   }

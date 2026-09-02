@@ -21,6 +21,7 @@ class GameConfigCommandBase:
         return GameConfigReadModel.from_domain(persisted)
 
     async def _mutate(self, transform: ConfigTransform) -> GameConfigReadModel:
-        result = transform(await self.repository.get_current())
-        updated = await result if isawaitable(result) else result
-        return await self._persist(updated)
+        async with self.repository.mutation_lock:
+            result = transform(await self.repository.get_current())
+            updated = await result if isawaitable(result) else result
+            return await self._persist(updated)

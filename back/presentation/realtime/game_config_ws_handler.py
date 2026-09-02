@@ -16,6 +16,7 @@ from application.game_config.game_config_models import (
     GameConfigReadModel,
     GameConfigUpsertModel,
     SpotifyPlaylistImportCommandModel,
+    SevenDifferenceFoundCommandModel,
 )
 from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
 
@@ -29,6 +30,8 @@ DISPLAY_ALLOWED_EVENTS = {
     "bombe.buzzer",
     "bombe.begin-after-roll",
     "bombe.explode",
+    "seven-differences.open",
+    "seven-differences.buzzer",
 }
 
 
@@ -78,6 +81,12 @@ def build_client_envelope(event_type: str, payload: GameConfigReadModel, client_
                 "artwork_url": "",
             }
         blindtest["tracks"] = []
+
+    seven_differences = session.get("seven_differences")
+    if client_type == "display" and isinstance(seven_differences, dict):
+        seven_differences["differences"] = []
+        if seven_differences.get("phase") in {"idle", "memorizing"}:
+            seven_differences["modified_image_url"] = ""
 
     return envelope
 
@@ -170,6 +179,16 @@ async def dispatch_game_config_event(
             return await command_usecase.validate_memory_sequence()
         if event_type == "memory.disqualify-team":
             return await command_usecase.disqualify_memory_team()
+        if event_type == "seven-differences.start":
+            return await command_usecase.start_seven_differences()
+        if event_type == "seven-differences.open":
+            return await command_usecase.open_seven_differences()
+        if event_type == "seven-differences.buzzer":
+            return await command_usecase.register_seven_differences_buzzer(BlindtestBuzzerCommandModel(**payload))
+        if event_type == "seven-differences.found":
+            return await command_usecase.mark_seven_difference_found(SevenDifferenceFoundCommandModel(**payload))
+        if event_type == "seven-differences.reject":
+            return await command_usecase.reject_seven_differences_answer()
         if event_type == "game.next-manche":
             return await command_usecase.next_manche()
         if event_type == "ranking.reveal-next":
