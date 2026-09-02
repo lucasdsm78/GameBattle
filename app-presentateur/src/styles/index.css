@@ -1080,3 +1080,227 @@ button {
     transition: none;
   }
 }
+
+/* --- Les 7 différences --- */
+.seven-screen {
+  grid-template-rows: auto 1fr auto;
+}
+
+.seven-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 0.3fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.seven-image-card,
+.seven-scoreboard,
+.seven-waiting {
+  padding: clamp(18px, 2.5vw, 30px);
+}
+
+.seven-image-card {
+  display: grid;
+  gap: 18px;
+}
+
+.seven-image-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.seven-image-heading h2,
+.seven-waiting h2 {
+  margin: 10px 0 0;
+  font-size: clamp(1.7rem, 3vw, 3rem);
+}
+
+.seven-countdown,
+.seven-progress {
+  min-width: 126px;
+  padding: 12px 18px;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: 20px;
+  background: rgba(34, 197, 94, 0.12);
+  text-align: center;
+}
+
+.seven-countdown strong,
+.seven-progress strong,
+.seven-countdown span,
+.seven-progress span {
+  display: block;
+}
+
+.seven-countdown strong,
+.seven-progress strong {
+  color: #b6ffd5;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1;
+}
+
+.seven-countdown span,
+.seven-progress span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.seven-picture-wrap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  background: #06111d;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.32);
+}
+
+.seven-picture-wrap img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+}
+
+.seven-timer-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 8px;
+  background: linear-gradient(90deg, var(--accent) var(--timer-progress), rgba(255, 255, 255, 0.12) var(--timer-progress));
+  transition: background 180ms linear;
+}
+
+.seven-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.seven-callout strong {
+  color: var(--text);
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+}
+
+.seven-callout span {
+  color: var(--muted);
+  text-align: right;
+}
+
+.seven-callout-claimed {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: rgba(34, 197, 94, 0.14);
+}
+
+.seven-scoreboard {
+  display: grid;
+  gap: 18px;
+}
+
+.seven-score-list {
+  display: grid;
+  gap: 10px;
+}
+
+.seven-score {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.seven-score div {
+  min-width: 0;
+}
+
+.seven-score div strong,
+.seven-score small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.seven-score small {
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.seven-score b {
+  color: var(--accent);
+  font-size: 2rem;
+}
+
+.seven-score.is-active {
+  border-color: var(--accent);
+  background: rgba(34, 197, 94, 0.16);
+  box-shadow: 0 0 26px rgba(34, 197, 94, 0.13);
+}
+
+.seven-score.is-blocked {
+  opacity: 0.45;
+  border-color: rgba(255, 93, 115, 0.55);
+}
+
+.seven-waiting {
+  min-height: 58vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.seven-waiting p {
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+
+.seven-eye {
+  font-size: clamp(4rem, 10vw, 8rem);
+  filter: drop-shadow(0 0 32px rgba(34, 197, 94, 0.35));
+}
+
+@media (max-width: 1000px) {
+  .seven-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .seven-score-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .seven-image-heading,
+  .seven-callout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .seven-callout span {
+    text-align: left;
+  }
+
+  .seven-score-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seven-timer-bar {
+    transition: none;
+  }
+}

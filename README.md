@@ -12,7 +12,8 @@ Le backend suit une architecture DDD inspirée de `BetLeague`.
 
 ## État actuel du projet
 
-Cette version livre un premier jeu jouable : **le blindtest**.
+Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop Chrono**,
+**Culture générale**, **La Bombe**, **Mémoire en chaîne** et **Les 7 différences**.
 
 ### Déjà implémenté
 
@@ -30,6 +31,8 @@ Cette version livre un premier jeu jouable : **le blindtest**.
 - authentification utilisateur Spotify sur mobile (PKCE)
 - contrôle de lecture complète Spotify via Spotify Premium + appareil actif
 - app écran blindtest live avec score, progression et révélation
+- jeu **Les 7 différences** avec mémorisation de 25 secondes, premier buzz, prise de main,
+  blocage temporaire après une faute, score et égalité
 - app mobile de régie pour :
   - valider la partie
   - charger une playlist blindtest
@@ -46,7 +49,7 @@ Cette version livre un premier jeu jouable : **le blindtest**.
 
 - vrai SDK Spotify natif (aujourd'hui : Web API Spotify + appareil Spotify actif + abstraction prête pour SDK)
 - auto-détection ergonomique des périphériques HID USB sans config manuelle
-- vrai moteur multi-jeux au-delà du premier jeu `blindtest`
+- catalogue extensible de puzzles pour **Les 7 différences**
 
 ---
 
@@ -207,6 +210,12 @@ Par défaut :
 Tu peux aussi mapper des touches comme `A`, `L`, `Space`, `Enter`, `ArrowUp`, etc.
 Si ton buzzer USB agit comme un clavier, il suffit d'assigner la touche qu'il émet à l'équipe correspondante.
 
+Pour **Les 7 différences**, le présentateur démarre l’observation depuis le mobile. L’écran public
+affiche l’image originale pendant 25 secondes puis passe automatiquement à l’image modifiée. Le
+premier buzzer valide prend la main. Le présentateur sélectionne ensuite une différence correcte sur
+le mobile, ou choisit « Mauvaise réponse » pour libérer la main et bloquer temporairement l’équipe
+fautive. Les descriptions des différences ne sont jamais envoyées à l’écran public.
+
 Pour un buzzer USB plus avancé qui n'émule pas un clavier, utilise le bridge local :
 
 - fichier d'exemple : `scripts/hardware-buzzers.example.json`
@@ -253,5 +262,5 @@ Ensuite, je recommande cet ordre :
 
 1. **Lecture blindtest native complète** : remplacer le provider Spotify Web API par un provider SDK natif dans la même abstraction
 2. **Buzzers USB avancés** : auto-détection + UI de calibration des périphériques HID
-3. **Vrai multi-jeux** : ajout d'autres jeux avec tirage aléatoire inter-jeux
+3. **Catalogue de contenus** : ajouter de nouveaux puzzles et banques de questions
 

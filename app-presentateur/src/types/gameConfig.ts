@@ -1,4 +1,4 @@
-export type GameKey = 'blindtest' | 'stopchrono' | 'culture' | 'bombe' | 'memory';
+export type GameKey = 'blindtest' | 'stopchrono' | 'culture' | 'bombe' | 'memory' | 'seven_differences';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
 
@@ -134,6 +134,27 @@ export type MemoryState = {
   rules_version: number;
 };
 
+export type SevenDifference = {
+  id: string;
+  label: string;
+};
+
+export type SevenDifferencesState = {
+  phase: 'idle' | 'memorizing' | 'open' | 'claimed' | 'finished';
+  puzzle_id: string;
+  title: string;
+  original_image_url: string;
+  modified_image_url: string;
+  differences: SevenDifference[];
+  found_difference_ids: string[];
+  differences_remaining: number;
+  reveal_at_ms: number;
+  current_buzzer_team: string | null;
+  blocked_team: string | null;
+  scores: Record<string, number>;
+  winner_team: string | null;
+};
+
 export type GameSession = {
   active_round: ActiveRound | null;
   blindtest: BlindtestState;
@@ -141,6 +162,7 @@ export type GameSession = {
   culture: CultureState;
   bombe: BombeState;
   memory: MemoryState;
+  seven_differences: SevenDifferencesState;
   round_index: number;
   total_rounds: number;
   manche_number: number;

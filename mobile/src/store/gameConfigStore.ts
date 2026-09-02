@@ -9,6 +9,7 @@ const GAME_CATALOG: GameDefinition[] = [
   { game_key: 'culture', label: 'Culture générale', enabled: false, round_count: 0 },
   { game_key: 'bombe', label: 'La Bombe', enabled: false, round_count: 0 },
   { game_key: 'memory', label: 'Mémoire en chaîne', enabled: false, round_count: 0 },
+  { game_key: 'seven_differences', label: 'Les 7 différences', enabled: false, round_count: 0 },
 ];
 
 const withCompleteGameCatalog = (games: GameDefinition[]): GameDefinition[] =>

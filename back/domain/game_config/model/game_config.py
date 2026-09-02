@@ -9,8 +9,9 @@ from uuid import uuid4
 
 from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
 from domain.game_config.model.culture_questions import CULTURE_DIFFICULTIES, pick_one_culture_question
+from domain.game_config.model.seven_differences_catalog import pick_seven_differences_puzzle
 
-SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture", "bombe", "memory"}
+SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences"}
 ALLOWED_STATUSES = {"configuring", "ready", "live", "finished"}
 TRACKS_PER_RANDOM_BLINDTEST_ROUND = 10
 DEFAULT_BUZZER_KEYS = ["1", "2", "3", "4", "5", "6"]
@@ -23,6 +24,8 @@ CULTURE_PHASES = {"idle", "selecting", "question", "finished"}
 MEMORY_PHASES = {"idle", "question", "recitation", "finished"}
 MEMORY_CHAIN_LENGTH = 8
 MEMORY_RULES_VERSION = 2
+SEVEN_DIFFERENCES_PHASES = {"idle", "memorizing", "open", "claimed", "finished"}
+SEVEN_DIFFERENCES_MEMORIZATION_MS = 25_000
 BOMBE_PHASES = {"idle", "awaiting_roll", "rolling", "running", "exploded"}
 BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
 BOMBE_SOUND_ONSETS = tuple("BDFGKLMNPRSTV")
@@ -370,6 +373,89 @@ class MemoryState:
 
 
 @dataclass(slots=True)
+class SevenDifference:
+    id: str
+    label: str
+
+
+@dataclass(slots=True)
+class SevenDifferencesState:
+    phase: str = "idle"
+    puzzle_id: str = ""
+    title: str = ""
+    original_image_url: str = ""
+    modified_image_url: str = ""
+    differences: list[SevenDifference] = field(default_factory=list)
+    found_difference_ids: list[str] = field(default_factory=list)
+    reveal_at_ms: int = 0
+    current_buzzer_team: Optional[str] = None
+    blocked_team: Optional[str] = None
+    scores: dict[str, int] = field(default_factory=dict)
+    winner_team: Optional[str] = None
+
+    def validate(self, teams: list[str]) -> None:
+        allowed_teams = set(teams)
+        difference_ids = [difference.id for difference in self.differences]
+        found_ids = set(self.found_difference_ids)
+        if self.phase not in SEVEN_DIFFERENCES_PHASES:
+            raise InvalidGameConfigError("La phase des 7 différences est invalide.")
+        if self.phase == "idle":
+            if any((
+                self.puzzle_id,
+                self.title,
+                self.original_image_url,
+                self.modified_image_url,
+                self.differences,
+                self.found_difference_ids,
+                self.reveal_at_ms,
+                self.current_buzzer_team,
+                self.blocked_team,
+                self.winner_team,
+            )):
+                raise InvalidGameConfigError("L’état initial des 7 différences est invalide.")
+            if set(self.scores) - allowed_teams or any(score != 0 for score in self.scores.values()):
+                raise InvalidGameConfigError("Les scores initiaux des 7 différences sont invalides.")
+            return
+        if len(difference_ids) != 7 or len(set(difference_ids)) != 7:
+            raise InvalidGameConfigError("Une image doit contenir exactement 7 différences uniques.")
+        if not all((self.puzzle_id, self.title, self.original_image_url, self.modified_image_url)):
+            raise InvalidGameConfigError("Le puzzle des 7 différences est incomplet.")
+        if found_ids - set(difference_ids) or len(found_ids) != len(self.found_difference_ids):
+            raise InvalidGameConfigError("Les différences trouvées sont invalides.")
+        if any(not difference.id or not difference.label.strip() for difference in self.differences):
+            raise InvalidGameConfigError("Les descriptions des 7 différences sont invalides.")
+        if self.current_buzzer_team and self.current_buzzer_team not in allowed_teams:
+            raise InvalidGameConfigError("L’équipe qui a la main est inconnue.")
+        if self.blocked_team and self.blocked_team not in allowed_teams:
+            raise InvalidGameConfigError("L’équipe temporairement bloquée est inconnue.")
+        if set(self.scores) != allowed_teams or any(not isinstance(score, int) or score < 0 for score in self.scores.values()):
+            raise InvalidGameConfigError("Les scores des 7 différences sont invalides.")
+        if sum(self.scores.values()) != len(found_ids):
+            raise InvalidGameConfigError("Le total des scores des 7 différences est incohérent.")
+        if self.winner_team and self.winner_team not in allowed_teams and self.winner_team != TIE_LABEL:
+            raise InvalidGameConfigError("Le gagnant des 7 différences est inconnu.")
+        if self.reveal_at_ms <= 0:
+            raise InvalidGameConfigError("L’échéance de mémorisation est invalide.")
+        if self.phase == "memorizing" and (self.current_buzzer_team or self.blocked_team or found_ids or self.winner_team):
+            raise InvalidGameConfigError("La phase de mémorisation des 7 différences est invalide.")
+        if self.phase == "open" and (self.current_buzzer_team or self.winner_team or len(found_ids) == 7):
+            raise InvalidGameConfigError("La phase ouverte des 7 différences est invalide.")
+        if self.phase == "claimed" and (
+            not self.current_buzzer_team
+            or self.blocked_team
+            or self.winner_team
+            or len(found_ids) == 7
+        ):
+            raise InvalidGameConfigError("La prise de main des 7 différences est invalide.")
+        if self.phase == "finished":
+            best = max(self.scores.values(), default=0)
+            leaders = [team for team in teams if self.scores.get(team, 0) == best]
+            expected_winner = leaders[0] if len(leaders) == 1 else TIE_LABEL
+            if len(found_ids) != 7 or self.current_buzzer_team or self.blocked_team or self.winner_team != expected_winner:
+                raise InvalidGameConfigError("La fin de manche des 7 différences est invalide.")
+
+
+@dataclass(slots=True)
 class ActiveRound:
     round_id: str
     label: str
@@ -392,6 +478,7 @@ class GameSession:
     culture: CultureState = field(default_factory=CultureState)
     bombe: BombeState = field(default_factory=BombeState)
     memory: MemoryState = field(default_factory=MemoryState)
+    seven_differences: SevenDifferencesState = field(default_factory=SevenDifferencesState)
     # Séquence des jeux pour chaque manche, déterminée au lancement et JAMAIS exposée aux apps
     # (le mobile et l'écran ne voient que la manche courante).
     round_sequence: list[str] = field(default_factory=list)
@@ -414,6 +501,7 @@ class GameSession:
         self.culture.validate(teams)
         self.bombe.validate(teams)
         self.memory.validate(teams)
+        self.seven_differences.validate(teams)
         if set(self.manches_won.keys()) - allowed_teams:
             raise InvalidGameConfigError("Le classement contient une équipe inconnue.")
         if self.manche_winner and self.manche_winner not in allowed_teams and self.manche_winner != TIE_LABEL:
@@ -493,7 +581,7 @@ class GameConfig:
 
     def _build_manche_states(
         self, game_key: str, index: int
-    ) -> tuple[ActiveRound, BlindtestState, StopChronoState, CultureState, BombeState, MemoryState]:
+    ) -> tuple[ActiveRound, BlindtestState, StopChronoState, CultureState, BombeState, MemoryState, SevenDifferencesState]:
         active_round = ActiveRound(
             round_id=f"{game_key}-manche-{index + 1}",
             label=f"Manche {index + 1}",
@@ -510,7 +598,7 @@ class GameConfig:
                 results={},
                 scores=teams_scores,
             )
-            return active_round, BlindtestState(), stopchrono, CultureState(), BombeState(), MemoryState()
+            return active_round, BlindtestState(), stopchrono, CultureState(), BombeState(), MemoryState(), SevenDifferencesState()
         if game_key == "culture":
             # Les questions ne sont PAS pré-tirées : le présentateur choisit la difficulté avant
             # chaque question, et une question est tirée à la demande.
@@ -523,11 +611,13 @@ class GameConfig:
                 asked_questions=[],
                 scores=teams_scores,
             )
-            return active_round, BlindtestState(), StopChronoState(), culture, BombeState(), MemoryState()
+            return active_round, BlindtestState(), StopChronoState(), culture, BombeState(), MemoryState(), SevenDifferencesState()
         if game_key == "bombe":
-            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState()
+            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState()
         if game_key == "memory":
-            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState()
+            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState()
+        if game_key == "seven_differences":
+            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState(scores=teams_scores)
         blindtest = BlindtestState(
             round_id=active_round.round_id,
             total_tracks=TRACKS_PER_RANDOM_BLINDTEST_ROUND,
@@ -535,11 +625,11 @@ class GameConfig:
             scores=teams_scores,
             playback_state="stopped",
         )
-        return active_round, blindtest, StopChronoState(), CultureState(), BombeState(), MemoryState()
+        return active_round, blindtest, StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState()
 
     def _start_manche(self, index: int) -> "GameConfig":
         game_key = self.session.round_sequence[index]
-        active_round, blindtest, stopchrono, culture, bombe, memory = self._build_manche_states(game_key, index)
+        active_round, blindtest, stopchrono, culture, bombe, memory, seven_differences = self._build_manche_states(game_key, index)
         return self._replace_session(
             active_round=active_round,
             blindtest=blindtest,
@@ -547,6 +637,7 @@ class GameConfig:
             culture=culture,
             bombe=bombe,
             memory=memory,
+            seven_differences=seven_differences,
             round_index=index,
             manche_finished=False,
             manche_winner=None,
@@ -1245,6 +1336,93 @@ class GameConfig:
             turn_number=1,
         ))
 
+    # --- Les 7 différences ---
+
+    def _ensure_seven_differences_active(self) -> SevenDifferencesState:
+        if not self.session.active_round or self.session.active_round.game_key != "seven_differences":
+            raise InvalidGameConfigError("Les 7 différences n’est pas la manche active.")
+        return self.session.seven_differences
+
+    def start_seven_differences(self, now_ms: int) -> "GameConfig":
+        state = self._ensure_seven_differences_active()
+        if state.phase != "idle":
+            raise InvalidGameConfigError("La manche des 7 différences a déjà commencé.")
+        puzzle = pick_seven_differences_puzzle()
+        started = SevenDifferencesState(
+            phase="memorizing",
+            puzzle_id=puzzle.id,
+            title=puzzle.title,
+            original_image_url=puzzle.original_image_url,
+            modified_image_url=puzzle.modified_image_url,
+            differences=[SevenDifference(id=id_, label=label) for id_, label in puzzle.differences],
+            reveal_at_ms=now_ms + SEVEN_DIFFERENCES_MEMORIZATION_MS,
+            scores={team: 0 for team in self.settings.teams},
+        )
+        return self._replace_session(seven_differences=started)
+
+    def open_seven_differences(self, now_ms: int) -> "GameConfig":
+        state = self._ensure_seven_differences_active()
+        if state.phase in {"open", "claimed", "finished"}:
+            return self
+        if state.phase != "memorizing":
+            raise InvalidGameConfigError("La phase de mémorisation n’est pas active.")
+        if now_ms < state.reveal_at_ms:
+            raise InvalidGameConfigError("Les 25 secondes de mémorisation ne sont pas terminées.")
+        return self._replace_session(seven_differences=replace(state, phase="open"))
+
+    def register_seven_differences_buzzer(self, team: str, now_ms: int) -> "GameConfig":
+        state = self._ensure_seven_differences_active()
+        if team not in self.settings.teams:
+            raise InvalidGameConfigError("L’équipe qui buzze est inconnue.")
+        if state.phase == "memorizing":
+            if now_ms < state.reveal_at_ms:
+                raise InvalidGameConfigError("Les buzzers s’ouvrent après les 25 secondes de mémorisation.")
+            state = replace(state, phase="open")
+        if state.phase != "open":
+            raise InvalidGameConfigError("Les buzzers ne sont pas disponibles actuellement.")
+        if team == state.blocked_team:
+            raise InvalidGameConfigError("Cette équipe doit attendre qu’une autre équipe prenne la main.")
+        return self._replace_session(seven_differences=replace(state, phase="claimed", current_buzzer_team=team, blocked_team=None))
+
+    def find_seven_difference(self, difference_id: str) -> "GameConfig":
+        state = self._ensure_seven_differences_active()
+        if state.phase != "claimed" or not state.current_buzzer_team:
+            raise InvalidGameConfigError("Aucune équipe n’a la main.")
+        available_ids = {difference.id for difference in state.differences} - set(state.found_difference_ids)
+        if difference_id not in available_ids:
+            raise InvalidGameConfigError("Cette différence est inconnue ou déjà trouvée.")
+        found_ids = [*state.found_difference_ids, difference_id]
+        scores = dict(state.scores)
+        scores[state.current_buzzer_team] = scores.get(state.current_buzzer_team, 0) + 1
+        if len(found_ids) < 7:
+            return self._replace_session(seven_differences=replace(state, found_difference_ids=found_ids, scores=scores))
+        best = max(scores.values())
+        leaders = [team for team in self.settings.teams if scores.get(team, 0) == best]
+        winner = leaders[0] if len(leaders) == 1 else TIE_LABEL
+        active_round = replace(self.session.active_round, completed=True) if self.session.active_round else None
+        return self._replace_session(
+            active_round=active_round,
+            seven_differences=replace(
+                state,
+                phase="finished",
+                found_difference_ids=found_ids,
+                current_buzzer_team=None,
+                blocked_team=None,
+                scores=scores,
+                winner_team=winner,
+            ),
+            manche_finished=True,
+            manche_winner=winner,
+        )
+
+    def reject_seven_differences_answer(self) -> "GameConfig":
+        state = self._ensure_seven_differences_active()
+        if state.phase != "claimed" or not state.current_buzzer_team:
+            raise InvalidGameConfigError("Aucune réponse ne peut être refusée actuellement.")
+        return self._replace_session(seven_differences=replace(
+            state, phase="open", blocked_team=state.current_buzzer_team, current_buzzer_team=None
+        ))
+
     # --- Orchestration des manches / classement final ---
 
     def next_manche(self) -> "GameConfig":
@@ -1329,6 +1507,10 @@ class GameConfig:
                         else None
                     ),
                 },
+                "seven_differences": {
+                    **asdict(self.session.seven_differences),
+                    "differences_remaining": 7 - len(self.session.seven_differences.found_difference_ids),
+                },
                 # Orchestration. `round_sequence` est persisté (round-trip DB) mais retiré du
                 # payload envoyé aux clients par la couche WebSocket (les apps ne voient pas les prochains jeux).
                 "round_sequence": list(self.session.round_sequence),
@@ -1369,6 +1551,7 @@ def build_default_game_config() -> GameConfig:
             GameDefinition(game_key="culture", label="Culture générale", enabled=False, round_count=0),
             GameDefinition(game_key="bombe", label="La Bombe", enabled=False, round_count=0),
             GameDefinition(game_key="memory", label="Mémoire en chaîne", enabled=False, round_count=0),
+            GameDefinition(game_key="seven_differences", label="Les 7 différences", enabled=False, round_count=0),
         ],
         rounds=[],
         session=GameSession(updated_at=utc_now_iso()),
