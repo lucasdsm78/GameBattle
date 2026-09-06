@@ -14,7 +14,7 @@ def _normalize(value: str) -> str:
 
 
 def test_culture_catalog_is_large_balanced_and_well_formed() -> None:
-    assert len(CULTURE_QUESTIONS) >= 570
+    assert len(CULTURE_QUESTIONS) >= 600
 
     counts = Counter(question["difficulty"] for question in CULTURE_QUESTIONS)
     assert set(counts) == CULTURE_DIFFICULTIES
@@ -44,4 +44,3 @@ def test_picker_respects_difficulty_and_excludes_already_asked_questions() -> No
     assert picked is not None
     assert picked["difficulty"] == "facile"
     assert picked["question"] not in excluded
-
