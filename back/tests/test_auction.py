@@ -8,7 +8,12 @@ import pytest
 
 from application.game_config.game_config_models import GameConfigReadModel
 from domain.game_config.exception.game_config_exception import InvalidGameConfigError
-from domain.game_config.model.game_config import AUCTION_DURATION_MS, AUCTION_WINNING_SCORE, build_default_game_config
+from domain.game_config.model.game_config import (
+    AUCTION_DURATION_MS,
+    AUCTION_MAX_TARGET_COUNT,
+    AUCTION_WINNING_SCORE,
+    build_default_game_config,
+)
 from infrastructure.game_config_payload_mapper import game_config_from_payload
 from presentation.realtime.game_config_ws_handler import build_client_envelope, dispatch_game_config_event
 from presentation.realtime.auction_deadline_worker import AuctionDeadlineWorker
@@ -52,18 +57,24 @@ def test_start_select_and_launch_prepare_a_server_timed_attempt() -> None:
     assert running.session.auction.deadline_at_ms == 50_000 + AUCTION_DURATION_MS
 
 
-def test_objective_is_bounded_by_secret_answer_count() -> None:
-    bidding = _auction_config().start_auction().register_auction_buzzer("Rouges", now_ms=100)
+def test_objective_is_independent_from_secret_answer_count_and_bounded_at_one_hundred() -> None:
+    bidding = _auction_config().start_auction()
     with pytest.raises(InvalidGameConfigError, match="compris entre"):
         bidding.select_auction_bid("Rouges", 0)
+
+    above_suggestions = min(AUCTION_MAX_TARGET_COUNT, len(bidding.session.auction.answers) + 1)
+    selected = bidding.select_auction_bid("Rouges", above_suggestions)
+    assert selected.session.auction.target_count == above_suggestions
+
     with pytest.raises(InvalidGameConfigError, match="compris entre"):
-        bidding.select_auction_bid("Rouges", len(bidding.session.auction.answers) + 1)
+        bidding.select_auction_bid("Rouges", AUCTION_MAX_TARGET_COUNT + 1)
 
 
-def test_only_a_team_that_buzzed_can_receive_the_bid() -> None:
+def test_presenter_can_select_a_team_without_a_recorded_buzz() -> None:
     bidding = _auction_config().start_auction()
-    with pytest.raises(InvalidGameConfigError, match="doit avoir buzzé"):
-        bidding.select_auction_bid("Rouges", 2)
+    selected = bidding.select_auction_bid("Rouges", 2)
+    assert selected.session.auction.phase == "ready"
+    assert selected.session.auction.active_team == "Rouges"
 
 
 def test_success_awards_the_bid_to_active_team_when_it_buzzes() -> None:
@@ -188,4 +199,3 @@ def test_deadline_worker_ignores_an_attempt_before_its_deadline() -> None:
     assert asyncio.run(worker.check_once()) is False
     commands.expire_auction_attempt.assert_awaited_once()
     hub.broadcast_json_by_client_type.assert_not_awaited()
-
