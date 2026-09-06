@@ -30,6 +30,7 @@ SEVEN_DIFFERENCES_MEMORIZATION_MS = 25_000
 AUCTION_PHASES = {"idle", "bidding", "ready", "running", "resolved", "finished"}
 AUCTION_DURATION_MS = 30_000
 AUCTION_WINNING_SCORE = 20
+AUCTION_MAX_TARGET_COUNT = 100
 BOMBE_PHASES = {"idle", "awaiting_roll", "rolling", "running", "exploded"}
 BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
 BOMBE_SOUND_ONSETS = tuple("BDFGKLMNPRSTV")
@@ -496,10 +497,8 @@ class AuctionState:
         if self.correct_count < 0 or self.correct_count > self.target_count:
             raise InvalidGameConfigError("Le compteur de L’Enchère est invalide.")
         if self.phase in {"ready", "running", "resolved", "finished"}:
-            if not self.active_team or not 1 <= self.target_count <= len(self.answers):
+            if not self.active_team or not 1 <= self.target_count <= AUCTION_MAX_TARGET_COUNT:
                 raise InvalidGameConfigError("L’enchère sélectionnée est invalide.")
-            if self.active_team not in self.bidding_teams:
-                raise InvalidGameConfigError("L’équipe active doit avoir participé aux enchères.")
         if self.phase == "running" and (self.started_at_ms <= 0 or self.deadline_at_ms - self.started_at_ms != AUCTION_DURATION_MS):
             raise InvalidGameConfigError("Le chrono de L’Enchère est invalide.")
         if self.phase in {"resolved", "finished"} and self.attempt_succeeded is None:
@@ -1521,10 +1520,10 @@ class GameConfig:
             raise InvalidGameConfigError("L’enchère ne peut être attribuée que pendant les mises.")
         if team not in self.settings.teams:
             raise InvalidGameConfigError("L’équipe sélectionnée est inconnue.")
-        if team not in state.bidding_teams:
-            raise InvalidGameConfigError("L’équipe sélectionnée doit avoir buzzé pendant les enchères.")
-        if not 1 <= target_count <= len(state.answers):
-            raise InvalidGameConfigError(f"Le nombre de réponses doit être compris entre 1 et {len(state.answers)}.")
+        if not 1 <= target_count <= AUCTION_MAX_TARGET_COUNT:
+            raise InvalidGameConfigError(
+                f"Le nombre de réponses doit être compris entre 1 et {AUCTION_MAX_TARGET_COUNT}."
+            )
         return self._replace_session(auction=replace(
             state,
             phase="ready",

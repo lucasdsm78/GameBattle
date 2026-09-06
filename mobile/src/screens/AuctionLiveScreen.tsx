@@ -30,7 +30,7 @@ export function AuctionLiveScreen({
   const [bid, setBid] = useState('1');
   const [now, setNow] = useState(Date.now());
   const parsedBid = Number.parseInt(bid, 10);
-  const validBid = Number.isInteger(parsedBid) && parsedBid >= 1 && parsedBid <= game.answers.length;
+  const validBid = Number.isInteger(parsedBid) && parsedBid >= 1 && parsedBid <= 100;
 
   useEffect(() => {
     if (game.phase !== 'running') return;
@@ -95,7 +95,7 @@ export function AuctionLiveScreen({
       {game.phase === 'bidding' ? (
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Attribuer la plus haute enchère</Text>
-          <Text style={styles.helperText}>Sélectionnez parmi les équipes ayant buzzé celle qui a annoncé la meilleure enchère.</Text>
+          <Text style={styles.helperText}>Saisissez la meilleure enchère, puis sélectionnez l’équipe qui l’a annoncée.</Text>
           <TextInput
             style={[styles.input, localStyles.bidInput]}
             value={bid}
@@ -104,7 +104,7 @@ export function AuctionLiveScreen({
             placeholder="Nombre de réponses"
             placeholderTextColor={colors.muted}
           />
-          <Text style={styles.helperText}>Entre 1 et {game.answers.length} réponses.</Text>
+          <Text style={styles.helperText}>Entre 1 et 100 réponses. La liste ci-dessous sert d’aide au présentateur.</Text>
           <View style={styles.actionRowWrap}>
             {snapshot.settings.teams.map((team) => (
               <Pressable
@@ -112,10 +112,10 @@ export function AuctionLiveScreen({
                 style={[
                   localStyles.teamButton,
                   game.bidding_teams.includes(team) && localStyles.teamButtonBuzzed,
-                  (!validBid || !game.bidding_teams.includes(team)) && styles.primaryButtonDisabled,
+                  !validBid && styles.primaryButtonDisabled,
                 ]}
                 onPress={() => onSelect(team, parsedBid)}
-                disabled={!validBid || !game.bidding_teams.includes(team)}
+                disabled={!validBid}
               >
                 <Text style={localStyles.teamButtonName}>{team}</Text>
                 <Text style={localStyles.teamButtonHint}>{game.bidding_teams.includes(team) ? '⚡ A buzzé' : 'Sélectionner'}</Text>
