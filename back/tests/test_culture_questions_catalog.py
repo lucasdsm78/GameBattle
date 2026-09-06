@@ -14,7 +14,7 @@ def _normalize(value: str) -> str:
 
 
 def test_culture_catalog_is_large_balanced_and_well_formed() -> None:
-    assert len(CULTURE_QUESTIONS) >= 500
+    assert len(CULTURE_QUESTIONS) >= 570
 
     counts = Counter(question["difficulty"] for question in CULTURE_QUESTIONS)
     assert set(counts) == CULTURE_DIFFICULTIES
