@@ -6,6 +6,7 @@ import { FinalRankingBoard } from './FinalRankingBoard';
 import { BombeBoard } from './BombeBoard';
 import { MemoryBoard } from './MemoryBoard';
 import { SevenDifferencesBoard } from './SevenDifferencesBoard';
+import { AuctionBoard } from './AuctionBoard';
 
 type Props = {
   gameConfig: GameConfigSnapshot | null;
@@ -20,6 +21,7 @@ type Props = {
   onBombeExplode: () => void;
   onSevenDifferencesOpen: () => void;
   onSevenDifferencesBuzz: (team: string) => void;
+  onAuctionBuzz: (team: string) => void;
 };
 
 const KEYBOARD_BINDINGS = ['1', '2', '3', '4', '5', '6'];
@@ -101,6 +103,7 @@ export function DisplayBoard({
   onBombeExplode,
   onSevenDifferencesOpen,
   onSevenDifferencesBuzz,
+  onAuctionBuzz,
 }: Props) {
   const chronoPhase = gameConfig?.session.stopchrono.phase;
   const chronoTeamIndex = gameConfig?.session.stopchrono.current_team_index;
@@ -109,6 +112,8 @@ export function DisplayBoard({
   const bombeTeamIndex = gameConfig?.session.bombe.current_team_index;
   const sevenDifferencesPhase = gameConfig?.session.seven_differences.phase;
   const sevenDifferencesBlockedTeam = gameConfig?.session.seven_differences.blocked_team;
+  const auctionPhase = gameConfig?.session.auction.phase;
+  const auctionActiveTeam = gameConfig?.session.auction.active_team;
   const activeGameKey = gameConfig?.session.active_round?.game_key ?? 'blindtest';
 
   useEffect(() => {
@@ -174,6 +179,20 @@ export function DisplayBoard({
         return;
       }
 
+      if (activeGameKey === 'auction') {
+        if (auctionPhase !== 'bidding' && auctionPhase !== 'running') return;
+        for (let index = 0; index < teams.length; index += 1) {
+          if (
+            matchesBinding(event, buzzerKeys[index] ?? '')
+            && (auctionPhase === 'bidding' || teams[index] === auctionActiveTeam)
+          ) {
+            onAuctionBuzz(teams[index]);
+            return;
+          }
+        }
+        return;
+      }
+
       for (let index = 0; index < teams.length; index += 1) {
         if (matchesBinding(event, buzzerKeys[index] ?? '')) {
           onBuzz(teams[index]);
@@ -191,6 +210,7 @@ export function DisplayBoard({
     onCultureBuzz,
     onBombeBuzz,
     onSevenDifferencesBuzz,
+    onAuctionBuzz,
     gameConfig?.settings.buzzer_keys,
     gameConfig?.settings.teams,
     activeGameKey,
@@ -201,6 +221,8 @@ export function DisplayBoard({
     onStopChrono,
     sevenDifferencesBlockedTeam,
     sevenDifferencesPhase,
+    auctionActiveTeam,
+    auctionPhase,
   ]);
 
   if (!gameConfig) {
@@ -407,6 +429,43 @@ export function DisplayBoard({
           </section>
 
           <SevenDifferencesBoard gameConfig={gameConfig} onOpen={onSevenDifferencesOpen} />
+          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
+        </main>
+
+        {game.winner_team ? (
+          <div className="winner-overlay">
+            <p className="winner-eyebrow">Manche terminée</p>
+            <p className="winner-name">{game.winner_team === 'Égalité' ? 'Égalité !' : game.winner_team}</p>
+            <p className="winner-sub">{recap}</p>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
+  if (activeGameKey === 'auction') {
+    const game = gameConfig.session.auction;
+    const recap = gameConfig.settings.teams.map((team) => `${team} : ${game.scores[team] ?? 0}`).join('   •   ');
+    return (
+      <>
+        <main className="screen auction-screen">
+          <section className="hero glass-card">
+            <div>
+              <p className="eyebrow">L’Enchère · première équipe à 20</p>
+              <h1>{gameConfig.settings.game_title}</h1>
+              <p className="meta">
+                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
+                <span>•</span>
+                <span>{gameConfig.settings.teams.length} équipes</span>
+              </p>
+            </div>
+            <div className="hero-aside">
+              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
+              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
+            </div>
+          </section>
+
+          <AuctionBoard gameConfig={gameConfig} />
           {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
         </main>
 

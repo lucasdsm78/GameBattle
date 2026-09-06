@@ -15,13 +15,17 @@ class GameConfigCommandBase:
     def __init__(self, repository: GameConfigRepository) -> None:
         self.repository = repository
 
-    async def _persist(self, config: GameConfig) -> GameConfigReadModel:
+    async def _persist_unlocked(self, config: GameConfig) -> GameConfigReadModel:
         config.validate()
         persisted = await self.repository.save(config)
         return GameConfigReadModel.from_domain(persisted)
+
+    async def _persist(self, config: GameConfig) -> GameConfigReadModel:
+        async with self.repository.mutation_lock:
+            return await self._persist_unlocked(config)
 
     async def _mutate(self, transform: ConfigTransform) -> GameConfigReadModel:
         async with self.repository.mutation_lock:
             result = transform(await self.repository.get_current())
             updated = await result if isawaitable(result) else result
-            return await self._persist(updated)
+            return await self._persist_unlocked(updated)

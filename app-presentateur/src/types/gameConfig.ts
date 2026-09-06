@@ -1,4 +1,4 @@
-export type GameKey = 'blindtest' | 'stopchrono' | 'culture' | 'bombe' | 'memory' | 'seven_differences';
+export type GameKey = 'blindtest' | 'stopchrono' | 'culture' | 'bombe' | 'memory' | 'seven_differences' | 'auction';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
 
@@ -155,6 +155,23 @@ export type SevenDifferencesState = {
   winner_team: string | null;
 };
 
+export type AuctionState = {
+  phase: 'idle' | 'bidding' | 'ready' | 'running' | 'resolved' | 'finished';
+  theme_id: string;
+  prompt: string;
+  answers: string[];
+  bidding_teams: string[];
+  active_team: string | null;
+  target_count: number;
+  correct_count: number;
+  started_at_ms: number;
+  deadline_at_ms: number;
+  scores: Record<string, number>;
+  attempt_succeeded: boolean | null;
+  points_awarded: Record<string, number>;
+  winner_team: string | null;
+};
+
 export type GameSession = {
   active_round: ActiveRound | null;
   blindtest: BlindtestState;
@@ -163,6 +180,7 @@ export type GameSession = {
   bombe: BombeState;
   memory: MemoryState;
   seven_differences: SevenDifferencesState;
+  auction: AuctionState;
   round_index: number;
   total_rounds: number;
   manche_number: number;

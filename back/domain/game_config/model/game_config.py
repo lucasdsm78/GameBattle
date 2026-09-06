@@ -8,10 +8,11 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
+from domain.game_config.model.auction_catalog import pick_auction_theme
 from domain.game_config.model.culture_questions import CULTURE_DIFFICULTIES, pick_one_culture_question
 from domain.game_config.model.seven_differences_catalog import pick_seven_differences_puzzle
 
-SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences"}
+SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction"}
 ALLOWED_STATUSES = {"configuring", "ready", "live", "finished"}
 TRACKS_PER_RANDOM_BLINDTEST_ROUND = 10
 DEFAULT_BUZZER_KEYS = ["1", "2", "3", "4", "5", "6"]
@@ -26,6 +27,9 @@ MEMORY_CHAIN_LENGTH = 8
 MEMORY_RULES_VERSION = 2
 SEVEN_DIFFERENCES_PHASES = {"idle", "memorizing", "open", "claimed", "finished"}
 SEVEN_DIFFERENCES_MEMORIZATION_MS = 25_000
+AUCTION_PHASES = {"idle", "bidding", "ready", "running", "resolved", "finished"}
+AUCTION_DURATION_MS = 30_000
+AUCTION_WINNING_SCORE = 20
 BOMBE_PHASES = {"idle", "awaiting_roll", "rolling", "running", "exploded"}
 BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
 BOMBE_SOUND_ONSETS = tuple("BDFGKLMNPRSTV")
@@ -456,6 +460,53 @@ class SevenDifferencesState:
 
 
 @dataclass(slots=True)
+class AuctionState:
+    phase: str = "idle"
+    theme_id: str = ""
+    prompt: str = ""
+    answers: list[str] = field(default_factory=list)
+    bidding_teams: list[str] = field(default_factory=list)
+    active_team: Optional[str] = None
+    target_count: int = 0
+    correct_count: int = 0
+    started_at_ms: int = 0
+    deadline_at_ms: int = 0
+    scores: dict[str, int] = field(default_factory=dict)
+    attempt_succeeded: Optional[bool] = None
+    points_awarded: dict[str, int] = field(default_factory=dict)
+    asked_theme_ids: list[str] = field(default_factory=list)
+    winner_team: Optional[str] = None
+
+    def validate(self, teams: list[str]) -> None:
+        allowed = set(teams)
+        if self.phase not in AUCTION_PHASES:
+            raise InvalidGameConfigError("La phase de L’Enchère est invalide.")
+        if self.phase == "idle" and not self.scores:
+            return
+        if set(self.scores) != allowed or any(not isinstance(score, int) or score < 0 for score in self.scores.values()):
+            raise InvalidGameConfigError("Les scores de L’Enchère sont invalides.")
+        if len(set(self.bidding_teams)) != len(self.bidding_teams) or set(self.bidding_teams) - allowed:
+            raise InvalidGameConfigError("Les équipes ayant buzzé pour L’Enchère sont invalides.")
+        if self.active_team and self.active_team not in allowed:
+            raise InvalidGameConfigError("L’équipe active de L’Enchère est inconnue.")
+        if self.winner_team and self.winner_team not in allowed and self.winner_team != TIE_LABEL:
+            raise InvalidGameConfigError("Le gagnant de L’Enchère est inconnu.")
+        if self.phase != "idle" and (not self.theme_id or not self.prompt or not self.answers):
+            raise InvalidGameConfigError("Le thème de L’Enchère est incomplet.")
+        if self.correct_count < 0 or self.correct_count > self.target_count:
+            raise InvalidGameConfigError("Le compteur de L’Enchère est invalide.")
+        if self.phase in {"ready", "running", "resolved", "finished"}:
+            if not self.active_team or not 1 <= self.target_count <= len(self.answers):
+                raise InvalidGameConfigError("L’enchère sélectionnée est invalide.")
+            if self.active_team not in self.bidding_teams:
+                raise InvalidGameConfigError("L’équipe active doit avoir participé aux enchères.")
+        if self.phase == "running" and (self.started_at_ms <= 0 or self.deadline_at_ms - self.started_at_ms != AUCTION_DURATION_MS):
+            raise InvalidGameConfigError("Le chrono de L’Enchère est invalide.")
+        if self.phase in {"resolved", "finished"} and self.attempt_succeeded is None:
+            raise InvalidGameConfigError("Le résultat de L’Enchère est manquant.")
+
+
+@dataclass(slots=True)
 class ActiveRound:
     round_id: str
     label: str
@@ -479,6 +530,7 @@ class GameSession:
     bombe: BombeState = field(default_factory=BombeState)
     memory: MemoryState = field(default_factory=MemoryState)
     seven_differences: SevenDifferencesState = field(default_factory=SevenDifferencesState)
+    auction: AuctionState = field(default_factory=AuctionState)
     # Séquence des jeux pour chaque manche, déterminée au lancement et JAMAIS exposée aux apps
     # (le mobile et l'écran ne voient que la manche courante).
     round_sequence: list[str] = field(default_factory=list)
@@ -502,6 +554,7 @@ class GameSession:
         self.bombe.validate(teams)
         self.memory.validate(teams)
         self.seven_differences.validate(teams)
+        self.auction.validate(teams)
         if set(self.manches_won.keys()) - allowed_teams:
             raise InvalidGameConfigError("Le classement contient une équipe inconnue.")
         if self.manche_winner and self.manche_winner not in allowed_teams and self.manche_winner != TIE_LABEL:
@@ -618,6 +671,8 @@ class GameConfig:
             return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState()
         if game_key == "seven_differences":
             return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState(scores=teams_scores)
+        if game_key == "auction":
+            return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState()
         blindtest = BlindtestState(
             round_id=active_round.round_id,
             total_tracks=TRACKS_PER_RANDOM_BLINDTEST_ROUND,
@@ -630,6 +685,7 @@ class GameConfig:
     def _start_manche(self, index: int) -> "GameConfig":
         game_key = self.session.round_sequence[index]
         active_round, blindtest, stopchrono, culture, bombe, memory, seven_differences = self._build_manche_states(game_key, index)
+        auction = AuctionState(scores={team: 0 for team in self.settings.teams}) if game_key == "auction" else AuctionState()
         return self._replace_session(
             active_round=active_round,
             blindtest=blindtest,
@@ -638,6 +694,7 @@ class GameConfig:
             bombe=bombe,
             memory=memory,
             seven_differences=seven_differences,
+            auction=auction,
             round_index=index,
             manche_finished=False,
             manche_winner=None,
@@ -1423,6 +1480,139 @@ class GameConfig:
             state, phase="open", blocked_team=state.current_buzzer_team, current_buzzer_team=None
         ))
 
+    # --- L’Enchère ---
+
+    def _ensure_auction_active(self) -> AuctionState:
+        if not self.session.active_round or self.session.active_round.game_key != "auction":
+            raise InvalidGameConfigError("L’Enchère n’est pas la manche active.")
+        return self.session.auction
+
+    def start_auction(self) -> "GameConfig":
+        state = self._ensure_auction_active()
+        if state.phase != "idle":
+            raise InvalidGameConfigError("L’Enchère a déjà commencé.")
+        theme = pick_auction_theme(state.asked_theme_ids)
+        return self._replace_session(auction=AuctionState(
+            phase="bidding",
+            theme_id=theme.id,
+            prompt=theme.prompt,
+            answers=list(theme.answers),
+            scores=dict(state.scores) or {team: 0 for team in self.settings.teams},
+            asked_theme_ids=[*state.asked_theme_ids, theme.id],
+        ))
+
+    def register_auction_buzzer(self, team: str, now_ms: int) -> "GameConfig":
+        state = self._ensure_auction_active()
+        if team not in self.settings.teams:
+            raise InvalidGameConfigError("L’équipe qui buzze est inconnue.")
+        if state.phase == "bidding":
+            if team in state.bidding_teams:
+                return self
+            return self._replace_session(auction=replace(state, bidding_teams=[*state.bidding_teams, team]))
+        if state.phase == "running":
+            if team != state.active_team:
+                raise InvalidGameConfigError("Seule l’équipe en jeu peut terminer sa tentative.")
+            return self._resolve_auction(state)
+        raise InvalidGameConfigError("Les buzzers de L’Enchère ne sont pas disponibles actuellement.")
+
+    def select_auction_bid(self, team: str, target_count: int) -> "GameConfig":
+        state = self._ensure_auction_active()
+        if state.phase != "bidding":
+            raise InvalidGameConfigError("L’enchère ne peut être attribuée que pendant les mises.")
+        if team not in self.settings.teams:
+            raise InvalidGameConfigError("L’équipe sélectionnée est inconnue.")
+        if team not in state.bidding_teams:
+            raise InvalidGameConfigError("L’équipe sélectionnée doit avoir buzzé pendant les enchères.")
+        if not 1 <= target_count <= len(state.answers):
+            raise InvalidGameConfigError(f"Le nombre de réponses doit être compris entre 1 et {len(state.answers)}.")
+        return self._replace_session(auction=replace(
+            state,
+            phase="ready",
+            active_team=team,
+            target_count=target_count,
+            correct_count=0,
+            attempt_succeeded=None,
+            points_awarded={},
+        ))
+
+    def launch_auction_attempt(self, now_ms: int) -> "GameConfig":
+        state = self._ensure_auction_active()
+        if state.phase != "ready":
+            raise InvalidGameConfigError("Sélectionnez d’abord l’équipe et son enchère.")
+        return self._replace_session(auction=replace(
+            state,
+            phase="running",
+            started_at_ms=now_ms,
+            deadline_at_ms=now_ms + AUCTION_DURATION_MS,
+        ))
+
+    def change_auction_count(self, delta: int, now_ms: int) -> "GameConfig":
+        state = self._ensure_auction_active()
+        if state.phase != "running":
+            raise InvalidGameConfigError("Le compteur est disponible uniquement pendant le chrono.")
+        if now_ms >= state.deadline_at_ms:
+            return self._resolve_auction(state)
+        if delta not in {-1, 1}:
+            raise InvalidGameConfigError("La correction du compteur est invalide.")
+        count = min(state.target_count, max(0, state.correct_count + delta))
+        if count == state.correct_count:
+            return self
+        return self._replace_session(auction=replace(state, correct_count=count))
+
+    def expire_auction_attempt(self, now_ms: int) -> "GameConfig":
+        state = self._ensure_auction_active()
+        if state.phase in {"resolved", "finished"}:
+            return self
+        if state.phase != "running":
+            raise InvalidGameConfigError("Aucune tentative de L’Enchère n’est en cours.")
+        if now_ms < state.deadline_at_ms:
+            raise InvalidGameConfigError("Les 30 secondes ne sont pas encore écoulées.")
+        return self._resolve_auction(state)
+
+    def _resolve_auction(self, state: AuctionState) -> "GameConfig":
+        succeeded = state.correct_count >= state.target_count
+        scores = dict(state.scores)
+        points = {team: 0 for team in self.settings.teams}
+        if succeeded and state.active_team:
+            points[state.active_team] = state.target_count
+        else:
+            for team in self.settings.teams:
+                if team != state.active_team:
+                    points[team] = 2
+        for team, value in points.items():
+            scores[team] = scores.get(team, 0) + value
+        leaders_at_target = [team for team in self.settings.teams if scores[team] >= AUCTION_WINNING_SCORE]
+        winner: Optional[str] = None
+        if leaders_at_target:
+            best = max(scores[team] for team in leaders_at_target)
+            leaders = [team for team in leaders_at_target if scores[team] == best]
+            winner = leaders[0] if len(leaders) == 1 else TIE_LABEL
+        phase = "finished" if winner else "resolved"
+        resolved = replace(state, phase=phase, scores=scores, attempt_succeeded=succeeded, points_awarded=points, winner_team=winner)
+        if not winner:
+            return self._replace_session(auction=resolved)
+        active_round = replace(self.session.active_round, completed=True) if self.session.active_round else None
+        return self._replace_session(
+            active_round=active_round,
+            auction=resolved,
+            manche_finished=True,
+            manche_winner=winner,
+        )
+
+    def next_auction_theme(self) -> "GameConfig":
+        state = self._ensure_auction_active()
+        if state.phase != "resolved":
+            raise InvalidGameConfigError("Le thème suivant est disponible après la résolution.")
+        theme = pick_auction_theme(state.asked_theme_ids)
+        return self._replace_session(auction=AuctionState(
+            phase="bidding",
+            theme_id=theme.id,
+            prompt=theme.prompt,
+            answers=list(theme.answers),
+            scores=dict(state.scores),
+            asked_theme_ids=[*state.asked_theme_ids, theme.id],
+        ))
+
     # --- Orchestration des manches / classement final ---
 
     def next_manche(self) -> "GameConfig":
@@ -1511,6 +1701,7 @@ class GameConfig:
                     **asdict(self.session.seven_differences),
                     "differences_remaining": 7 - len(self.session.seven_differences.found_difference_ids),
                 },
+                "auction": asdict(self.session.auction),
                 # Orchestration. `round_sequence` est persisté (round-trip DB) mais retiré du
                 # payload envoyé aux clients par la couche WebSocket (les apps ne voient pas les prochains jeux).
                 "round_sequence": list(self.session.round_sequence),
@@ -1552,6 +1743,7 @@ def build_default_game_config() -> GameConfig:
             GameDefinition(game_key="bombe", label="La Bombe", enabled=False, round_count=0),
             GameDefinition(game_key="memory", label="Mémoire en chaîne", enabled=False, round_count=0),
             GameDefinition(game_key="seven_differences", label="Les 7 différences", enabled=False, round_count=0),
+            GameDefinition(game_key="auction", label="L’Enchère", enabled=False, round_count=0),
         ],
         rounds=[],
         session=GameSession(updated_at=utc_now_iso()),

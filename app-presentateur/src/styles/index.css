@@ -577,6 +577,204 @@ button {
   }
 }
 
+/* --- L’Enchère --- */
+.auction-screen {
+  align-content: start;
+}
+
+.auction-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.75fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.auction-stage {
+  min-height: min(68vh, 720px);
+  padding: clamp(28px, 5vw, 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 35%, rgba(34, 197, 94, 0.2), rgba(8, 20, 33, 0.92) 62%);
+}
+
+.auction-kicker {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.auction-prompt {
+  max-width: 1050px;
+  margin: 0;
+  font-size: clamp(2rem, 5.2vw, 4.8rem);
+  line-height: 1.12;
+}
+
+.auction-challenge {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+}
+
+.auction-team,
+.auction-target {
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: clamp(1.1rem, 2.5vw, 1.7rem);
+}
+
+.auction-team {
+  color: #052e16;
+  background: var(--accent);
+}
+
+.auction-target {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border);
+}
+
+.auction-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(28px, 7vw, 90px);
+}
+
+.auction-timer {
+  min-width: 1.8em;
+  color: var(--accent);
+  font-size: clamp(5rem, 14vw, 10rem);
+  line-height: 0.9;
+  text-shadow: 0 0 45px rgba(34, 197, 94, 0.42);
+}
+
+.auction-timer-danger {
+  color: var(--danger);
+  text-shadow: 0 0 45px rgba(255, 93, 115, 0.45);
+}
+
+.auction-count {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.auction-count strong {
+  font-size: clamp(5rem, 14vw, 10rem);
+  line-height: 0.9;
+}
+
+.auction-count span {
+  color: var(--muted);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 800;
+}
+
+.auction-result {
+  display: grid;
+  gap: 8px;
+  padding: 20px 30px;
+  border-radius: 22px;
+  font-size: 1.25rem;
+  border: 1px solid currentColor;
+}
+
+.auction-result strong {
+  font-size: clamp(2.2rem, 5vw, 4rem);
+}
+
+.auction-result-success { color: #b6ffd5; background: rgba(34, 197, 94, 0.14); }
+.auction-result-failure { color: #ffd4db; background: rgba(255, 93, 115, 0.12); }
+
+.auction-instruction {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 700;
+}
+
+.auction-scores {
+  padding: 24px;
+}
+
+.auction-score-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.auction-score {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.auction-score-active,
+.auction-score-buzzed {
+  border-color: rgba(34, 197, 94, 0.6);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.auction-score-team {
+  display: grid;
+  gap: 4px;
+}
+
+.auction-score-team small {
+  min-height: 1em;
+  color: var(--muted);
+}
+
+.auction-score > strong {
+  font-size: 1.8rem;
+}
+
+.auction-points {
+  position: absolute;
+  right: 12px;
+  bottom: -9px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #052e16;
+  background: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+@media (max-width: 1000px) {
+  .auction-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .auction-stage {
+    min-height: 52vh;
+  }
+}
+
+@media (max-width: 620px) {
+  .auction-progress {
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
 /* --- Culture générale --- */
 .culture-stage {
   display: flex;

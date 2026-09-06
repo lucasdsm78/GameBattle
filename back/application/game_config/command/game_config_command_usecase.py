@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from application.blindtest.spotify_playlist_port import SpotifyPlaylistProvider
 from application.blindtest.blindtest_command_usecase import BlindtestCommandUseCase
+from application.auction import AuctionCommandUseCase
 from application.bombe import BombeCommandUseCase
 from application.culture.culture_command_usecase import CultureCommandUseCase
 from application.memory import MemoryCommandUseCase
@@ -12,6 +13,7 @@ from application.stopchrono.stopchrono_command_usecase import StopchronoCommandU
 from application.seven_differences import SevenDifferencesCommandUseCase
 from application.game_config.game_config_models import (
     BlindtestAnswerCommandModel,
+    AuctionBidCommandModel,
     BlindtestBuzzerCommandModel,
     BlindtestPlaybackCommandModel,
     BlindtestPlaybackSyncCommandModel,
@@ -139,6 +141,30 @@ class GameConfigCommandUseCase(ABC):
     async def reject_seven_differences_answer(self) -> GameConfigReadModel: ...
 
     @abstractmethod
+    async def start_auction(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def register_auction_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def select_auction_bid(self, payload: AuctionBidCommandModel) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def launch_auction_attempt(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def increment_auction_count(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def decrement_auction_count(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def expire_auction_attempt(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def next_auction_theme(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
     async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel: ...
 
 
@@ -157,6 +183,7 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
         self._stopchrono = StopchronoCommandUseCase(repository)
         self._bombe = BombeCommandUseCase(repository)
         self._seven_differences = SevenDifferencesCommandUseCase(repository)
+        self._auction = AuctionCommandUseCase(repository)
         self._session = SessionCommandUseCase(repository, self._blindtest)
 
     # --- Session ---
@@ -276,6 +303,31 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     async def reject_seven_differences_answer(self) -> GameConfigReadModel:
         return await self._seven_differences.reject_answer()
 
+    # --- L’Enchère ---
+    async def start_auction(self) -> GameConfigReadModel:
+        return await self._auction.start()
+
+    async def register_auction_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel:
+        return await self._auction.register_buzzer(payload)
+
+    async def select_auction_bid(self, payload: AuctionBidCommandModel) -> GameConfigReadModel:
+        return await self._auction.select_bid(payload)
+
+    async def launch_auction_attempt(self) -> GameConfigReadModel:
+        return await self._auction.launch()
+
+    async def increment_auction_count(self) -> GameConfigReadModel:
+        return await self._auction.increment()
+
+    async def decrement_auction_count(self) -> GameConfigReadModel:
+        return await self._auction.decrement()
+
+    async def expire_auction_attempt(self) -> GameConfigReadModel:
+        return await self._auction.expire()
+
+    async def next_auction_theme(self) -> GameConfigReadModel:
+        return await self._auction.next_theme()
+
     # --- Matériel ---
     async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel:
         config = await self._repository.get_current()
@@ -290,4 +342,6 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
             return await self._bombe.register_buzzer(BombeBuzzerCommandModel(team=payload.team))
         if active_round.game_key == "seven_differences":
             return await self._seven_differences.register_buzzer(payload)
+        if active_round.game_key == "auction":
+            return await self._auction.register_buzzer(payload)
         raise InvalidGameConfigError("Le jeu actif ne prend pas en charge ce buzzer matériel.")

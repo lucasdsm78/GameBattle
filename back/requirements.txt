@@ -8,5 +8,6 @@ asyncpg==0.30.0
 aiosqlite==0.21.0
 greenlet==3.2.3
 hidapi==0.14.0.post4
+Pillow==12.3.0
 pytest==8.4.1
 

@@ -5,6 +5,7 @@ from typing import Any
 
 from application.game_config.command import GameConfigCommandUseCase
 from application.game_config.game_config_models import (
+    AuctionBidCommandModel,
     BlindtestAnswerCommandModel,
     BlindtestBuzzerCommandModel,
     BlindtestPlaybackCommandModel,
@@ -32,6 +33,7 @@ DISPLAY_ALLOWED_EVENTS = {
     "bombe.explode",
     "seven-differences.open",
     "seven-differences.buzzer",
+    "auction.buzzer",
 }
 
 
@@ -87,6 +89,12 @@ def build_client_envelope(event_type: str, payload: GameConfigReadModel, client_
         seven_differences["differences"] = []
         if seven_differences.get("phase") in {"idle", "memorizing"}:
             seven_differences["modified_image_url"] = ""
+
+    auction = session.get("auction")
+    if isinstance(auction, dict):
+        auction.pop("asked_theme_ids", None)
+        if client_type == "display":
+            auction["answers"] = []
 
     return envelope
 
@@ -189,6 +197,20 @@ async def dispatch_game_config_event(
             return await command_usecase.mark_seven_difference_found(SevenDifferenceFoundCommandModel(**payload))
         if event_type == "seven-differences.reject":
             return await command_usecase.reject_seven_differences_answer()
+        if event_type == "auction.start":
+            return await command_usecase.start_auction()
+        if event_type == "auction.buzzer":
+            return await command_usecase.register_auction_buzzer(BlindtestBuzzerCommandModel(**payload))
+        if event_type == "auction.select":
+            return await command_usecase.select_auction_bid(AuctionBidCommandModel(**payload))
+        if event_type == "auction.launch":
+            return await command_usecase.launch_auction_attempt()
+        if event_type == "auction.increment":
+            return await command_usecase.increment_auction_count()
+        if event_type == "auction.decrement":
+            return await command_usecase.decrement_auction_count()
+        if event_type == "auction.next-theme":
+            return await command_usecase.next_auction_theme()
         if event_type == "game.next-manche":
             return await command_usecase.next_manche()
         if event_type == "ranking.reveal-next":

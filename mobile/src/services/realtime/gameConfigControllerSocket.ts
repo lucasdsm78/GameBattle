@@ -273,6 +273,35 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'seven-differences.reject' });
   }
 
+  startAuction(): void {
+    this.sendMessage({ type: 'auction.start' });
+  }
+
+  auctionBuzzer(team: string): void {
+    this.sendMessage({ type: 'auction.buzzer', payload: { team } });
+  }
+
+  selectAuctionBid(team: string, targetCount: number): void {
+    this.sendMessage({ type: 'auction.select', payload: { team, target_count: targetCount } });
+  }
+
+  launchAuctionAttempt(): void {
+    this.sendMessage({ type: 'auction.launch' });
+  }
+
+  incrementAuctionCount(): void {
+    this.sendMessage({ type: 'auction.increment' });
+  }
+
+  decrementAuctionCount(): void {
+    this.sendMessage({ type: 'auction.decrement' });
+  }
+
+
+  nextAuctionTheme(): void {
+    this.sendMessage({ type: 'auction.next-theme' });
+  }
+
   nextManche(): void {
     this.sendMessage({ type: 'game.next-manche' });
   }

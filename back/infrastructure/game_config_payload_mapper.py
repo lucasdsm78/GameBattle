@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from domain.game_config.model.game_config import (
     ActiveRound,
+    AuctionState,
     BlindtestState,
     BlindtestTrack,
     BombeState,
@@ -58,6 +59,7 @@ def game_config_from_payload(payload: dict) -> GameConfig:
     bombe_payload = session_payload.get("bombe", {})
     memory_payload = session_payload.get("memory", {})
     seven_differences_payload = session_payload.get("seven_differences", {})
+    auction_payload = session_payload.get("auction", {})
     active_round_payload = session_payload.get("active_round")
 
     config = GameConfig(
@@ -164,6 +166,23 @@ def game_config_from_payload(payload: dict) -> GameConfig:
                 blocked_team=seven_differences_payload.get("blocked_team"),
                 scores=seven_differences_payload.get("scores", {}) or {},
                 winner_team=seven_differences_payload.get("winner_team"),
+            ),
+            auction=AuctionState(
+                phase=auction_payload.get("phase", "idle"),
+                theme_id=auction_payload.get("theme_id", ""),
+                prompt=auction_payload.get("prompt", ""),
+                answers=list(auction_payload.get("answers", []) or []),
+                bidding_teams=list(auction_payload.get("bidding_teams", []) or []),
+                active_team=auction_payload.get("active_team"),
+                target_count=auction_payload.get("target_count", 0),
+                correct_count=auction_payload.get("correct_count", 0),
+                started_at_ms=auction_payload.get("started_at_ms", 0),
+                deadline_at_ms=auction_payload.get("deadline_at_ms", 0),
+                scores=auction_payload.get("scores", {}) or {},
+                attempt_succeeded=auction_payload.get("attempt_succeeded"),
+                points_awarded=auction_payload.get("points_awarded", {}) or {},
+                asked_theme_ids=list(auction_payload.get("asked_theme_ids", []) or []),
+                winner_team=auction_payload.get("winner_team"),
             ),
             round_sequence=list(session_payload.get("round_sequence", []) or []),
             round_index=session_payload.get("round_index", 0),

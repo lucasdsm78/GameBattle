@@ -13,6 +13,7 @@ import { BombeLiveScreen } from './src/screens/BombeLiveScreen';
 import { MemoryLiveScreen } from './src/screens/MemoryLiveScreen';
 import { FinalRankingScreen } from './src/screens/FinalRankingScreen';
 import { SevenDifferencesLiveScreen } from './src/screens/SevenDifferencesLiveScreen';
+import { AuctionLiveScreen } from './src/screens/AuctionLiveScreen';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
@@ -122,7 +123,19 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'seven_differences' ? (
+            {activeGameKey === 'auction' ? (
+              <AuctionLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStart={() => socket.startAuction()}
+                onSelect={(team, targetCount) => socket.selectAuctionBid(team, targetCount)}
+                onLaunch={() => socket.launchAuctionAttempt()}
+                onIncrement={() => socket.incrementAuctionCount()}
+                onDecrement={() => socket.decrementAuctionCount()}
+                onNextTheme={() => socket.nextAuctionTheme()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'seven_differences' ? (
               <SevenDifferencesLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}
