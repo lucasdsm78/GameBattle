@@ -10,10 +10,13 @@ class GameConfigRepository(ABC):
     @property
     def mutation_lock(self) -> asyncio.Lock:
         """Verrou commun aux use cases partageant cette instance de repository."""
+        current_loop = asyncio.get_running_loop()
         lock = getattr(self, "_mutation_lock", None)
-        if lock is None:
+        lock_loop = getattr(self, "_mutation_lock_loop", None)
+        if lock is None or lock_loop is not current_loop:
             lock = asyncio.Lock()
             self._mutation_lock = lock
+            self._mutation_lock_loop = current_loop
         return lock
 
     @abstractmethod

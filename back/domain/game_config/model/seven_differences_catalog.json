@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "puzzles": [
+    {
+      "id": "stadium-night-01",
+      "title": "Soir de finale",
+      "original_image_url": "/seven-differences/stadium-7ca9-original.svg",
+      "modified_image_url": "/seven-differences/stadium-f34b-modified.svg",
+      "differences": [
+        {
+          "id": "d01",
+          "label": "Le score sur le panneau est différent"
+        },
+        {
+          "id": "d02",
+          "label": "Le ballon a changé de couleur"
+        },
+        {
+          "id": "d03",
+          "label": "Le drapeau du supporter a disparu"
+        },
+        {
+          "id": "d04",
+          "label": "Le numéro du maillot est différent"
+        },
+        {
+          "id": "d05",
+          "label": "Un projecteur du stade est éteint"
+        },
+        {
+          "id": "d06",
+          "label": "Le cône orange n’est plus à côté du but"
+        },
+        {
+          "id": "d07",
+          "label": "Une étoile est apparue au-dessus des tribunes"
+        }
+      ]
+    }
+  ]
+}

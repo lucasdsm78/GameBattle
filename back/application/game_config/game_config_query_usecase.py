@@ -16,6 +16,7 @@ class GameConfigQueryUseCaseImpl(GameConfigQueryUseCase):
         self.repository = repository
 
     async def get_current(self) -> GameConfigReadModel:
-        current = await self.repository.get_current()
+        async with self.repository.mutation_lock:
+            current = await self.repository.get_current()
         return GameConfigReadModel.from_domain(current)
 

@@ -90,6 +90,8 @@ Variables principales :
 - `GAMEBATTLE_DATABASE_URL`
 - `GAMEBATTLE_SPOTIFY_CLIENT_ID`
 - `GAMEBATTLE_SPOTIFY_CLIENT_SECRET`
+- `PEXELS_API_KEY` pour rechercher automatiquement les photos sources
+- `OPENAI_API_KEY` pour analyser et retoucher les objets réels
 
 Exemple PostgreSQL local :
 
@@ -215,6 +217,58 @@ affiche l’image originale pendant 25 secondes puis passe automatiquement à l�
 premier buzzer valide prend la main. Le présentateur sélectionne ensuite une différence correcte sur
 le mobile, ou choisit « Mauvaise réponse » pour libérer la main et bloquer temporairement l’équipe
 fautive. Les descriptions des différences ne sont jamais envoyées à l’écran public.
+
+### Générer automatiquement un puzzle
+
+Le générateur transforme une image JPEG, PNG ou WebP en deux images WebP 16:9. Un modèle vision
+sélectionne sept objets réels suffisamment visibles et éloignés, puis chaque objet est retouché
+séparément par masque : suppression, déplacement, recoloration ou modification naturelle. Les
+descriptions et coordonnées sont produites automatiquement et le puzzle est enregistré dans le
+catalogue backend. Aucune flèche, forme géométrique ou vignette artificielle n’est ajoutée.
+
+Ajouter d’abord la clé du service d’édition dans `back/.env` :
+
+```dotenv
+OPENAI_API_KEY=ta-cle-openai
+```
+
+Depuis une image locale :
+
+```bash
+cd /Users/lucasdasilvamarques/GameBattle
+back/.venv/bin/python scripts/generate-seven-differences.py \
+  --input "$HOME/Downloads/stade.jpg" \
+  --title "Finale au stade" \
+  --seed 42
+```
+
+Recherche et téléchargement automatiques depuis Pexels :
+
+```bash
+cd /Users/lucasdasilvamarques/GameBattle
+back/.venv/bin/python scripts/generate-seven-differences.py \
+  --pexels-query "football stadium" \
+  --title "Soir de championnat" \
+  --seed 42
+```
+
+`PEXELS_API_KEY` doit également être présent dans `back/.env` pour la recherche automatique. La
+graine stabilise le choix de la photographie Pexels, mais une édition générative peut varier entre
+deux exécutions. Les images générées sont placées dans
+`app-presentateur/public/seven-differences/` et le manifeste
+`back/domain/game_config/model/seven_differences_catalog.json` est mis à jour atomiquement. Pour
+remplacer volontairement un identifiant existant, ajouter `--id mon-puzzle --replace`. Redémarrer
+ensuite le backend pour charger le catalogue actualisé.
+
+Pour Pexels, créer une clé sur <https://www.pexels.com/api/> et respecter leurs conditions
+d’utilisation et d’attribution. Les images locales restent la solution recommandée pour un usage
+entièrement hors ligne.
+
+Si OpenAI retourne `429 Too Many Requests`, le générateur respecte automatiquement `Retry-After`
+et effectue jusqu’à cinq tentatives avec attente progressive. Un message distinct indique si le
+problème vient d’un quota ou de la facturation : dans ce cas, vérifier les crédits et les limites du
+projet sur <https://platform.openai.com/settings/organization/billing> avant de relancer. Aucun
+puzzle partiel n’est ajouté au catalogue lorsque l’édition échoue.
 
 Pour un buzzer USB plus avancé qui n'émule pas un clavier, utilise le bridge local :
 
