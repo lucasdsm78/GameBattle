@@ -1,8 +1,10 @@
 from interface.dependencies.auth import (
     CONTROLLER_TOKEN_HEADER,
-    CommandBusDep,
+    BlindtestUseCaseDep,
+    DispatcherDep,
     OptionalControllerToken,
     QueryServiceDep,
+    SessionUseCaseDep,
     WebSocketHubDep,
     authorize_client,
     require_controller_token,
@@ -11,9 +13,11 @@ from interface.dependencies.auth import (
 
 __all__ = [
     "CONTROLLER_TOKEN_HEADER",
-    "CommandBusDep",
+    "BlindtestUseCaseDep",
+    "DispatcherDep",
     "OptionalControllerToken",
     "QueryServiceDep",
+    "SessionUseCaseDep",
     "WebSocketHubDep",
     "authorize_client",
     "require_controller_token",

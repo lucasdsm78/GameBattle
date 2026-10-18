@@ -4,8 +4,7 @@ import secrets
 from functools import lru_cache
 from typing import Optional
 
-from application.commands import ALL_COMMANDS
-from application.commands.bus import GameCommandBus
+from application.commands import GameUseCases
 from application.queries.game_config import GameConfigQueryService
 from application.services.playlist import BlindtestPlaylistService
 from infrastructure.config import Settings
@@ -16,7 +15,9 @@ from infrastructure.repositories.postgresql_game_config import (
     PostgreSQLGameConfigRepository,
 )
 from interface.realtime.deadline_worker import GameDeadlineWorker
+from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.hub import WebSocketHub
+from interface.realtime.routes import ROUTES
 
 
 @lru_cache
@@ -50,8 +51,13 @@ def blindtest_playlist_service() -> BlindtestPlaylistService:
 
 
 @lru_cache
-def game_command_bus() -> GameCommandBus:
-    return GameCommandBus(game_config_repository(), blindtest_playlist_service(), websocket_hub(), ALL_COMMANDS)
+def game_use_cases() -> GameUseCases:
+    return GameUseCases.build(game_config_repository(), websocket_hub(), blindtest_playlist_service())
+
+
+@lru_cache
+def realtime_dispatcher() -> RealtimeDispatcher:
+    return RealtimeDispatcher(game_use_cases(), ROUTES)
 
 
 @lru_cache
@@ -60,7 +66,7 @@ def game_config_query_service() -> GameConfigQueryService:
 
 
 def game_deadline_worker() -> GameDeadlineWorker:
-    return GameDeadlineWorker(game_command_bus())
+    return GameDeadlineWorker(game_use_cases().session)
 
 
 def authorize_client(client_type: str, token: Optional[str]) -> bool:
@@ -86,7 +92,8 @@ def reset_dependency_caches() -> None:
         websocket_hub,
         spotify_playlist_service,
         blindtest_playlist_service,
-        game_command_bus,
+        game_use_cases,
+        realtime_dispatcher,
         game_config_query_service,
     ):
         factory.cache_clear()

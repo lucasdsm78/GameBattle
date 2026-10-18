@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-from application.commands.bus import CONTROLLER_AND_DISPLAY, CommandSpec
-from application.commands.payloads import (
-    AnswerCommand,
-    CultureDifficultyCommand,
-    TeamCommand,
-)
+from application.commands.base import CommandUseCase
+from application.commands.payloads import AnswerCommand, CultureDifficultyCommand, TeamCommand
+from application.services.snapshot import GameConfigSnapshot
 
-CULTURE_COMMANDS = (
-    CommandSpec("culture.start", lambda config, *_: config.start_culture()),
-    CommandSpec(
-        "culture.select-difficulty",
-        lambda config, command, _: config.select_culture_difficulty(command.difficulty),
-        CultureDifficultyCommand,
-    ),
-    CommandSpec(
-        "culture.buzzer", lambda config, command, _: config.register_culture_buzzer(command.team), TeamCommand, CONTROLLER_AND_DISPLAY
-    ),
-    CommandSpec("culture.answer", lambda config, command, _: config.answer_culture(command.is_correct), AnswerCommand),
-    CommandSpec("culture.next-question", lambda config, *_: config.next_culture_question()),
-)
+
+class CultureCommandUseCase(CommandUseCase):
+    async def start(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.start_culture())
+
+    async def select_difficulty(self, command: CultureDifficultyCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.select_culture_difficulty(command.difficulty))
+
+    async def register_buzzer(self, command: TeamCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.register_culture_buzzer(command.team))
+
+    async def answer(self, command: AnswerCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.answer_culture(command.is_correct))
+
+    async def next_question(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.next_culture_question())

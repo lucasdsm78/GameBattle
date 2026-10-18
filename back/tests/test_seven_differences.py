@@ -10,7 +10,7 @@ from domain.models.games.seven_differences import SEVEN_DIFFERENCES_MEMORIZATION
 from domain.services.scoring import TIE_LABEL
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_config_mapper import game_config_from_payload
-from support import BusHarness
+from support import GameHarness
 
 
 def _seven_config(*, teams: list[str] | None = None):
@@ -117,11 +117,11 @@ def test_display_never_receives_secret_labels_or_modified_image_before_reveal() 
 
 
 def test_concurrent_buzzes_accept_exactly_one_team() -> None:
-    harness = BusHarness(_open_config(teams=["Rouges", "Bleus"]), now_ms=40_000, delay_seconds=0.01)
+    harness = GameHarness(_open_config(teams=["Rouges", "Bleus"]), now_ms=40_000, delay_seconds=0.01)
 
     async def race():
         return await asyncio.gather(
-            *(harness.bus.execute("seven-differences.buzzer", {"team": team}, ClientRole.CONTROLLER) for team in ("Rouges", "Bleus")),
+            *(harness.dispatcher.dispatch("seven-differences.buzzer", {"team": team}, ClientRole.CONTROLLER) for team in ("Rouges", "Bleus")),
             return_exceptions=True,
         )
 
@@ -135,7 +135,7 @@ def test_concurrent_buzzes_accept_exactly_one_team() -> None:
 
 def test_display_can_only_open_and_buzz_not_validate_a_difference() -> None:
     started = _seven_config().start_seven_differences(now_ms=1_000)
-    harness = BusHarness(started, now_ms=started.session.seven_differences.reveal_at_ms)
+    harness = GameHarness(started, now_ms=started.session.seven_differences.reveal_at_ms)
 
     harness.run("seven-differences.open", role=ClientRole.DISPLAY)
     harness.run("seven-differences.buzzer", {"team": "Rouges"}, role=ClientRole.DISPLAY)

@@ -13,8 +13,6 @@ _revisions = count(1)
 class ClientRole(StrEnum):
     CONTROLLER = "controller"
     DISPLAY = "display"
-    HARDWARE = "hardware"
-    SYSTEM = "system"
 
 
 @dataclass(frozen=True, slots=True)

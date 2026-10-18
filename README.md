@@ -77,7 +77,7 @@ back/
 │   ├── services/            # Services métier : scores, séquence des manches, catalogues de contenus
 │   └── vo/                  # Objets-valeurs : morceau, question, carte, tour, différence, manche active
 ├── application/
-│   ├── commands/            # Bus de commandes, schémas d'entrée et registre déclaratif par jeu
+│   ├── commands/            # Un use case par jeu (SessionCommandUseCase, AuctionCommandUseCase…) et schémas d'entrée
 │   ├── queries/             # Lecture de l'état courant
 │   └── services/            # Instantanés diffusés, playlists blindtest (port Spotify)
 ├── infrastructure/
@@ -88,17 +88,20 @@ back/
 │   ├── api/                 # Routeurs HTTP et WebSocket
 │   ├── schemas/             # Schémas de réponse et enveloppe des messages WebSocket
 │   ├── dependencies/        # Composition racine (container) et authentification
-│   └── realtime/            # Hub WebSocket, traitement des messages, worker des chronos
+│   └── realtime/            # Hub WebSocket, routes et dispatcher des messages, worker des chronos
 ├── exceptions.py            # DomainError / ApplicationError
 └── main.py                  # Application factory FastAPI
 ```
 
 - Un jeu = un module `domain/models/games/<jeu>.py` : ses règles, ses invariants et ce que l'écran
   public n'a pas le droit de voir (`display_view`).
-- Toute écriture passe par `application/commands/bus.py` : droits, validation stricte, verrou,
-  persistance puis diffusion. Une commande sans effet n'écrit ni ne diffuse rien.
-- Ajouter une commande = une méthode sur l'état du jeu, une méthode sur `GameConfig`, une ligne dans
-  `application/commands/<jeu>.py`. Le contrat WebSocket ne change pas.
+- Chaque jeu a son use case d'écriture (`application/commands/<jeu>.py`), avec une méthode typée par
+  action (`await auction.select_bid(command)`). La classe de base `CommandUseCase` applique la
+  transition sous verrou, persiste puis diffuse ; une action sans effet n'écrit ni ne diffuse rien.
+- Les routes HTTP appellent directement ces méthodes. Côté WebSocket, `interface/realtime/routes.py`
+  associe chaque message à sa méthode, avec son schéma et les rôles autorisés.
+- Ajouter une action = une méthode sur l'état du jeu, une méthode sur `GameConfig`, une méthode sur le
+  use case et, si elle est pilotée en WebSocket, une ligne dans `interface/realtime/routes.py`.
 - Les modèles du domaine sont des dataclasses (plus rapides et sans dépendance) ; Pydantic est réservé
   aux frontières (`application/commands/payloads.py`, `interface/schemas/`).
 

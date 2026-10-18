@@ -1,23 +1,28 @@
 from __future__ import annotations
 
-from application.commands.bus import CONTROLLER_AND_DISPLAY, CommandSpec
+from application.commands.base import CommandUseCase
 from application.commands.payloads import AuctionBidCommand, TeamCommand
+from application.services.snapshot import GameConfigSnapshot
 
-AUCTION_COMMANDS = (
-    CommandSpec("auction.start", lambda config, *_: config.start_auction()),
-    CommandSpec(
-        "auction.buzzer",
-        lambda config, command, context: config.register_auction_buzzer(command.team, context.now_ms),
-        TeamCommand,
-        CONTROLLER_AND_DISPLAY,
-    ),
-    CommandSpec(
-        "auction.select",
-        lambda config, command, _: config.select_auction_bid(command.team, command.target_count),
-        AuctionBidCommand,
-    ),
-    CommandSpec("auction.launch", lambda config, _, context: config.launch_auction_attempt(context.now_ms)),
-    CommandSpec("auction.increment", lambda config, _, context: config.change_auction_count(1, context.now_ms)),
-    CommandSpec("auction.decrement", lambda config, _, context: config.change_auction_count(-1, context.now_ms)),
-    CommandSpec("auction.next-theme", lambda config, *_: config.next_auction_theme()),
-)
+
+class AuctionCommandUseCase(CommandUseCase):
+    async def start(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.start_auction())
+
+    async def register_buzzer(self, command: TeamCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.register_auction_buzzer(command.team, ctx.now_ms))
+
+    async def select_bid(self, command: AuctionBidCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.select_auction_bid(command.team, command.target_count))
+
+    async def launch(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.launch_auction_attempt(ctx.now_ms))
+
+    async def increment(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.change_auction_count(1, ctx.now_ms))
+
+    async def decrement(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.change_auction_count(-1, ctx.now_ms))
+
+    async def next_theme(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.next_auction_theme())

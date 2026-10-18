@@ -12,10 +12,10 @@ from domain.models.games.auction import (
     AUCTION_MAX_TARGET_COUNT,
     AUCTION_WINNING_SCORE,
 )
-from exceptions import CommandNotAllowedError, InvalidGameConfigError
+from exceptions import CommandNotAllowedError, InvalidGameConfigError, UnknownCommandError
 from infrastructure.repositories.game_config_mapper import game_config_from_payload
 from interface.realtime.deadline_worker import GameDeadlineWorker
-from support import BusHarness
+from support import GameHarness
 
 
 def _auction_config(*, teams: list[str] | None = None):
@@ -149,7 +149,7 @@ def test_persistence_round_trip_and_display_redaction() -> None:
 
 
 def test_display_can_only_buzz_for_auction() -> None:
-    harness = BusHarness(_auction_config().start_auction())
+    harness = GameHarness(_auction_config().start_auction())
 
     harness.run("auction.buzzer", {"team": "Rouges"}, role=ClientRole.DISPLAY)
     for forbidden in ("auction.increment", "auction.next-theme"):
@@ -160,7 +160,7 @@ def test_display_can_only_buzz_for_auction() -> None:
 
 
 def test_duplicate_bid_buzz_is_a_no_op_without_write_or_broadcast() -> None:
-    harness = BusHarness(_auction_config().start_auction())
+    harness = GameHarness(_auction_config().start_auction())
 
     assert harness.run("auction.buzzer", {"team": "Rouges"}) is not None
     assert harness.run("auction.buzzer", {"team": "Rouges"}) is None
@@ -179,8 +179,8 @@ def test_due_deadline_resolves_the_attempt_once_then_is_a_no_op() -> None:
 
 def test_deadline_worker_expires_and_broadcasts_an_overdue_attempt() -> None:
     clock = {"now": 1_000}
-    harness = BusHarness(_ready_config().launch_auction_attempt(now_ms=1_000), now_ms=lambda: clock["now"])
-    worker = GameDeadlineWorker(harness.bus)
+    harness = GameHarness(_ready_config().launch_auction_attempt(now_ms=1_000), now_ms=lambda: clock["now"])
+    worker = GameDeadlineWorker(harness.use_cases.session)
 
     assert asyncio.run(worker.check_once()) is False
     clock["now"] = 1_000 + AUCTION_DURATION_MS
@@ -192,8 +192,8 @@ def test_deadline_worker_expires_and_broadcasts_an_overdue_attempt() -> None:
     assert harness.publisher.snapshots[-1].display["session"]["auction"]["answers"] == []
 
 
-def test_deadline_worker_is_reserved_to_the_system_role() -> None:
-    harness = BusHarness(_ready_config().launch_auction_attempt(now_ms=1_000))
+def test_deadline_expiry_is_not_reachable_from_websocket_clients() -> None:
+    harness = GameHarness(_ready_config().launch_auction_attempt(now_ms=1_000))
 
-    with pytest.raises(CommandNotAllowedError):
+    with pytest.raises(UnknownCommandError):
         harness.run("system.expire-deadlines", role=ClientRole.CONTROLLER)

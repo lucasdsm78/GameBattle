@@ -4,9 +4,7 @@ import asyncio
 import logging
 from contextlib import suppress
 
-from application.commands import EXPIRE_DEADLINES
-from application.commands.bus import GameCommandBus
-from application.services.snapshot import ClientRole
+from application.commands.session import SessionCommandUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +15,8 @@ class GameDeadlineWorker:
     Un tick sans chrono échu ne touche ni la base (dépôt en cache) ni le réseau.
     """
 
-    def __init__(self, bus: GameCommandBus, *, poll_interval_seconds: float = 0.25) -> None:
-        self._bus = bus
+    def __init__(self, session: SessionCommandUseCase, *, poll_interval_seconds: float = 0.25) -> None:
+        self._session = session
         self._poll_interval_seconds = poll_interval_seconds
         self._task: asyncio.Task[None] | None = None
 
@@ -35,7 +33,7 @@ class GameDeadlineWorker:
         self._task = None
 
     async def check_once(self) -> bool:
-        return await self._bus.execute(EXPIRE_DEADLINES, None, ClientRole.SYSTEM) is not None
+        return await self._session.expire_due_deadlines() is not None
 
     async def _run(self) -> None:
         while True:

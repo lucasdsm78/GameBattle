@@ -10,7 +10,7 @@ from domain.models.games.memory import MEMORY_CHAIN_LENGTH
 from domain.vo.culture_question import CultureQuestion
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_config_mapper import game_config_from_payload
-from support import BusHarness
+from support import GameHarness
 
 
 def _question(index: int, prefix: str = "") -> CultureQuestion:
@@ -207,7 +207,7 @@ def test_display_snapshot_never_contains_current_chain_answers() -> None:
 
 
 def test_memory_commands_are_controller_only() -> None:
-    harness = BusHarness(_memory_config())
+    harness = GameHarness(_memory_config())
 
     with patch("domain.models.games.memory.pick_memory_question", side_effect=lambda asked: _question(len(asked) + 1)):
         harness.run("memory.start")

@@ -1,0 +1,98 @@
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
+
+from pydantic import BaseModel
+
+from application.commands import GameUseCases
+from application.commands.payloads import (
+    AnswerCommand,
+    AuctionBidCommand,
+    CultureDifficultyCommand,
+    ForbiddenWordCardCommand,
+    GameConfigUpsertModel,
+    PlaybackControlCommand,
+    PlaybackSyncCommand,
+    PlaylistLoadCommand,
+    SevenDifferenceFoundCommand,
+    SpotifyPlaylistImportCommand,
+    SpotifyTokenCommand,
+    TeamCommand,
+)
+from application.services.snapshot import ClientRole
+
+CONTROLLER_ONLY = frozenset({ClientRole.CONTROLLER})
+CONTROLLER_AND_DISPLAY = frozenset({ClientRole.CONTROLLER, ClientRole.DISPLAY})
+
+RouteHandler = Callable[[GameUseCases, Any], Awaitable[Any]]
+
+
+@dataclass(frozen=True, slots=True)
+class Route:
+    """Message WebSocket `event` → méthode de use case, avec son schéma d'entrée et les rôles autorisés."""
+
+    event: str
+    handler: RouteHandler
+    payload_model: type[BaseModel] | None = None
+    roles: frozenset[ClientRole] = CONTROLLER_ONLY
+
+
+ROUTES: tuple[Route, ...] = (
+    # Session
+    Route("game.config.replace", lambda uc, cmd: uc.session.replace_config(cmd), GameConfigUpsertModel),
+    Route("game.config.validate-and-launch", lambda uc, cmd: uc.session.validate_and_launch(cmd), GameConfigUpsertModel),
+    Route("game.config.launch", lambda uc, _: uc.session.launch_game()),
+    Route("game.next-manche", lambda uc, _: uc.session.next_manche()),
+    Route("ranking.reveal-next", lambda uc, _: uc.session.reveal_next_ranking()),
+    # Blindtest
+    Route("blindtest.playlist.load", lambda uc, cmd: uc.blindtest.load_playlist(cmd), PlaylistLoadCommand),
+    Route("blindtest.playlist.import-spotify", lambda uc, cmd: uc.blindtest.import_spotify_playlist(cmd), SpotifyPlaylistImportCommand),
+    Route("blindtest.playlist.reload", lambda uc, _: uc.blindtest.reload_default_playlist()),
+    Route("blindtest.buzzer", lambda uc, cmd: uc.blindtest.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
+    Route("blindtest.answer", lambda uc, cmd: uc.blindtest.answer(cmd), AnswerCommand),
+    Route("blindtest.playback.control", lambda uc, cmd: uc.blindtest.control_playback(cmd), PlaybackControlCommand),
+    Route("blindtest.playback.sync", lambda uc, cmd: uc.blindtest.sync_playback(cmd), PlaybackSyncCommand),
+    Route("blindtest.next-track", lambda uc, _: uc.blindtest.next_track()),
+    Route("spotify.user-token", lambda uc, cmd: uc.blindtest.set_spotify_user_token(cmd), SpotifyTokenCommand, CONTROLLER_AND_DISPLAY),
+    # Stop Chrono
+    Route("stopchrono.start", lambda uc, _: uc.stopchrono.start(), roles=CONTROLLER_AND_DISPLAY),
+    Route("stopchrono.stop", lambda uc, _: uc.stopchrono.stop(), roles=CONTROLLER_AND_DISPLAY),
+    Route("stopchrono.next-team", lambda uc, _: uc.stopchrono.next_team()),
+    # Culture générale
+    Route("culture.start", lambda uc, _: uc.culture.start()),
+    Route("culture.select-difficulty", lambda uc, cmd: uc.culture.select_difficulty(cmd), CultureDifficultyCommand),
+    Route("culture.buzzer", lambda uc, cmd: uc.culture.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
+    Route("culture.answer", lambda uc, cmd: uc.culture.answer(cmd), AnswerCommand),
+    Route("culture.next-question", lambda uc, _: uc.culture.next_question()),
+    # La Bombe
+    Route("bombe.start", lambda uc, _: uc.bombe.start()),
+    Route("bombe.buzzer", lambda uc, cmd: uc.bombe.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
+    Route("bombe.begin-after-roll", lambda uc, _: uc.bombe.begin_after_roll(), roles=CONTROLLER_AND_DISPLAY),
+    Route("bombe.previous-team", lambda uc, _: uc.bombe.previous_team()),
+    Route("bombe.explode", lambda uc, _: uc.bombe.explode(), roles=CONTROLLER_AND_DISPLAY),
+    # Mémoire en chaîne
+    Route("memory.start", lambda uc, _: uc.memory.start()),
+    Route("memory.next-question", lambda uc, _: uc.memory.next_question()),
+    Route("memory.validate-sequence", lambda uc, _: uc.memory.validate_sequence()),
+    Route("memory.disqualify-team", lambda uc, _: uc.memory.disqualify_team()),
+    # Les 7 différences
+    Route("seven-differences.start", lambda uc, _: uc.seven_differences.start()),
+    Route("seven-differences.open", lambda uc, _: uc.seven_differences.open(), roles=CONTROLLER_AND_DISPLAY),
+    Route("seven-differences.buzzer", lambda uc, cmd: uc.seven_differences.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
+    Route("seven-differences.found", lambda uc, cmd: uc.seven_differences.mark_found(cmd), SevenDifferenceFoundCommand),
+    Route("seven-differences.reject", lambda uc, _: uc.seven_differences.reject_answer()),
+    # L’Enchère
+    Route("auction.start", lambda uc, _: uc.auction.start()),
+    Route("auction.buzzer", lambda uc, cmd: uc.auction.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
+    Route("auction.select", lambda uc, cmd: uc.auction.select_bid(cmd), AuctionBidCommand),
+    Route("auction.launch", lambda uc, _: uc.auction.launch()),
+    Route("auction.increment", lambda uc, _: uc.auction.increment()),
+    Route("auction.decrement", lambda uc, _: uc.auction.decrement()),
+    Route("auction.next-theme", lambda uc, _: uc.auction.next_theme()),
+    # Le mot interdit
+    Route("forbidden-word.start-turn", lambda uc, _: uc.forbidden_word.start_turn()),
+    Route("forbidden-word.found", lambda uc, cmd: uc.forbidden_word.mark_found(cmd), ForbiddenWordCardCommand),
+    Route("forbidden-word.skip", lambda uc, cmd: uc.forbidden_word.skip(cmd), ForbiddenWordCardCommand),
+)

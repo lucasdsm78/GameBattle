@@ -12,14 +12,14 @@ from interface.realtime.message_handler import (
     RateLimiter,
     handle_client_message,
 )
-from support import BusHarness, started_config
+from support import GameHarness, started_config
 
 READ_ONLY = {"type": "error", "detail": "Le client display est en lecture seule."}
 
 
-def _send(harness: BusHarness, message: dict | str, role: ClientRole = ClientRole.CONTROLLER):
+def _send(harness: GameHarness, message: dict | str, role: ClientRole = ClientRole.CONTROLLER):
     raw = message if isinstance(message, str) else json.dumps(message)
-    return asyncio.run(handle_client_message(raw, role, harness.bus))
+    return asyncio.run(handle_client_message(raw, role, harness.dispatcher))
 
 
 def _blindtest_config(*, revealed: bool = False):
@@ -103,14 +103,14 @@ def test_die_result_is_hidden_from_everyone_while_rolling_then_revealed() -> Non
 
 
 def test_display_cannot_dispatch_controller_only_event() -> None:
-    harness = BusHarness(started_config("blindtest"))
+    harness = GameHarness(started_config("blindtest"))
 
     assert _send(harness, {"type": "game.config.launch"}, ClientRole.DISPLAY) == READ_ONLY
     assert harness.repository.saves == 0
 
 
 def test_spotify_user_token_is_stored_without_broadcast() -> None:
-    harness = BusHarness(started_config("blindtest"))
+    harness = GameHarness(started_config("blindtest"))
 
     reply = _send(harness, {"type": "spotify.user-token", "payload": {"access_token": "spotify-user-token"}}, ClientRole.DISPLAY)
 
@@ -122,7 +122,7 @@ def test_spotify_user_token_is_stored_without_broadcast() -> None:
 
 def test_display_can_roll_and_explode_but_not_go_back_in_bombe() -> None:
     prepared = started_config("bombe", teams=["Rouges", "Bleus"]).start_bombe(now_ms=1_000)
-    harness = BusHarness(prepared, now_ms=2_000)
+    harness = GameHarness(prepared, now_ms=2_000)
     roller = prepared.settings.teams[prepared.session.bombe.roller_team_index or 0]
 
     assert _send(harness, {"type": "bombe.buzzer", "payload": {"team": roller}}, ClientRole.DISPLAY) is None
@@ -132,7 +132,7 @@ def test_display_can_roll_and_explode_but_not_go_back_in_bombe() -> None:
 
 
 def test_controller_commands_are_applied_persisted_and_broadcast() -> None:
-    harness = BusHarness(started_config("bombe", teams=["Rouges", "Bleus"]))
+    harness = GameHarness(started_config("bombe", teams=["Rouges", "Bleus"]))
 
     assert _send(harness, {"type": "bombe.start"}) is None
 
@@ -144,7 +144,7 @@ def test_controller_commands_are_applied_persisted_and_broadcast() -> None:
 
 
 def test_domain_errors_are_replied_without_persisting() -> None:
-    harness = BusHarness(started_config("bombe", teams=["Rouges", "Bleus"]))
+    harness = GameHarness(started_config("bombe", teams=["Rouges", "Bleus"]))
 
     reply = _send(harness, {"type": "bombe.previous-team"})
 
@@ -165,14 +165,14 @@ def test_domain_errors_are_replied_without_persisting() -> None:
     ],
 )
 def test_malformed_messages_are_rejected(message: str, detail: str) -> None:
-    harness = BusHarness(started_config("bombe", teams=["Rouges", "Bleus"]))
+    harness = GameHarness(started_config("bombe", teams=["Rouges", "Bleus"]))
 
     assert _send(harness, message) == {"type": "error", "detail": detail}
     assert harness.repository.saves == 0
 
 
 def test_ping_gets_a_pong() -> None:
-    assert _send(BusHarness(started_config("bombe")), {"type": "ping"}) == {"type": "pong"}
+    assert _send(GameHarness(started_config("bombe")), {"type": "ping"}) == {"type": "pong"}
 
 
 def test_rate_limiter_absorbs_a_burst_then_throttles() -> None:

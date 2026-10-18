@@ -1,9 +1,15 @@
 from __future__ import annotations
 
-from application.commands.bus import CONTROLLER_AND_DISPLAY, CommandSpec
+from application.commands.base import CommandUseCase
+from application.services.snapshot import GameConfigSnapshot
 
-STOPCHRONO_COMMANDS = (
-    CommandSpec("stopchrono.start", lambda config, _, context: config.start_chrono(context.now_ms), roles=CONTROLLER_AND_DISPLAY),
-    CommandSpec("stopchrono.stop", lambda config, _, context: config.stop_chrono(context.now_ms), roles=CONTROLLER_AND_DISPLAY),
-    CommandSpec("stopchrono.next-team", lambda config, *_: config.next_chrono_team()),
-)
+
+class StopChronoCommandUseCase(CommandUseCase):
+    async def start(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.start_chrono(ctx.now_ms))
+
+    async def stop(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.stop_chrono(ctx.now_ms))
+
+    async def next_team(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.next_chrono_team())

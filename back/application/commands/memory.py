@@ -1,10 +1,18 @@
 from __future__ import annotations
 
-from application.commands.bus import CommandSpec
+from application.commands.base import CommandUseCase
+from application.services.snapshot import GameConfigSnapshot
 
-MEMORY_COMMANDS = (
-    CommandSpec("memory.start", lambda config, *_: config.start_memory()),
-    CommandSpec("memory.next-question", lambda config, *_: config.next_memory_question()),
-    CommandSpec("memory.validate-sequence", lambda config, *_: config.validate_memory_sequence()),
-    CommandSpec("memory.disqualify-team", lambda config, *_: config.disqualify_memory_team()),
-)
+
+class MemoryCommandUseCase(CommandUseCase):
+    async def start(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.start_memory())
+
+    async def next_question(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.next_memory_question())
+
+    async def validate_sequence(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.validate_memory_sequence())
+
+    async def disqualify_team(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.disqualify_memory_team())

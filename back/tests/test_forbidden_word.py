@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+import asyncio
 from dataclasses import replace
 
 import pytest
@@ -16,7 +17,7 @@ from domain.services.scoring import TIE_LABEL
 from domain.vo.forbidden_word import ForbiddenWordTurn
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_config_mapper import game_config_from_payload
-from support import BusHarness
+from support import GameHarness
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 
@@ -204,7 +205,7 @@ def test_display_never_receives_the_secret_card() -> None:
 
 @pytest.mark.parametrize("event_type", ["forbidden-word.start-turn", "forbidden-word.found", "forbidden-word.skip"])
 def test_display_cannot_drive_the_game(event_type: str) -> None:
-    harness = BusHarness(_forbidden_word_config())
+    harness = GameHarness(_forbidden_word_config())
 
     with pytest.raises(CommandNotAllowedError, match="lecture seule"):
         harness.run(event_type, {"card_id": "paris"}, role=ClientRole.DISPLAY)
@@ -218,7 +219,7 @@ def test_card_command_rejects_malformed_identifiers(card_id: str) -> None:
 
 
 def test_duplicate_press_is_not_persisted_nor_broadcast() -> None:
-    harness = BusHarness(_forbidden_word_config().start_forbidden_word_turn(1_000), now_ms=2_000)
+    harness = GameHarness(_forbidden_word_config().start_forbidden_word_turn(1_000), now_ms=2_000)
     payload = {"card_id": _card_id(harness.config)}
 
     assert harness.run("forbidden-word.found", payload) is not None
@@ -245,3 +246,18 @@ def test_catalog_is_large_unique_and_well_formed() -> None:
         for forbidden in card.forbidden_words:
             assert forbidden.strip(), card
             assert not _normalize_tokens(forbidden) & word_tokens, (card.word, forbidden)
+
+
+def test_use_case_methods_can_be_called_directly() -> None:
+    harness = GameHarness(_forbidden_word_config(), now_ms=1_000)
+    use_case = harness.use_cases.forbidden_word
+
+    started = asyncio.run(use_case.start_turn())
+    card_id = _card_id(harness.config)
+    found = asyncio.run(use_case.mark_found(ForbiddenWordCardCommand(card_id=card_id)))
+    duplicate = asyncio.run(use_case.mark_found(ForbiddenWordCardCommand(card_id=card_id)))
+
+    assert started is not None and found is not None
+    assert duplicate is None
+    assert harness.config.session.forbidden_word.turns[0].found_words
+    assert found.display["session"]["forbidden_word"]["current_card"] is None
