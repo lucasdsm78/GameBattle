@@ -6,7 +6,9 @@ import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 from infrastructure.spotify.spotify_playlist_service import SpotifyPlaylistImportResult, SpotifyPlaylistTrackData
 
 TEST_DB_PATH = Path(tempfile.gettempdir()) / "gamebattle_test.db"
@@ -15,11 +17,12 @@ os.environ["GAMEBATTLE_DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 os.environ["GAMEBATTLE_CONTROLLER_TOKEN"] = "controller-test-token"
 os.environ["GAMEBATTLE_DISPLAY_TOKEN"] = "display-test-token"
 os.environ["GAMEBATTLE_ALLOWED_ORIGINS"] = "http://localhost:5173,http://localhost:8081"
-os.environ["GAMEBATTLE_SPOTIFY_CLIENT_ID"] = "spotify-client-id-test"
-os.environ["GAMEBATTLE_SPOTIFY_CLIENT_SECRET"] = "spotify-client-secret-test"
 os.environ["GAMEBATTLE_HARDWARE_TOKEN"] = "hardware-test-token"
 
+from dependency_injections import game_command_bus  # noqa: E402
 from main import app  # noqa: E402
+
+CONTROLLER_HEADERS = {"X-GameBattle-Controller-Token": "controller-test-token"}
 
 
 def setup_function() -> None:
@@ -149,7 +152,7 @@ def test_get_default_config() -> None:
 
 def test_replace_config_via_http() -> None:
     with TestClient(app) as client:
-        response = client.put("/api/game-config/current", json=_payload())
+        response = client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
         assert response.status_code == 200
         body = response.json()
         assert body["settings"]["game_title"] == "Soirée des champions"
@@ -160,32 +163,32 @@ def test_replace_config_via_http() -> None:
 
 def test_launch_game_and_drive_blindtest_via_http() -> None:
     with TestClient(app) as client:
-        client.put("/api/game-config/current", json=_payload())
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
 
-        launch_response = client.post("/api/game-config/launch")
+        launch_response = client.post("/api/game-config/launch", headers=CONTROLLER_HEADERS)
         assert launch_response.status_code == 200
         launched = launch_response.json()
         assert launched["status"] == "live"
         assert launched["session"]["active_round"]["game_key"] == "blindtest"
 
-        playlist_response = client.put("/api/game-config/blindtest/playlist", json=_playlist_payload())
+        playlist_response = client.put("/api/game-config/blindtest/playlist", headers=CONTROLLER_HEADERS, json=_playlist_payload())
         assert playlist_response.status_code == 200
         playlist_body = playlist_response.json()
         assert playlist_body["session"]["blindtest"]["total_tracks"] == 10
         assert playlist_body["session"]["blindtest"]["tracks_remaining"] == 10
         assert playlist_body["session"]["blindtest"]["current_track"]["title"]
 
-        buzzer_response = client.post("/api/game-config/blindtest/buzzer", json={"team": "Rouges"})
+        buzzer_response = client.post("/api/game-config/blindtest/buzzer", headers=CONTROLLER_HEADERS, json={"team": "Rouges"})
         assert buzzer_response.status_code == 200
         assert buzzer_response.json()["session"]["blindtest"]["current_buzzer_team"] == "Rouges"
 
-        answer_response = client.post("/api/game-config/blindtest/answer", json={"is_correct": True})
+        answer_response = client.post("/api/game-config/blindtest/answer", headers=CONTROLLER_HEADERS, json={"is_correct": True})
         assert answer_response.status_code == 200
         answer_body = answer_response.json()
         assert answer_body["session"]["blindtest"]["scores"]["Rouges"] == 1
         assert answer_body["session"]["blindtest"]["revealed"] is True
 
-        next_response = client.post("/api/game-config/blindtest/next-track")
+        next_response = client.post("/api/game-config/blindtest/next-track", headers=CONTROLLER_HEADERS)
         assert next_response.status_code == 200
         next_body = next_response.json()
         assert next_body["session"]["blindtest"]["current_track_index"] == 2
@@ -195,8 +198,8 @@ def test_launch_game_and_drive_blindtest_via_http() -> None:
 
 def test_import_spotify_playlist_via_http() -> None:
     with TestClient(app) as client:
-        client.put("/api/game-config/current", json=_payload())
-        client.post("/api/game-config/launch")
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
+        client.post("/api/game-config/launch", headers=CONTROLLER_HEADERS)
 
         spotify_result = SpotifyPlaylistImportResult(
             playlist_id="37i9dQZF1DXcBWIGoYBM5M",
@@ -209,8 +212,7 @@ def test_import_spotify_playlist_via_http() -> None:
             "infrastructure.spotify.spotify_playlist_service.SpotifyPlaylistService.import_playlist",
             new=AsyncMock(return_value=spotify_result),
         ):
-            response = client.post(
-                "/api/game-config/blindtest/playlist/import-spotify",
+            response = client.post("/api/game-config/blindtest/playlist/import-spotify", headers=CONTROLLER_HEADERS,
                 json={"playlist_url": spotify_result.playlist_url},
             )
 
@@ -226,39 +228,38 @@ def test_import_spotify_playlist_via_http() -> None:
 
 def test_first_buzzer_is_locked_until_answer() -> None:
     with TestClient(app) as client:
-        client.put("/api/game-config/current", json=_payload())
-        client.post("/api/game-config/launch")
-        client.put("/api/game-config/blindtest/playlist", json=_playlist_payload())
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
+        client.post("/api/game-config/launch", headers=CONTROLLER_HEADERS)
+        client.put("/api/game-config/blindtest/playlist", headers=CONTROLLER_HEADERS, json=_playlist_payload())
 
-        first_buzz_response = client.post("/api/game-config/blindtest/buzzer", json={"team": "Rouges"})
+        first_buzz_response = client.post("/api/game-config/blindtest/buzzer", headers=CONTROLLER_HEADERS, json={"team": "Rouges"})
         assert first_buzz_response.status_code == 200
         assert first_buzz_response.json()["session"]["blindtest"]["current_buzzer_team"] == "Rouges"
 
-        second_buzz_response = client.post("/api/game-config/blindtest/buzzer", json={"team": "Bleus"})
+        second_buzz_response = client.post("/api/game-config/blindtest/buzzer", headers=CONTROLLER_HEADERS, json={"team": "Bleus"})
         assert second_buzz_response.status_code == 400
         assert second_buzz_response.json()["detail"] == "Un buzz est déjà en attente de validation."
 
-        reset_response = client.post("/api/game-config/blindtest/answer", json={"is_correct": False})
+        reset_response = client.post("/api/game-config/blindtest/answer", headers=CONTROLLER_HEADERS, json={"is_correct": False})
         assert reset_response.status_code == 200
         assert reset_response.json()["session"]["blindtest"]["current_buzzer_team"] is None
 
-        third_buzz_response = client.post("/api/game-config/blindtest/buzzer", json={"team": "Bleus"})
+        third_buzz_response = client.post("/api/game-config/blindtest/buzzer", headers=CONTROLLER_HEADERS, json={"team": "Bleus"})
         assert third_buzz_response.status_code == 200
         assert third_buzz_response.json()["session"]["blindtest"]["current_buzzer_team"] == "Bleus"
 
 
 def test_playback_sync_via_http() -> None:
     with TestClient(app) as client:
-        client.put("/api/game-config/current", json=_payload())
-        client.post("/api/game-config/launch")
-        client.put("/api/game-config/blindtest/playlist", json=_playlist_payload())
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
+        client.post("/api/game-config/launch", headers=CONTROLLER_HEADERS)
+        client.put("/api/game-config/blindtest/playlist", headers=CONTROLLER_HEADERS, json=_playlist_payload())
 
-        play_response = client.post("/api/game-config/blindtest/playback/control", json={"action": "play"})
+        play_response = client.post("/api/game-config/blindtest/playback/control", headers=CONTROLLER_HEADERS, json={"action": "play"})
         assert play_response.status_code == 200
         assert play_response.json()["session"]["blindtest"]["playback_state"] == "playing"
 
-        sync_response = client.post(
-            "/api/game-config/blindtest/playback/sync",
+        sync_response = client.post("/api/game-config/blindtest/playback/sync", headers=CONTROLLER_HEADERS,
             json={
                 "track_id": play_response.json()["session"]["blindtest"]["current_track"]["track_id"],
                 "playback_state": "playing",
@@ -274,9 +275,9 @@ def test_playback_sync_via_http() -> None:
 
 def test_hardware_buzzer_event_requires_token() -> None:
     with TestClient(app) as client:
-        client.put("/api/game-config/current", json=_payload())
-        client.post("/api/game-config/launch")
-        client.put("/api/game-config/blindtest/playlist", json=_playlist_payload())
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
+        client.post("/api/game-config/launch", headers=CONTROLLER_HEADERS)
+        client.put("/api/game-config/blindtest/playlist", headers=CONTROLLER_HEADERS, json=_playlist_payload())
 
         unauthorized = client.post("/api/hardware/buzzer-events", json={"team": "Rouges"})
         assert unauthorized.status_code == 401
@@ -311,7 +312,7 @@ def test_websocket_broadcast_from_controller_to_display() -> None:
 
 def test_websocket_blindtest_flow() -> None:
     with TestClient(app) as client:
-        client.put("/api/game-config/current", json=_payload())
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
         with client.websocket_connect("/ws/game-config?client_type=display&token=display-test-token") as display_ws:
             display_ws.receive_json()
 
@@ -341,7 +342,7 @@ def test_websocket_blindtest_flow() -> None:
 
 def test_websocket_spotify_import_broadcast() -> None:
     with TestClient(app) as client:
-        client.put("/api/game-config/current", json=_payload())
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
         with client.websocket_connect("/ws/game-config?client_type=display&token=display-test-token") as display_ws:
             display_ws.receive_json()
 
@@ -389,7 +390,7 @@ def test_display_client_cannot_write() -> None:
 
 def test_websocket_bombe_flow_accepts_and_broadcasts_hardware_buzzer() -> None:
     with TestClient(app) as client:
-        client.put("/api/game-config/current", json=_bombe_payload())
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_bombe_payload())
         with client.websocket_connect("/ws/game-config?client_type=display&token=display-test-token") as display_ws:
             display_ws.receive_json()
 
@@ -423,10 +424,7 @@ def test_websocket_bombe_flow_accepts_and_broadcasts_hardware_buzzer() -> None:
                 assert roll_display["payload"]["session"]["bombe"]["die_result"] == ""
 
                 reveal_at = roll_response.json()["session"]["bombe"]["die_reveal_at_ms"]
-                with patch(
-                    "application.bombe.bombe_command_usecase.BombeCommandUseCase._now_ms",
-                    return_value=reveal_at,
-                ):
+                with patch.object(game_command_bus(), "_clock", lambda: reveal_at):
                     controller_ws.send_json({"type": "bombe.begin-after-roll"})
                     running_controller = controller_ws.receive_json()
                     running_display = display_ws.receive_json()
@@ -540,7 +538,7 @@ def test_websocket_memory_flow_masks_answers_and_finishes_with_one_winner() -> N
 
 def test_atomic_validation_failure_does_not_launch_previous_config() -> None:
     with TestClient(app) as client:
-        client.put("/api/game-config/current", json=_payload())
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
         invalid_payload = _bombe_payload()
         invalid_payload["games"][0]["enabled"] = False
 
@@ -554,3 +552,54 @@ def test_atomic_validation_failure_does_not_launch_previous_config() -> None:
         assert current["status"] == "ready"
         assert current["session"]["active_round"] is None
         assert [(game["game_key"], game["enabled"]) for game in current["games"]] == [("blindtest", True)]
+
+
+def test_http_writes_require_the_controller_token() -> None:
+    with TestClient(app) as client:
+        missing = client.put("/api/game-config/current", json=_payload())
+        wrong = client.post("/api/game-config/launch", headers={"X-GameBattle-Controller-Token": "nope-nope-nope"})
+        current = client.get("/api/game-config/current").json()
+
+    assert missing.status_code == 401
+    assert wrong.status_code == 401
+    assert current["settings"]["game_title"] == "GameBattle Night"
+
+
+def test_http_rejects_unknown_fields_and_wrong_types() -> None:
+    with TestClient(app) as client:
+        client.put("/api/game-config/current", headers=CONTROLLER_HEADERS, json=_payload())
+        client.post("/api/game-config/launch", headers=CONTROLLER_HEADERS)
+        extra = client.post("/api/game-config/blindtest/buzzer", headers=CONTROLLER_HEADERS, json={"team": "Rouges", "role": "admin"})
+        wrong_type = client.post("/api/game-config/blindtest/answer", headers=CONTROLLER_HEADERS, json={"is_correct": "yes"})
+
+    assert extra.status_code == 422
+    assert wrong_type.status_code == 422
+
+
+def test_security_headers_and_no_store_on_every_response() -> None:
+    with TestClient(app) as client:
+        response = client.get("/health")
+
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_websocket_rejects_a_wrong_token() -> None:
+    with TestClient(app) as client:
+        with pytest.raises(WebSocketDisconnect):
+            with client.websocket_connect("/ws/game-config?client_type=controller&token=wrong-token") as ws:
+                ws.receive_json()
+
+
+def test_tokens_are_redacted_from_server_logs(caplog) -> None:
+    import logging
+
+    from infrastructure.logging_filters import install_secret_redaction
+
+    install_secret_redaction("gamebattle.test")
+    with caplog.at_level(logging.INFO, logger="gamebattle.test"):
+        logging.getLogger("gamebattle.test").info('%s - "WebSocket %s" [accepted]', "127.0.0.1", "/ws/game-config?client_type=display&token=s3cr3t")
+
+    assert "s3cr3t" not in caplog.text
+    assert "token=***" in caplog.text

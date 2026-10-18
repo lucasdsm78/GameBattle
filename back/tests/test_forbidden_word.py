@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import replace
 import re
 import unicodedata
@@ -8,20 +7,17 @@ import unicodedata
 import pytest
 from pydantic import ValidationError
 
-from application.forbidden_word import ForbiddenWordCommandUseCase
-from application.game_config.game_config_models import ForbiddenWordCardCommandModel, GameConfigReadModel
+from support import BusHarness
+
+from application.game_config.errors import CommandNotAllowedError
+from application.game_config.game_config_models import ForbiddenWordCardCommand
+from application.game_config.snapshot import ClientRole
 from domain.game_config.exception.game_config_exception import InvalidGameConfigError
 from domain.game_config.model.forbidden_word_catalog import FORBIDDEN_WORD_CARDS
-from domain.game_config.model.game_config import (
-    FORBIDDEN_WORD_TURN_MS,
-    TIE_LABEL,
-    ForbiddenWordTurn,
-    GameConfig,
-    build_default_game_config,
-)
-from domain.game_config.repository.game_config_repository import GameConfigRepository
+from domain.game_config.model.game_config import GameConfig, build_default_game_config
+from domain.game_config.model.games.forbidden_word import FORBIDDEN_WORD_TURN_MS, ForbiddenWordTurn
+from domain.game_config.model.shared import TIE_LABEL
 from infrastructure.game_config_payload_mapper import game_config_from_payload
-from presentation.realtime.game_config_ws_handler import build_client_envelope, dispatch_game_config_event
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 
@@ -195,9 +191,9 @@ def test_persistence_round_trip() -> None:
 
 
 def test_display_never_receives_the_secret_card() -> None:
-    model = GameConfigReadModel.from_domain(_running())
-    controller = build_client_envelope("game.config.updated", model, "controller")["payload"]["session"]["forbidden_word"]
-    display = build_client_envelope("game.config.updated", model, "display")["payload"]["session"]["forbidden_word"]
+    controller_view, display_view = _running().client_views()
+    controller = controller_view["session"]["forbidden_word"]
+    display = display_view["session"]["forbidden_word"]
 
     assert controller["current_card"]["word"]
     assert len(controller["current_card"]["forbidden_words"]) >= 3
@@ -209,44 +205,28 @@ def test_display_never_receives_the_secret_card() -> None:
 
 @pytest.mark.parametrize("event_type", ["forbidden-word.start-turn", "forbidden-word.found", "forbidden-word.skip"])
 def test_display_cannot_drive_the_game(event_type: str) -> None:
-    result = asyncio.run(dispatch_game_config_event(
-        client_type="display", event_type=event_type, payload={"card_id": "paris"}, command_usecase=object()  # type: ignore[arg-type]
-    ))
-    assert result == {"type": "error", "detail": "Le client display est en lecture seule."}
+    harness = BusHarness(_forbidden_word_config())
+
+    with pytest.raises(CommandNotAllowedError, match="lecture seule"):
+        harness.run(event_type, {"card_id": "paris"}, role=ClientRole.DISPLAY)
+    assert harness.repository.saves == 0
 
 
-@pytest.mark.parametrize("card_id", ["", "Paris", "../etc", "<script>", "a" * 61])
+@pytest.mark.parametrize("card_id", ["", "Paris", "../etc", "<script>", "a" * 61, "carte_🔥"])
 def test_card_command_rejects_malformed_identifiers(card_id: str) -> None:
     with pytest.raises(ValidationError):
-        ForbiddenWordCardCommandModel(card_id=card_id)
+        ForbiddenWordCardCommand(card_id=card_id)
 
 
-class _InMemoryRepository(GameConfigRepository):
-    def __init__(self, config: GameConfig) -> None:
-        self.config = config
-        self.saves = 0
+def test_duplicate_press_is_not_persisted_nor_broadcast() -> None:
+    harness = BusHarness(_forbidden_word_config().start_forbidden_word_turn(1_000), now_ms=2_000)
+    payload = {"card_id": _card_id(harness.config)}
 
-    async def get_current(self) -> GameConfig:
-        return self.config
-
-    async def save(self, game_config: GameConfig) -> GameConfig:
-        self.saves += 1
-        self.config = game_config
-        return game_config
-
-
-def test_use_case_does_not_persist_or_broadcast_a_duplicate_press() -> None:
-    repository = _InMemoryRepository(_forbidden_word_config().start_forbidden_word_turn(ForbiddenWordCommandUseCase._now_ms()))
-    usecase = ForbiddenWordCommandUseCase(repository)
-    payload = ForbiddenWordCardCommandModel(card_id=_card_id(repository.config))
-
-    async def press_twice() -> tuple[object, object]:
-        return await usecase.mark_found(payload), await usecase.mark_found(payload)
-
-    first, second = asyncio.run(press_twice())
-    assert isinstance(first, GameConfigReadModel)
-    assert second is None
-    assert repository.saves == 1
+    assert harness.run("forbidden-word.found", payload) is not None
+    assert harness.run("forbidden-word.found", payload) is None
+    assert harness.repository.saves == 1
+    assert len(harness.publisher.snapshots) == 1
+    assert harness.publisher.snapshots[0].display["session"]["forbidden_word"]["current_card"] is None
 
 
 def _normalize_tokens(value: str) -> set[str]:
@@ -259,7 +239,7 @@ def test_catalog_is_large_unique_and_well_formed() -> None:
     assert len({card.id for card in FORBIDDEN_WORD_CARDS}) == len(FORBIDDEN_WORD_CARDS)
     assert len({card.word.casefold() for card in FORBIDDEN_WORD_CARDS}) == len(FORBIDDEN_WORD_CARDS)
     for card in FORBIDDEN_WORD_CARDS:
-        ForbiddenWordCardCommandModel(card_id=card.id)
+        ForbiddenWordCardCommand(card_id=card.id)
         assert 3 <= len(card.forbidden_words) <= 5, card
         assert len({word.casefold() for word in card.forbidden_words}) == len(card.forbidden_words), card
         word_tokens = _normalize_tokens(card.word)

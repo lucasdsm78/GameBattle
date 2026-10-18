@@ -1,16 +1,14 @@
 class GameConfigError(Exception):
-    """Base exception for game configuration domain errors."""
+    """Erreur métier : son message est rédigé pour être affiché tel quel au présentateur."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
 
 
 class InvalidGameConfigError(GameConfigError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-        self.message = message
+    pass
 
 
 class GameConfigurationNotReadyError(GameConfigError):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-        self.message = message
-
-
+    pass

@@ -1,39 +1,25 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
-from application.game_config.game_config_models import GameConfigReadModel
-from domain.game_config.model.game_config import build_blindtest_track, build_default_game_config
-from presentation.realtime.game_config_ws_handler import build_client_envelope, dispatch_game_config_event
+import pytest
+from support import BusHarness, started_config
 
+from application.game_config.snapshot import ClientRole
+from domain.game_config.model.games.blindtest import build_blindtest_track
+from presentation.realtime.game_config_ws_handler import MAX_MESSAGE_CHARS, RateLimiter, handle_client_message
 
-class DummyCommandUseCase:
-    def __init__(self) -> None:
-        self.spotify_token = ""
-        self.calls: list[tuple[str, object]] = []
-
-    async def set_spotify_user_token(self, access_token: str) -> None:
-        self.spotify_token = access_token
-
-    async def start_bombe(self):
-        self.calls.append(("start", None))
-        return "bombe-started"
-
-    async def register_bombe_buzzer(self, payload):
-        self.calls.append(("buzzer", payload.team))
-        return "bombe-passed"
-
-    async def previous_bombe_team(self):
-        self.calls.append(("previous", None))
-        return "bombe-previous"
-
-    async def explode_bombe(self):
-        self.calls.append(("explode", None))
-        return "bombe-exploded"
+READ_ONLY = {"type": "error", "detail": "Le client display est en lecture seule."}
 
 
-def _blindtest_read_model(revealed: bool = False) -> GameConfigReadModel:
-    config = build_default_game_config().start_session()
+def _send(harness: BusHarness, message: dict | str, role: ClientRole = ClientRole.CONTROLLER):
+    raw = message if isinstance(message, str) else json.dumps(message)
+    return asyncio.run(handle_client_message(raw, role, harness.bus))
+
+
+def _blindtest_config(*, revealed: bool = False):
+    config = started_config("blindtest", teams=["Rouges", "Bleus"])
     tracks = [
         build_blindtest_track(
             track_id=f"track-{index}",
@@ -45,38 +31,24 @@ def _blindtest_read_model(revealed: bool = False) -> GameConfigReadModel:
         for index in range(1, 11)
     ]
     config = config.with_blindtest_tracks(tracks)
-    if revealed:
-        config = config.register_buzzer(config.settings.teams[0]).mark_answer(True)
-    return GameConfigReadModel.from_domain(config)
+    return config.register_buzzer("Rouges").mark_answer(True) if revealed else config
 
 
-def _culture_read_model(answered: bool = False) -> GameConfigReadModel:
-    config = build_default_game_config()
-    config.games = [
-        type(config.games[0])(game_key="blindtest", label="Blindtest", enabled=False, round_count=0),
-        type(config.games[0])(game_key="culture", label="Culture générale", enabled=True, round_count=0),
-    ]
-    config = config.start_session().start_culture().select_culture_difficulty("facile")
-    if answered:
-        config = config.register_culture_buzzer(config.settings.teams[0]).answer_culture(True)
-    return GameConfigReadModel.from_domain(config)
+def _culture_config(*, answered: bool = False):
+    config = started_config("culture", teams=["Rouges", "Bleus"]).start_culture().select_culture_difficulty("facile")
+    return config.register_culture_buzzer("Rouges").answer_culture(True) if answered else config
 
 
-def _rolling_bombe_read_model(*, revealed: bool) -> GameConfigReadModel:
-    config = build_default_game_config()
-    for game in config.games:
-        game.enabled = game.game_key == "bombe"
-    prepared = config.start_session().start_bombe(now_ms=1_000)
+def _rolling_bombe_config(*, revealed: bool):
+    prepared = started_config("bombe", teams=["Rouges", "Bleus"]).start_bombe(now_ms=1_000)
     roller = prepared.settings.teams[prepared.session.bombe.roller_team_index or 0]
     rolling = prepared.register_bombe_buzzer(roller, now_ms=1_001)
-    if revealed:
-        rolling = rolling.begin_bombe_after_roll(rolling.session.bombe.die_reveal_at_ms)
-    return GameConfigReadModel.from_domain(rolling)
+    return rolling.begin_bombe_after_roll(rolling.session.bombe.die_reveal_at_ms) if revealed else rolling
 
 
-def test_display_envelope_masks_blindtest_answer_before_reveal() -> None:
-    envelope = build_client_envelope("game.config.snapshot", _blindtest_read_model(revealed=False), "display")
-    blindtest = envelope["payload"]["session"]["blindtest"]
+def test_display_view_masks_blindtest_answer_before_reveal() -> None:
+    controller, display = _blindtest_config(revealed=False).client_views()
+    blindtest = display["session"]["blindtest"]
 
     assert blindtest["current_track"]["track_id"]
     assert blindtest["current_track"]["title"] == "Titre masqué"
@@ -84,12 +56,13 @@ def test_display_envelope_masks_blindtest_answer_before_reveal() -> None:
     assert blindtest["current_track"]["preview_url"] == ""
     assert blindtest["current_track"]["artwork_url"] == ""
     assert blindtest["tracks"] == []
-    assert "round_sequence" not in envelope["payload"]["session"]
+    assert controller["session"]["blindtest"]["current_track"]["title"].startswith("Title ")
+    assert "round_sequence" not in controller["session"] and "round_sequence" not in display["session"]
 
 
-def test_display_envelope_reveals_blindtest_answer_after_correct_answer() -> None:
-    envelope = build_client_envelope("game.config.snapshot", _blindtest_read_model(revealed=True), "display")
-    blindtest = envelope["payload"]["session"]["blindtest"]
+def test_display_view_reveals_blindtest_answer_after_correct_answer() -> None:
+    _, display = _blindtest_config(revealed=True).client_views()
+    blindtest = display["session"]["blindtest"]
 
     assert blindtest["current_track"]["title"].startswith("Title ")
     assert blindtest["current_track"]["artist"].startswith("Artist ")
@@ -97,103 +70,108 @@ def test_display_envelope_reveals_blindtest_answer_after_correct_answer() -> Non
     assert blindtest["tracks"] == []
 
 
-def test_display_envelope_masks_culture_answer_before_validation() -> None:
-    envelope = build_client_envelope("game.config.snapshot", _culture_read_model(answered=False), "display")
-    question = envelope["payload"]["session"]["culture"]["current_question"]
+def test_display_view_masks_culture_answer_before_validation() -> None:
+    _, display = _culture_config(answered=False).client_views()
+    question = display["session"]["culture"]["current_question"]
 
     assert question["question"]
     assert question["answer"] == "Réponse masquée"
     assert question["explanation"] == ""
 
 
-def test_display_envelope_reveals_culture_answer_without_explanation() -> None:
-    envelope = build_client_envelope("game.config.snapshot", _culture_read_model(answered=True), "display")
-    question = envelope["payload"]["session"]["culture"]["current_question"]
+def test_display_view_reveals_culture_answer_without_explanation() -> None:
+    _, display = _culture_config(answered=True).client_views()
+    question = display["session"]["culture"]["current_question"]
 
     assert question["answer"] != "Réponse masquée"
     assert question["explanation"] == ""
 
 
-def test_die_result_is_hidden_while_rolling_then_revealed() -> None:
-    rolling = build_client_envelope("game.config.updated", _rolling_bombe_read_model(revealed=False), "display")
-    running = build_client_envelope("game.config.updated", _rolling_bombe_read_model(revealed=True), "display")
+def test_die_result_is_hidden_from_everyone_while_rolling_then_revealed() -> None:
+    rolling_controller, rolling_display = _rolling_bombe_config(revealed=False).client_views()
+    _, running_display = _rolling_bombe_config(revealed=True).client_views()
 
-    assert rolling["payload"]["session"]["bombe"]["phase"] == "rolling"
-    assert rolling["payload"]["session"]["bombe"]["die_result"] == ""
-    assert running["payload"]["session"]["bombe"]["phase"] == "running"
-    assert running["payload"]["session"]["bombe"]["die_result"] in {"TIC", "TAC", "BOUM"}
+    assert rolling_display["session"]["bombe"]["phase"] == "rolling"
+    assert rolling_display["session"]["bombe"]["die_result"] == ""
+    assert rolling_controller["session"]["bombe"]["die_result"] == ""
+    assert running_display["session"]["bombe"]["phase"] == "running"
+    assert running_display["session"]["bombe"]["die_result"] in {"TIC", "TAC", "BOUM"}
 
 
 def test_display_cannot_dispatch_controller_only_event() -> None:
-    result = asyncio.run(dispatch_game_config_event(
-        client_type="display",
-        event_type="game.config.launch",
-        payload={},
-        command_usecase=DummyCommandUseCase(),  # type: ignore[arg-type]
-    ))
+    harness = BusHarness(started_config("blindtest"))
 
-    assert result == {"type": "error", "detail": "Le client display est en lecture seule."}
+    assert _send(harness, {"type": "game.config.launch"}, ClientRole.DISPLAY) == READ_ONLY
+    assert harness.repository.saves == 0
 
 
-def test_spotify_user_token_event_is_not_broadcast() -> None:
-    command_usecase = DummyCommandUseCase()
+def test_spotify_user_token_is_stored_without_broadcast() -> None:
+    harness = BusHarness(started_config("blindtest"))
 
-    result = asyncio.run(dispatch_game_config_event(
-        client_type="controller",
-        event_type="spotify.user-token",
-        payload={"access_token": "spotify-user-token"},
-        command_usecase=command_usecase,  # type: ignore[arg-type]
-    ))
+    reply = _send(harness, {"type": "spotify.user-token", "payload": {"access_token": "spotify-user-token"}}, ClientRole.DISPLAY)
 
-    assert result is None
-    assert command_usecase.spotify_token == "spotify-user-token"
+    assert reply is None
+    assert harness.playlists.user_token == "spotify-user-token"
+    assert harness.publisher.snapshots == []
+    assert harness.repository.saves == 0
 
 
-def test_display_can_dispatch_bombe_buzzer_and_explosion_only() -> None:
-    command_usecase = DummyCommandUseCase()
+def test_display_can_roll_and_explode_but_not_go_back_in_bombe() -> None:
+    prepared = started_config("bombe", teams=["Rouges", "Bleus"]).start_bombe(now_ms=1_000)
+    harness = BusHarness(prepared, now_ms=2_000)
+    roller = prepared.settings.teams[prepared.session.bombe.roller_team_index or 0]
 
-    buzzer_result = asyncio.run(dispatch_game_config_event(
-        client_type="display",
-        event_type="bombe.buzzer",
-        payload={"team": "Rouges"},
-        command_usecase=command_usecase,  # type: ignore[arg-type]
-    ))
-    explosion_result = asyncio.run(dispatch_game_config_event(
-        client_type="display",
-        event_type="bombe.explode",
-        payload={},
-        command_usecase=command_usecase,  # type: ignore[arg-type]
-    ))
-    forbidden_result = asyncio.run(dispatch_game_config_event(
-        client_type="display",
-        event_type="bombe.previous-team",
-        payload={},
-        command_usecase=command_usecase,  # type: ignore[arg-type]
-    ))
-
-    assert buzzer_result == "bombe-passed"
-    assert explosion_result == "bombe-exploded"
-    assert forbidden_result == {"type": "error", "detail": "Le client display est en lecture seule."}
-    assert command_usecase.calls == [("buzzer", "Rouges"), ("explode", None)]
+    assert _send(harness, {"type": "bombe.buzzer", "payload": {"team": roller}}, ClientRole.DISPLAY) is None
+    assert harness.config.session.bombe.phase == "rolling"
+    assert _send(harness, {"type": "bombe.previous-team"}, ClientRole.DISPLAY) == READ_ONLY
+    assert len(harness.publisher.snapshots) == 1
 
 
-def test_controller_can_start_and_go_back_in_bombe() -> None:
-    command_usecase = DummyCommandUseCase()
+def test_controller_commands_are_applied_persisted_and_broadcast() -> None:
+    harness = BusHarness(started_config("bombe", teams=["Rouges", "Bleus"]))
 
-    start_result = asyncio.run(dispatch_game_config_event(
-        client_type="controller",
-        event_type="bombe.start",
-        payload={},
-        command_usecase=command_usecase,  # type: ignore[arg-type]
-    ))
-    previous_result = asyncio.run(dispatch_game_config_event(
-        client_type="controller",
-        event_type="bombe.previous-team",
-        payload={},
-        command_usecase=command_usecase,  # type: ignore[arg-type]
-    ))
+    assert _send(harness, {"type": "bombe.start"}) is None
 
-    assert start_result == "bombe-started"
-    assert previous_result == "bombe-previous"
-    assert command_usecase.calls == [("start", None), ("previous", None)]
+    assert harness.config.session.bombe.phase == "awaiting_roll"
+    assert harness.repository.saves == 1
+    snapshot = harness.publisher.snapshots[-1]
+    assert snapshot.controller["session"]["bombe"]["phase"] == "awaiting_roll"
+    assert snapshot.display["session"]["bombe"]["sound"] == harness.config.session.bombe.sound
 
+
+def test_domain_errors_are_replied_without_persisting() -> None:
+    harness = BusHarness(started_config("bombe", teams=["Rouges", "Bleus"]))
+
+    reply = _send(harness, {"type": "bombe.previous-team"})
+
+    assert reply == {"type": "error", "detail": "La Bombe n'est pas en cours."}
+    assert harness.repository.saves == 0
+
+
+@pytest.mark.parametrize(
+    ("message", "detail"),
+    [
+        ("{not json", "Message JSON invalide."),
+        (json.dumps({"payload": {}}), "Message JSON invalide."),
+        (json.dumps({"type": "DROP TABLE"}), "Message JSON invalide."),
+        (json.dumps({"type": "unknown.event"}), "Type d'évènement non supporté."),
+        (json.dumps({"type": "bombe.buzzer", "payload": {"team": 42}}), "Données invalides pour « bombe.buzzer » (team)."),
+        (json.dumps({"type": "bombe.buzzer", "payload": {"team": "Rouges", "admin": True}}), "Données invalides pour « bombe.buzzer » (admin)."),
+        ("x" * (MAX_MESSAGE_CHARS + 1), "Message trop volumineux."),
+    ],
+)
+def test_malformed_messages_are_rejected(message: str, detail: str) -> None:
+    harness = BusHarness(started_config("bombe", teams=["Rouges", "Bleus"]))
+
+    assert _send(harness, message) == {"type": "error", "detail": detail}
+    assert harness.repository.saves == 0
+
+
+def test_ping_gets_a_pong() -> None:
+    assert _send(BusHarness(started_config("bombe")), {"type": "ping"}) == {"type": "pong"}
+
+
+def test_rate_limiter_absorbs_a_burst_then_throttles() -> None:
+    limiter = RateLimiter(rate_per_second=0.0001, burst=3)
+
+    assert [limiter.allow() for _ in range(4)] == [True, True, True, False]

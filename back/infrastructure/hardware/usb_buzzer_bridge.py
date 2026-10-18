@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import json
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -24,7 +24,7 @@ class HidDeviceBinding:
     debounce_ms: int = 500
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "HidDeviceBinding":
+    def from_dict(cls, payload: dict[str, Any]) -> HidDeviceBinding:
         return cls(
             team=str(payload.get("team", "")).strip(),
             label=str(payload.get("label", "USB Buzzer")).strip() or "USB Buzzer",
@@ -69,7 +69,7 @@ class UsbBuzzerBridgeConfig:
     bindings: list[HidDeviceBinding]
 
     @classmethod
-    def from_file(cls, file_path: Path) -> "UsbBuzzerBridgeConfig":
+    def from_file(cls, file_path: Path) -> UsbBuzzerBridgeConfig:
         payload = json.loads(file_path.read_text(encoding="utf-8"))
         bindings = [HidDeviceBinding.from_dict(item) for item in payload.get("bindings", [])]
         if not bindings:

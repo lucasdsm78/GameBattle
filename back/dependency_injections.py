@@ -4,86 +4,87 @@ import secrets
 from functools import lru_cache
 from typing import Optional
 
-from application.game_config.command import (
-    GameConfigCommandUseCase,
-    GameConfigCommandUseCaseImpl,
-)
-from application.game_config.game_config_query_usecase import GameConfigQueryUseCase, GameConfigQueryUseCaseImpl
-from domain.game_config.repository.game_config_repository import GameConfigRepository
+from application.blindtest.playlist_service import BlindtestPlaylistService
+from application.game_config.command_bus import GameCommandBus
+from application.game_config.query_service import GameConfigQueryService
+from application.games import ALL_COMMANDS
+from infrastructure.cached_game_config_repository import CachedGameConfigRepository
 from infrastructure.config import Settings
+from infrastructure.postgresql.database import Database
 from infrastructure.postgresql.game_config.postgresql_game_config_repository import PostgreSQLGameConfigRepository
 from infrastructure.realtime.websocket_hub import WebSocketHub
 from infrastructure.spotify.spotify_playlist_service import SpotifyPlaylistService
 from presentation.realtime.game_deadline_worker import GameDeadlineWorker
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()
 
 
-@lru_cache()
-def game_config_repository_singleton() -> GameConfigRepository:
-    return PostgreSQLGameConfigRepository()
+@lru_cache
+def database() -> Database:
+    return Database(get_settings().database_url)
 
 
-@lru_cache()
-def websocket_hub_singleton() -> WebSocketHub:
+@lru_cache
+def game_config_repository() -> CachedGameConfigRepository:
+    return CachedGameConfigRepository(PostgreSQLGameConfigRepository(database()))
+
+
+@lru_cache
+def websocket_hub() -> WebSocketHub:
     return WebSocketHub()
 
 
-@lru_cache()
-def spotify_playlist_service_singleton() -> SpotifyPlaylistService:
-    settings = get_settings()
-    return SpotifyPlaylistService(
-        client_id=settings.spotify_client_id,
-        client_secret=settings.spotify_client_secret,
-    )
+@lru_cache
+def spotify_playlist_service() -> SpotifyPlaylistService:
+    return SpotifyPlaylistService()
 
 
-def game_config_command_usecase() -> GameConfigCommandUseCase:
-    settings = get_settings()
-    return GameConfigCommandUseCaseImpl(
-        game_config_repository_singleton(),
-        spotify_playlist_service_singleton(),
-        default_playlist_url=settings.blindtest_playlist_url,
-    )
+@lru_cache
+def blindtest_playlist_service() -> BlindtestPlaylistService:
+    return BlindtestPlaylistService(spotify_playlist_service(), get_settings().blindtest_playlist_url)
 
 
-def game_config_query_usecase() -> GameConfigQueryUseCase:
-    return GameConfigQueryUseCaseImpl(game_config_repository_singleton())
+@lru_cache
+def game_command_bus() -> GameCommandBus:
+    return GameCommandBus(game_config_repository(), blindtest_playlist_service(), websocket_hub(), ALL_COMMANDS)
+
+
+@lru_cache
+def game_config_query_service() -> GameConfigQueryService:
+    return GameConfigQueryService(game_config_repository())
 
 
 def game_deadline_worker() -> GameDeadlineWorker:
-    return GameDeadlineWorker(
-        game_config_command_usecase(),
-        websocket_hub_singleton(),
-    )
+    return GameDeadlineWorker(game_command_bus())
 
 
 def authorize_client(client_type: str, token: Optional[str]) -> bool:
     settings = get_settings()
-    if client_type == "controller":
-        return _constant_time_equals(token, settings.controller_token)
-    if client_type == "display":
-        return _constant_time_equals(token, settings.display_token)
-    return False
+    expected = {"controller": settings.controller_token, "display": settings.display_token}.get(client_type)
+    return expected is not None and _constant_time_equals(token, expected)
 
 
 def authorize_hardware_token(token: Optional[str]) -> bool:
-    settings = get_settings()
-    return _constant_time_equals(token, settings.hardware_token)
+    return _constant_time_equals(token, get_settings().hardware_token)
 
 
 def _constant_time_equals(candidate: Optional[str], expected: str) -> bool:
-    return bool(candidate) and secrets.compare_digest(candidate, expected)
+    return bool(candidate) and secrets.compare_digest(candidate.encode(), expected.encode())
 
 
 def reset_dependency_caches() -> None:
-    """Réinitialise les singletons applicatifs pour les tests ou les changements d'environnement."""
-    get_settings.cache_clear()
-    game_config_repository_singleton.cache_clear()
-    websocket_hub_singleton.cache_clear()
-    spotify_playlist_service_singleton.cache_clear()
-
-
+    """Réinitialise les singletons (tests ou changement d'environnement)."""
+    for factory in (
+        get_settings,
+        database,
+        game_config_repository,
+        websocket_hub,
+        spotify_playlist_service,
+        blindtest_playlist_service,
+        game_command_bus,
+        game_config_query_service,
+    ):
+        factory.cache_clear()

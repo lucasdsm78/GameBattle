@@ -25,8 +25,6 @@ class Settings(BaseSettings):
     display_token: str = Field(default="change-me-display", min_length=8)
     hardware_token: str = Field(default="change-me-hardware", min_length=8)
     database_url: str = Field(default="postgresql+asyncpg://gamebattle:gamebattle@localhost:5432/gamebattle", min_length=1)
-    spotify_client_id: str = ""
-    spotify_client_secret: str = ""
     blindtest_playlist_url: str = ""
     docs_enabled: bool = True
 
@@ -36,7 +34,7 @@ class Settings(BaseSettings):
         return value.strip().lower()
 
     @model_validator(mode="after")
-    def validate_production_secrets(self) -> "Settings":
+    def validate_production_secrets(self) -> Settings:
         if self.is_production:
             default_tokens = {
                 "controller_token": "change-me-controller",
