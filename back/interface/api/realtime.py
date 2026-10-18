@@ -12,7 +12,7 @@ from interface.dependencies import (
     WebSocketHubDep,
     authorize_client,
 )
-from interface.realtime.hub import encode_snapshot
+from interface.realtime.hub import encode_payload
 from interface.realtime.message_handler import (
     RateLimiter,
     error_reply,
@@ -42,7 +42,7 @@ async def game_config_websocket(
     limiter = RateLimiter()
     try:
         snapshot = await query.get_current()
-        channel.push_snapshot(snapshot.revision, encode_snapshot("game.config.snapshot", snapshot, role))
+        channel.push_state(snapshot.revision, "game.config.snapshot", encode_payload(snapshot, role))
         while True:
             raw = await websocket.receive_text()
             reply = await handle_client_message(raw, role, dispatcher) if limiter.allow() else error_reply("Trop de messages : ralentis.")

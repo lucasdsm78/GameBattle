@@ -14,12 +14,12 @@ from application.commands.session import SessionCommandUseCase
 from application.commands.seven_differences import SevenDifferencesCommandUseCase
 from application.commands.stopchrono import StopChronoCommandUseCase
 from application.services.playlist import BlindtestPlaylistService
-from domain.repositories.game_config import GameConfigRepository
+from application.services.unit_of_work import UnitOfWork
 
 
 @dataclass(frozen=True, slots=True)
 class GameUseCases:
-    """Ensemble des use cases d'écriture, partageant le même dépôt, le même diffuseur et la même horloge."""
+    """Ensemble des use cases d'écriture, partageant la même unité de travail, le même diffuseur et la même horloge."""
 
     session: SessionCommandUseCase
     blindtest: BlindtestCommandUseCase
@@ -34,12 +34,12 @@ class GameUseCases:
     @classmethod
     def build(
         cls,
-        repository: GameConfigRepository,
+        uow: UnitOfWork,
         publisher: SnapshotPublisher,
         playlists: BlindtestPlaylistService,
         clock: Callable[[], int] = wall_clock_ms,
     ) -> GameUseCases:
-        dependencies = (repository, publisher, playlists, clock)
+        dependencies = (uow, publisher, playlists, clock)
         return cls(
             session=SessionCommandUseCase(*dependencies),
             blindtest=BlindtestCommandUseCase(*dependencies),

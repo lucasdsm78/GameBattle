@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import re
 import unicodedata
-import asyncio
 from dataclasses import replace
 
 import pytest

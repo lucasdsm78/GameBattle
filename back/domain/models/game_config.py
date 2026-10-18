@@ -4,6 +4,14 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any, Optional
 
+from domain.events import (
+    DomainEvent,
+    GameNightFinished,
+    GameNightStarted,
+    MancheFinished,
+    MancheStarted,
+    RankingRevealed,
+)
 from domain.models.games import GAME_STATE_TYPES
 from domain.models.games.base import GameState
 from domain.models.session import GameSession
@@ -31,6 +39,9 @@ class GameConfig:
 
     Les règles de chaque jeu vivent dans `games/`. L'agrégat vérifie que le jeu ciblé est la manche en
     cours, applique la transition et clôt la manche dès qu'un vainqueur est désigné.
+
+    Les événements de domaine produits par une commande s'accumulent dans `pending_events` (jamais
+    persistés) jusqu'à ce que l'unité de travail les récupère avec `pull_events()`.
     """
 
     settings: GameSettings
@@ -39,6 +50,7 @@ class GameConfig:
     session: GameSession = field(default_factory=GameSession)
     status: str = "configuring"
     updated_at: str = ""
+    pending_events: tuple[DomainEvent, ...] = field(default=(), compare=False, repr=False)
 
     @property
     def teams(self) -> list[str]:
@@ -90,6 +102,13 @@ class GameConfig:
             self, session=replace(self.session, updated_at=now, **session_changes), status=status or self.status, updated_at=now
         )
 
+    def _record(self, *events: DomainEvent) -> GameConfig:
+        return replace(self, pending_events=(*self.pending_events, *events)) if events else self
+
+    def pull_events(self) -> tuple[GameConfig, tuple[DomainEvent, ...]]:
+        """Sépare l'agrégat (prêt à persister) des événements produits depuis le dernier enregistrement."""
+        return replace(self, pending_events=()), self.pending_events
+
     def _play(self, game_key: str, transition: GameTransition) -> GameConfig:
         active_round = self.session.active_round
         if self.status != "live" or active_round is None or active_round.game_key != game_key:
@@ -99,11 +118,13 @@ class GameConfig:
         if updated is state:
             return self
         changes: dict[str, Any] = {game_key: updated}
+        events = updated.events_since(state, self.teams)
         if updated.winner_team is not None and not self.session.manche_finished:
             changes.update(
                 active_round=replace(active_round, completed=True), manche_finished=True, manche_winner=updated.winner_team
             )
-        return self._replace_session(**changes)
+            events.append(MancheFinished(self.session.round_index + 1, game_key, updated.winner_team))
+        return self._replace_session(**changes)._record(*events)
 
     # --- Blindtest ---
 
@@ -278,7 +299,7 @@ class GameConfig:
             status="live",
             updated_at=utc_now_iso(),
         )
-        return prepared._start_manche(0)
+        return prepared._record(GameNightStarted(total_rounds=len(sequence)))._start_manche(0)
 
     def _start_manche(self, index: int) -> GameConfig:
         game_key = self.session.round_sequence[index]
@@ -292,7 +313,7 @@ class GameConfig:
             manche_winner=None,
             status="live",
             **states,
-        )
+        )._record(MancheStarted(number=index + 1, game_key=game_key))
 
     def next_manche(self) -> GameConfig:
         if not self.session.manche_finished:
@@ -304,19 +325,26 @@ class GameConfig:
         next_index = self.session.round_index + 1
         if next_index < self.session.total_rounds:
             return self._replace_session(manches_won=manches_won)._start_manche(next_index)
+        ranking = compute_ranking(self.teams, manches_won)
+        leaders = tuple(entry["team"] for entry in reversed(ranking) if entry["rank"] == 1)
         return self._replace_session(
             status="finished",
             manches_won=manches_won,
             manche_finished=True,
-            final_ranking=compute_ranking(self.teams, manches_won),
+            final_ranking=ranking,
             ranking_reveal_count=0,
-        )
+        )._record(GameNightFinished(leaders=leaders))
 
     def reveal_next_ranking(self) -> GameConfig:
         if self.status != "finished" or not self.session.final_ranking:
             raise InvalidGameConfigError("Le classement final n'est pas encore disponible.")
-        total = len(self.session.final_ranking)
-        return self._replace_session(ranking_reveal_count=min(self.session.ranking_reveal_count + 1, total))
+        ranking = self.session.final_ranking
+        count = min(self.session.ranking_reveal_count + 1, len(ranking))
+        revealed = self._replace_session(ranking_reveal_count=count)
+        if count == self.session.ranking_reveal_count:
+            return revealed
+        entry = ranking[count - 1]
+        return revealed._record(RankingRevealed(team=entry["team"], rank=entry["rank"], manches_won=entry["manches_won"]))
 
     # --- Sérialisation ---
 

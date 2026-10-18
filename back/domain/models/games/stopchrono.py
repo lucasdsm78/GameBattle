@@ -4,6 +4,7 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
+from domain.events import ChronoStarted, ChronoStopped, DomainEvent
 from domain.models.games.base import GameState
 from domain.services.scoring import TIE_LABEL, zero_scores
 from exceptions import InvalidGameConfigError
@@ -82,3 +83,14 @@ class StopChronoState(GameState):
         scores = {team: int(team in closest) for team in teams}
         winner = closest[0] if len(closest) == 1 else TIE_LABEL
         return replace(self, phase="finished", scores=scores, winner_team=winner, started_at_ms=0)
+
+    def events_since(self, previous: StopChronoState, teams: list[str]) -> list[DomainEvent]:
+        team = teams[previous.current_team_index] if previous.current_team_index < len(teams) else None
+        if team is None:
+            return []
+        if previous.phase == "idle" and self.phase == "running":
+            return [ChronoStarted(team)]
+        if previous.phase == "running" and self.phase == "revealed":
+            elapsed_ms = self.results[team]
+            return [ChronoStopped(team, elapsed_ms=elapsed_ms, delta_ms=abs(elapsed_ms - self.target_ms))]
+        return []

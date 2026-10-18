@@ -12,7 +12,11 @@ from domain.models.games.auction import (
     AUCTION_MAX_TARGET_COUNT,
     AUCTION_WINNING_SCORE,
 )
-from exceptions import CommandNotAllowedError, InvalidGameConfigError, UnknownCommandError
+from exceptions import (
+    CommandNotAllowedError,
+    InvalidGameConfigError,
+    UnknownCommandError,
+)
 from infrastructure.repositories.game_config_mapper import game_config_from_payload
 from interface.realtime.deadline_worker import GameDeadlineWorker
 from support import GameHarness

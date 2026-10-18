@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, ClassVar, Self
 
+from domain.events.base import DomainEvent
+
 
 class GameState:
     """État d'un jeu, manipulé comme un objet-valeur : chaque transition renvoie un nouvel état.
@@ -28,6 +30,10 @@ class GameState:
 
     def expire_due(self, teams: list[str], now_ms: int) -> Self:
         return self
+
+    def events_since(self, previous: Self, teams: list[str]) -> list[DomainEvent]:
+        """Faits métier produits par la transition `previous` → `self`."""
+        return []
 
     def payload_extras(self, teams: list[str]) -> dict[str, Any]:
         return {}

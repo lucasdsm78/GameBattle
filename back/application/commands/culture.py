@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from application.commands.base import CommandUseCase
-from application.commands.payloads import AnswerCommand, CultureDifficultyCommand, TeamCommand
+from application.commands.payloads import (
+    AnswerCommand,
+    CultureDifficultyCommand,
+    TeamCommand,
+)
 from application.services.snapshot import GameConfigSnapshot
 
 

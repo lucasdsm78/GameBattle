@@ -8,6 +8,7 @@ from application.commands import GameUseCases
 from application.services.snapshot import ClientRole, GameConfigSnapshot
 from domain.models.game_config import GameConfig, build_default_game_config
 from domain.repositories.game_config import GameConfigRepository
+from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.routes import ROUTES
 
@@ -66,7 +67,8 @@ class GameHarness:
         self.publisher = RecordingPublisher()
         self.playlists = StubPlaylists()
         clock = now_ms if callable(now_ms) else (lambda: now_ms)
-        self.use_cases = GameUseCases.build(self.repository, self.publisher, self.playlists, clock)  # type: ignore[arg-type]
+        self.uow = GameConfigUnitOfWork(self.repository)
+        self.use_cases = GameUseCases.build(self.uow, self.publisher, self.playlists, clock)  # type: ignore[arg-type]
         self.dispatcher = RealtimeDispatcher(self.use_cases, ROUTES)
 
     @property

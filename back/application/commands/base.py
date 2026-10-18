@@ -8,8 +8,8 @@ from typing import Protocol
 
 from application.services.playlist import BlindtestPlaylistService
 from application.services.snapshot import GameConfigSnapshot
+from application.services.unit_of_work import UnitOfWork
 from domain.models.game_config import GameConfig
-from domain.repositories.game_config import GameConfigRepository
 
 
 def wall_clock_ms() -> int:
@@ -31,32 +31,35 @@ class SnapshotPublisher(Protocol):
 
 
 class CommandUseCase:
-    """Base des use cases d'écriture : applique une transition de l'agrégat, persiste puis diffuse.
+    """Base des use cases d'écriture : transition de l'agrégat dans une unité de travail, puis diffusion.
 
     Une transition sans effet (l'agrégat renvoie `self`) n'écrit ni ne diffuse rien : on renvoie `None`.
+    Les événements de domaine ne sont publiés qu'après une écriture réussie.
     """
 
     def __init__(
         self,
-        repository: GameConfigRepository,
+        uow: UnitOfWork,
         publisher: SnapshotPublisher,
         playlists: BlindtestPlaylistService,
         clock: Callable[[], int] = wall_clock_ms,
     ) -> None:
-        self._repository = repository
+        self._uow = uow
         self._publisher = publisher
         self._playlists = playlists
         self._clock = clock
 
     async def _execute(self, transition: Transition) -> GameConfigSnapshot | None:
-        async with self._repository.mutation_lock:
-            current = await self._repository.get_current()
+        async with self._uow as uow:
+            current = await uow.game_configs.get_current()
             result = transition(current, CommandContext(now_ms=self._clock(), playlists=self._playlists))
             updated = await result if isawaitable(result) else result
             if updated is current:
                 return None
             updated.validate()
-            await self._repository.save(updated)
-            snapshot = GameConfigSnapshot.from_domain(updated)
+            uow.add(updated)
+            saved, events = await uow.commit()
+            # Publication encore sous le verrou (non bloquante) : les clients reçoivent les états dans l'ordre.
+            snapshot = GameConfigSnapshot.from_domain(saved, events)
             self._publisher.publish(snapshot)
         return snapshot

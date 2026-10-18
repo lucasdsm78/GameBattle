@@ -4,6 +4,7 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
+from domain.events import AnswerJudged, BuzzerPressed, DomainEvent
 from domain.models.games.base import GameState
 from domain.services.clock import utc_now_iso
 from domain.services.scoring import TIE_LABEL, pick_round_winner, zero_scores
@@ -194,3 +195,14 @@ class BlindtestState(GameState):
             playback_state="playing",
             **reset,
         )
+
+    def events_since(self, previous: BlindtestState, teams: list[str]) -> list[DomainEvent]:
+        events: list[DomainEvent] = []
+        if self.current_buzzer_team and self.current_buzzer_team != previous.current_buzzer_team:
+            events.append(BuzzerPressed("blindtest", self.current_buzzer_team))
+        if previous.current_buzzer_team and not previous.revealed and self.current_track_index == previous.current_track_index:
+            if self.revealed:
+                events.append(AnswerJudged("blindtest", previous.current_buzzer_team, correct=True))
+            elif self.current_buzzer_team is None:
+                events.append(AnswerJudged("blindtest", previous.current_buzzer_team, correct=False))
+        return events

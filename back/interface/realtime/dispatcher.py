@@ -7,7 +7,11 @@ from pydantic import BaseModel, ValidationError
 
 from application.commands import GameUseCases
 from application.services.snapshot import ClientRole
-from exceptions import CommandNotAllowedError, InvalidCommandPayloadError, UnknownCommandError
+from exceptions import (
+    CommandNotAllowedError,
+    InvalidCommandPayloadError,
+    UnknownCommandError,
+)
 from interface.realtime.routes import Route
 
 DISPLAY_READ_ONLY_MESSAGE = "Le client display est en lecture seule."

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 from uuid import uuid4
 
+from domain.events import ChainRecited, DomainEvent, TeamDisqualified
 from domain.models.games.base import GameState
 from domain.models.games.culture import HIDDEN_ANSWER
 from domain.services.catalogs.culture import pick_one_culture_question
@@ -148,3 +149,10 @@ class MemoryState(GameState):
             if (index := (self.current_team_index + offset) % len(teams)) in qualified
         )
         return self._restart_chain(next_index, qualified_team_indices=qualified, disqualified_teams=disqualified)
+
+    def events_since(self, previous: MemoryState, teams: list[str]) -> list[DomainEvent]:
+        if len(self.disqualified_teams) > len(previous.disqualified_teams):
+            return [TeamDisqualified(self.disqualified_teams[-1])]
+        if previous.phase == "recitation" and self.phase == "question":
+            return [ChainRecited(teams[previous.current_team_index])]
+        return []
