@@ -13,6 +13,7 @@ from application.game_config.game_config_models import (
     BlindtestPlaylistCommandModel,
     BombeBuzzerCommandModel,
     CultureDifficultyCommandModel,
+    ForbiddenWordCardCommandModel,
     GameConfigEnvelope,
     GameConfigReadModel,
     GameConfigUpsertModel,
@@ -95,6 +96,13 @@ def build_client_envelope(event_type: str, payload: GameConfigReadModel, client_
         auction.pop("asked_theme_ids", None)
         if client_type == "display":
             auction["answers"] = []
+
+    forbidden_word = session.get("forbidden_word")
+    if isinstance(forbidden_word, dict):
+        forbidden_word.pop("used_card_ids", None)
+        # Le mot et ses mots interdits ne quittent jamais la régie : l'équipe qui devine regarde l'écran.
+        if client_type == "display":
+            forbidden_word["current_card"] = None
 
     return envelope
 
@@ -211,6 +219,12 @@ async def dispatch_game_config_event(
             return await command_usecase.decrement_auction_count()
         if event_type == "auction.next-theme":
             return await command_usecase.next_auction_theme()
+        if event_type == "forbidden-word.start-turn":
+            return await command_usecase.start_forbidden_word_turn()
+        if event_type == "forbidden-word.found":
+            return await command_usecase.mark_forbidden_word_found(ForbiddenWordCardCommandModel(**payload))
+        if event_type == "forbidden-word.skip":
+            return await command_usecase.skip_forbidden_word(ForbiddenWordCardCommandModel(**payload))
         if event_type == "game.next-manche":
             return await command_usecase.next_manche()
         if event_type == "ranking.reveal-next":

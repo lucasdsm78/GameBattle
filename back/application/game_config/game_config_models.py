@@ -11,6 +11,10 @@ from domain.game_config.model.game_config import (
     GameSettings,
 )
 
+GameKey = Literal[
+    "blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction", "forbidden_word"
+]
+
 
 class GameSettingsModel(BaseModel):
     game_title: str = Field(min_length=3, max_length=60)
@@ -22,7 +26,7 @@ class GameSettingsModel(BaseModel):
 
 
 class GameDefinitionModel(BaseModel):
-    game_key: Literal["blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction"]
+    game_key: GameKey
     label: str = Field(min_length=2, max_length=50)
     enabled: bool = True
     round_count: int = Field(ge=0, le=20)
@@ -31,7 +35,7 @@ class GameDefinitionModel(BaseModel):
 class GameRoundPlanModel(BaseModel):
     id: str = Field(min_length=3, max_length=50)
     label: str = Field(min_length=2, max_length=50)
-    game_key: Literal["blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction"]
+    game_key: GameKey
     planned_track_count: int = Field(ge=1, le=100)
     buzzer_enabled: bool = False
 
@@ -123,6 +127,10 @@ class SevenDifferenceFoundCommandModel(BaseModel):
 class AuctionBidCommandModel(BaseModel):
     team: str = Field(min_length=2, max_length=40)
     target_count: int = Field(ge=1, le=100)
+
+
+class ForbiddenWordCardCommandModel(BaseModel):
+    card_id: str = Field(min_length=1, max_length=60, pattern=r"^[a-z0-9-]+$")
 
 
 class SpotifyPlaylistImportCommandModel(BaseModel):

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCountdown } from '../hooks/useCountdown';
 import { GameConfigSnapshot } from '../types/gameConfig';
 
 type Props = {
@@ -7,22 +7,9 @@ type Props = {
 
 export function AuctionBoard({ gameConfig }: Props) {
   const game = gameConfig.session.auction;
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    if (game.phase !== 'running') return;
-
-    setNow(Date.now());
-    const tick = window.setInterval(() => setNow(Date.now()), 100);
-
-    return () => {
-      window.clearInterval(tick);
-    };
-  }, [game.deadline_at_ms, game.phase]);
-
-  const secondsLeft = game.phase === 'running'
-    ? Math.ceil(Math.max(0, game.deadline_at_ms - now) / 1_000)
-    : 30;
+  const running = game.phase === 'running';
+  const countdownMs = useCountdown(game.deadline_at_ms, running, 100);
+  const secondsLeft = running ? Math.ceil(countdownMs / 1_000) : 30;
   const status = game.phase === 'idle'
     ? 'Le présentateur prépare le premier thème.'
     : game.phase === 'bidding'

@@ -5,15 +5,17 @@ import logging
 from contextlib import suppress
 
 from application.game_config.command import GameConfigCommandUseCase
-from domain.game_config.exception.game_config_exception import InvalidGameConfigError
 from infrastructure.realtime.websocket_hub import WebSocketHub
 from presentation.realtime.game_config_ws_handler import build_broadcast_envelopes
 
 logger = logging.getLogger(__name__)
 
 
-class AuctionDeadlineWorker:
-    """Résout les tentatives Auction expirées sans dépendre d'un client connecté."""
+class GameDeadlineWorker:
+    """Clôt les chronos serveur échus (L’Enchère, Le mot interdit) sans dépendre d'un client connecté.
+
+    Un tick sans chrono échu ne persiste ni ne diffuse rien.
+    """
 
     def __init__(
         self,
@@ -30,7 +32,7 @@ class AuctionDeadlineWorker:
     async def start(self) -> None:
         if self._task and not self._task.done():
             return
-        self._task = asyncio.create_task(self._run(), name="auction-deadline-worker")
+        self._task = asyncio.create_task(self._run(), name="game-deadline-worker")
 
     async def stop(self) -> None:
         if not self._task:
@@ -41,10 +43,8 @@ class AuctionDeadlineWorker:
         self._task = None
 
     async def check_once(self) -> bool:
-        try:
-            updated = await self._command_usecase.expire_auction_attempt()
-        except InvalidGameConfigError:
-            # Une autre commande a pu résoudre la tentative entre la lecture et la mutation.
+        updated = await self._command_usecase.expire_due_deadline()
+        if updated is None:
             return False
         await self._hub.broadcast_json_by_client_type(
             build_broadcast_envelopes("game.config.updated", updated)
@@ -58,5 +58,5 @@ class AuctionDeadlineWorker:
             except asyncio.CancelledError:
                 raise
             except Exception:
-                logger.exception("auction.deadline_worker.failed")
+                logger.exception("game.deadline_worker.failed")
             await asyncio.sleep(self._poll_interval_seconds)

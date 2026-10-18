@@ -13,7 +13,8 @@ Le backend suit une architecture DDD inspirée de `BetLeague`.
 ## État actuel du projet
 
 Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop Chrono**,
-**Culture générale**, **La Bombe**, **Mémoire en chaîne** et **Les 7 différences**.
+**Culture générale**, **La Bombe**, **Mémoire en chaîne**, **Les 7 différences**, **L’Enchère** et
+**Le mot interdit**.
 
 ### Déjà implémenté
 
@@ -217,6 +218,15 @@ affiche l’image originale pendant 25 secondes puis passe automatiquement à l�
 premier buzzer valide prend la main. Le présentateur sélectionne ensuite une différence correcte sur
 le mobile, ou choisit « Mauvaise réponse » pour libérer la main et bloquer temporairement l’équipe
 fautive. Les descriptions des différences ne sont jamais envoyées à l’écran public.
+
+Pour **Le mot interdit**, chaque équipe joue une minute, dans un ordre de passage tiré au sort.
+Le présentateur passe le téléphone à l’orateur de l’équipe, qui lance le chrono : l’app mobile
+affiche le mot à faire deviner et ses 3 à 5 mots interdits. Quand son équipe trouve, l’orateur appuie
+sur **TROUVÉ** (ou **Volume +**) ; **Passer** (ou **Volume −**) change de mot sans point. Le chrono est
+arbitré par le serveur, l’écran public n’affiche jamais le mot en cours (seulement l’équipe, le temps
+et les mots déjà trouvés) et l’équipe qui a fait deviner le plus de mots remporte la manche. L’écran
+du téléphone reste allumé pendant le tour. Le catalogue de cartes se trouve dans
+`back/domain/game_config/model/forbidden_word_catalog.py`.
 
 ### Générer automatiquement un puzzle
 

@@ -1,4 +1,12 @@
-export type GameKey = 'blindtest' | 'stopchrono' | 'culture' | 'bombe' | 'memory' | 'seven_differences' | 'auction';
+export type GameKey =
+  | 'blindtest'
+  | 'stopchrono'
+  | 'culture'
+  | 'bombe'
+  | 'memory'
+  | 'seven_differences'
+  | 'auction'
+  | 'forbidden_word';
 export type CultureDifficulty = 'toutes' | 'facile' | 'moyen' | 'difficile';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
@@ -101,6 +109,31 @@ export type AuctionState = {
   winner_team: string | null;
 };
 
+export type ForbiddenWordCard = {
+  id: string;
+  word: string;
+  forbidden_words: string[];
+};
+
+export type ForbiddenWordTurn = {
+  team: string;
+  found_words: string[];
+  skipped_words: string[];
+};
+
+export type ForbiddenWordState = {
+  phase: 'idle' | 'ready' | 'running' | 'finished';
+  turn_order: string[];
+  turns: ForbiddenWordTurn[];
+  current_card: ForbiddenWordCard | null;
+  current_team: string | null;
+  started_at_ms: number;
+  deadline_at_ms: number;
+  turn_duration_ms: number;
+  scores: Record<string, number>;
+  winner_team: string | null;
+};
+
 export type RankingEntry = {
   team: string;
   manches_won: number;
@@ -180,6 +213,7 @@ export type GameSession = {
   memory: MemoryState;
   seven_differences: SevenDifferencesState;
   auction: AuctionState;
+  forbidden_word: ForbiddenWordState;
   round_index: number;
   total_rounds: number;
   manche_number: number;

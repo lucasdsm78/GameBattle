@@ -7,6 +7,7 @@ from application.blindtest.blindtest_command_usecase import BlindtestCommandUseC
 from application.auction import AuctionCommandUseCase
 from application.bombe import BombeCommandUseCase
 from application.culture.culture_command_usecase import CultureCommandUseCase
+from application.forbidden_word import ForbiddenWordCommandUseCase
 from application.memory import MemoryCommandUseCase
 from application.session.session_command_usecase import SessionCommandUseCase
 from application.stopchrono.stopchrono_command_usecase import StopchronoCommandUseCase
@@ -20,6 +21,7 @@ from application.game_config.game_config_models import (
     BlindtestPlaylistCommandModel,
     BombeBuzzerCommandModel,
     CultureDifficultyCommandModel,
+    ForbiddenWordCardCommandModel,
     GameConfigReadModel,
     GameConfigUpsertModel,
     SpotifyPlaylistImportCommandModel,
@@ -159,10 +161,19 @@ class GameConfigCommandUseCase(ABC):
     async def decrement_auction_count(self) -> GameConfigReadModel: ...
 
     @abstractmethod
-    async def expire_auction_attempt(self) -> GameConfigReadModel: ...
+    async def next_auction_theme(self) -> GameConfigReadModel: ...
 
     @abstractmethod
-    async def next_auction_theme(self) -> GameConfigReadModel: ...
+    async def start_forbidden_word_turn(self) -> GameConfigReadModel: ...
+
+    @abstractmethod
+    async def mark_forbidden_word_found(self, payload: ForbiddenWordCardCommandModel) -> GameConfigReadModel | None: ...
+
+    @abstractmethod
+    async def skip_forbidden_word(self, payload: ForbiddenWordCardCommandModel) -> GameConfigReadModel | None: ...
+
+    @abstractmethod
+    async def expire_due_deadline(self) -> GameConfigReadModel | None: ...
 
     @abstractmethod
     async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel: ...
@@ -184,6 +195,7 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
         self._bombe = BombeCommandUseCase(repository)
         self._seven_differences = SevenDifferencesCommandUseCase(repository)
         self._auction = AuctionCommandUseCase(repository)
+        self._forbidden_word = ForbiddenWordCommandUseCase(repository)
         self._session = SessionCommandUseCase(repository, self._blindtest)
 
     # --- Session ---
@@ -201,6 +213,9 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
 
     async def reveal_next_ranking(self) -> GameConfigReadModel:
         return await self._session.reveal_next_ranking()
+
+    async def expire_due_deadline(self) -> GameConfigReadModel | None:
+        return await self._session.expire_due_deadline()
 
     # --- Blindtest ---
     async def load_blindtest_playlist(self, payload: BlindtestPlaylistCommandModel) -> GameConfigReadModel:
@@ -322,11 +337,18 @@ class GameConfigCommandUseCaseImpl(GameConfigCommandUseCase):
     async def decrement_auction_count(self) -> GameConfigReadModel:
         return await self._auction.decrement()
 
-    async def expire_auction_attempt(self) -> GameConfigReadModel:
-        return await self._auction.expire()
-
     async def next_auction_theme(self) -> GameConfigReadModel:
         return await self._auction.next_theme()
+
+    # --- Le mot interdit ---
+    async def start_forbidden_word_turn(self) -> GameConfigReadModel:
+        return await self._forbidden_word.start_turn()
+
+    async def mark_forbidden_word_found(self, payload: ForbiddenWordCardCommandModel) -> GameConfigReadModel | None:
+        return await self._forbidden_word.mark_found(payload)
+
+    async def skip_forbidden_word(self, payload: ForbiddenWordCardCommandModel) -> GameConfigReadModel | None:
+        return await self._forbidden_word.skip(payload)
 
     # --- Matériel ---
     async def register_active_game_buzzer(self, payload: BlindtestBuzzerCommandModel) -> GameConfigReadModel:
