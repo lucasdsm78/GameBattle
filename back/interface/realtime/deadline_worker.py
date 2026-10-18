@@ -4,7 +4,7 @@ import asyncio
 import logging
 from contextlib import suppress
 
-from application.commands.session import SessionCommandUseCase
+from application.game_night.game_night_command_usecase import GameNightCommandUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,8 @@ class GameDeadlineWorker:
     Un tick sans chrono échu ne touche ni la base (dépôt en cache) ni le réseau.
     """
 
-    def __init__(self, session: SessionCommandUseCase, *, poll_interval_seconds: float = 0.25) -> None:
-        self._session = session
+    def __init__(self, game_night: GameNightCommandUseCase, *, poll_interval_seconds: float = 0.25) -> None:
+        self._game_night = game_night
         self._poll_interval_seconds = poll_interval_seconds
         self._task: asyncio.Task[None] | None = None
 
@@ -33,7 +33,7 @@ class GameDeadlineWorker:
         self._task = None
 
     async def check_once(self) -> bool:
-        return await self._session.expire_due_deadlines() is not None
+        return await self._game_night.expire_due_deadlines() is not None
 
     async def _run(self) -> None:
         while True:

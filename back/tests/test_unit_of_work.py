@@ -5,7 +5,7 @@ from dataclasses import replace
 
 import pytest
 
-from application.queries.game_config import GameConfigQueryService
+from application.game_night.game_night_query_usecase import GameNightQueryUseCase
 from domain.events import TurnStarted, WordFound
 from domain.models.game_config import GameConfig
 from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
@@ -139,7 +139,7 @@ def test_queries_do_not_carry_events() -> None:
     harness = GameHarness(started_config("auction"))
 
     snapshot = asyncio.run(harness.use_cases.auction.start())
-    current = asyncio.run(GameConfigQueryService(harness.uow).get_current())
+    current = asyncio.run(GameNightQueryUseCase(harness.uow).get_current())
 
     assert snapshot is not None and snapshot.events
     assert current.events == ()

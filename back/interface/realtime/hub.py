@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 from fastapi import WebSocket
 
-from application.services.snapshot import ClientRole, GameConfigSnapshot
+from application.shared.snapshot import ClientRole, GameConfigSnapshot
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from application.commands.payloads import GameStatus
+from application.game_night.game_night_commands import GameStatus
 
 
 class GameConfigResponse(BaseModel):

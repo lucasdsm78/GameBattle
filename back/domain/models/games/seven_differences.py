@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
-from domain.events import AnswerJudged, BuzzerPressed, DifferenceFound, DomainEvent
+from domain.events.base import DomainEvent
+from domain.events.seven_differences import DifferenceFound
+from domain.events.shared import AnswerJudged, BuzzerPressed
 from domain.models.games.base import GameState
 from domain.services.catalogs.seven_differences import pick_seven_differences_puzzle
 from domain.services.scoring import TIE_LABEL, pick_round_winner, zero_scores

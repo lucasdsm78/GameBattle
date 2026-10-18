@@ -4,8 +4,8 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any, Optional
 
-from domain.events import (
-    DomainEvent,
+from domain.events.base import DomainEvent
+from domain.events.game_night import (
     GameNightFinished,
     GameNightStarted,
     MancheFinished,

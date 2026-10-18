@@ -4,7 +4,8 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
-from domain.events import ChronoStarted, ChronoStopped, DomainEvent
+from domain.events.base import DomainEvent
+from domain.events.stopchrono import ChronoStarted, ChronoStopped
 from domain.models.games.base import GameState
 from domain.services.scoring import TIE_LABEL, zero_scores
 from exceptions import InvalidGameConfigError

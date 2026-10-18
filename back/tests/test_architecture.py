@@ -6,7 +6,7 @@ from typing import get_args
 
 import pytest
 
-from application.commands.payloads import GameKey
+from application.game_night.game_night_commands import GameKey
 from domain.models.games import GAME_STATE_TYPES
 from domain.models.session import GameSession
 from domain.models.settings import SUPPORTED_GAME_KEYS

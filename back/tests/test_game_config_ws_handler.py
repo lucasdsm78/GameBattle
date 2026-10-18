@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from application.services.snapshot import ClientRole
+from application.shared.snapshot import ClientRole
 from domain.vo.blindtest_track import build_blindtest_track
 from interface.realtime.message_handler import (
     MAX_MESSAGE_CHARS,

@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
-from domain.events import AuctionResolved, BidAccepted, BuzzerPressed, DomainEvent
+from domain.events.auction import AuctionResolved, BidAccepted
+from domain.events.base import DomainEvent
+from domain.events.shared import BuzzerPressed
 from domain.models.games.base import GameState
 from domain.services.catalogs.auction import pick_auction_theme
 from domain.services.scoring import TIE_LABEL, zero_scores

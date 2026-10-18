@@ -72,15 +72,18 @@ Chaque couche ne dépend que des couches internes (vérifié par `tests/test_arc
 ```text
 back/
 ├── domain/                  # Métier pur : aucune dépendance technique
-│   ├── events/              # Événements de domaine (MotTrouvé, BombeExplosée, MancheTerminée…)
+│   ├── events/              # Un fichier par événement, rangé par domaine (forbidden_word/word_found.py…)
 │   ├── models/              # Racine d'agrégat GameConfig, session, réglages, un état par jeu (games/)
 │   ├── repositories/        # Interface du dépôt (abstraite)
 │   ├── services/            # Services métier : scores, séquence des manches, catalogues de contenus
 │   └── vo/                  # Objets-valeurs : morceau, question, carte, tour, différence, manche active
-├── application/
-│   ├── commands/            # Un use case par jeu (SessionCommandUseCase, AuctionCommandUseCase…) et schémas d'entrée
-│   ├── queries/             # Lecture de l'état courant
-│   └── services/            # Unit of Work (interface), instantanés diffusés, playlists blindtest (port Spotify)
+├── application/             # Un dossier par domaine
+│   ├── shared/              # CommandUseCase (base), Unit of Work, instantanés diffusés, schémas communs
+│   ├── game_night/          # Soirée : configuration, lancement, manches, classement (+ lecture de l'état)
+│   ├── blindtest/           # Use case, schémas, service de playlist et port Spotify
+│   ├── stopchrono/ culture/ bombe/ memory/ seven_differences/ auction/ forbidden_word/
+│   │                        # <jeu>_command_usecase.py (+ <jeu>_commands.py pour ses schémas)
+│   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
 │   ├── database/            # Moteur SQLAlchemy et tables
 │   ├── repositories/        # Unit of Work, dépôt PostgreSQL, cache mémoire, mapper de persistance
@@ -96,7 +99,7 @@ back/
 
 - Un jeu = un module `domain/models/games/<jeu>.py` : ses règles, ses invariants et ce que l'écran
   public n'a pas le droit de voir (`display_view`).
-- Chaque jeu a son use case d'écriture (`application/commands/<jeu>.py`), avec une méthode typée par
+- Chaque jeu a son use case d'écriture (`application/<jeu>/<jeu>_command_usecase.py`), avec une méthode typée par
   action (`await auction.select_bid(command)`). La classe de base `CommandUseCase` applique la
   transition sous verrou, persiste puis diffuse ; une action sans effet n'écrit ni ne diffuse rien.
 - Les routes HTTP appellent directement ces méthodes. Côté WebSocket, `interface/realtime/routes.py`
@@ -104,15 +107,15 @@ back/
 - Ajouter une action = une méthode sur l'état du jeu, une méthode sur `GameConfig`, une méthode sur le
   use case et, si elle est pilotée en WebSocket, une ligne dans `interface/realtime/routes.py`.
 - Les modèles du domaine sont des dataclasses (plus rapides et sans dépendance) ; Pydantic est réservé
-  aux frontières (`application/commands/payloads.py`, `interface/schemas/`).
+  aux frontières (`application/<domaine>/<domaine>_commands.py`, `interface/schemas/`).
 
 ### Événements de domaine et Unit of Work
 
-- Chaque transition produit des **événements de domaine** (`domain/events/`) : chaque jeu décrit ce
+- Chaque transition produit des **événements de domaine** (`domain/events/<domaine>/<événement>.py`) : chaque jeu décrit ce
   qui s'est passé dans `events_since`, l'agrégat y ajoute l'orchestration (début et fin de manche, fin
   de soirée, révélation du classement). Ils s'accumulent dans `GameConfig.pending_events`, ne sont
   jamais persistés et ne transportent aucun secret.
-- L'**Unit of Work** (`application/services/unit_of_work.py`, implémentée dans
+- L'**Unit of Work** (`application/shared/unit_of_work.py`, implémentée dans
   `infrastructure/repositories/unit_of_work.py`) encadre chaque commande : transaction exclusive,
   `add()` puis `commit()` qui persiste l'agrégat et remet ses événements ; sans `commit()` (ou sur
   exception), rien n'est écrit.
