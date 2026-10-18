@@ -10,7 +10,7 @@ from application.blindtest.blindtest_commands import (
 from application.shared.command_usecase import CommandUseCase
 from application.shared.commands import AnswerCommand, TeamCommand
 from application.shared.snapshot import GameConfigSnapshot
-from domain.vo.blindtest_track import build_blindtest_track
+from domain.blindtest.models.blindtest_track import build_blindtest_track
 
 
 class BlindtestCommandUseCase(CommandUseCase):

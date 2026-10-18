@@ -7,8 +7,8 @@ from typing import Any
 
 from sqlalchemy import select, update
 
-from domain.models.game_config import GameConfig, build_default_game_config
-from domain.repositories.game_config import GameConfigRepository
+from domain.game_night.models.game_config import GameConfig, build_default_game_config
+from domain.game_night.repositories.game_config_repository import GameConfigRepository
 from infrastructure.database.database import Database
 from infrastructure.database.models import GameConfigStateModel
 from infrastructure.repositories.game_config_mapper import game_config_from_payload

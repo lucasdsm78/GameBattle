@@ -5,9 +5,11 @@ import asyncio
 import pytest
 
 from application.shared.snapshot import ClientRole
-from domain.models.game_config import build_default_game_config
-from domain.models.games.seven_differences import SEVEN_DIFFERENCES_MEMORIZATION_MS
-from domain.services.scoring import TIE_LABEL
+from domain.game_night.models.game_config import build_default_game_config
+from domain.seven_differences.models.seven_differences_state import (
+    SEVEN_DIFFERENCES_MEMORIZATION_MS,
+)
+from domain.shared.services.scoring import TIE_LABEL
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_config_mapper import game_config_from_payload
 from support import GameHarness

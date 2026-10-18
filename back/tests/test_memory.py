@@ -5,9 +5,9 @@ from unittest.mock import patch
 import pytest
 
 from application.shared.snapshot import ClientRole
-from domain.models.game_config import build_default_game_config
-from domain.models.games.memory import MEMORY_CHAIN_LENGTH
-from domain.vo.culture_question import CultureQuestion
+from domain.game_night.models.game_config import build_default_game_config
+from domain.memory.models.memory_state import MEMORY_CHAIN_LENGTH
+from domain.shared.models.culture_question import CultureQuestion
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_config_mapper import game_config_from_payload
 from support import GameHarness
@@ -37,8 +37,8 @@ def _memory_config(*, team_count: int = 3):
 def _play_chain(config, *, start_index: int = 0, prefix: str = ""):
     questions = [_question(index, prefix) for index in range(1, MEMORY_CHAIN_LENGTH + 1)]
     with (
-        patch("domain.models.games.memory.random.randrange", return_value=start_index),
-        patch("domain.models.games.memory.pick_memory_question", side_effect=questions),
+        patch("domain.memory.models.memory_state.random.randrange", return_value=start_index),
+        patch("domain.memory.models.memory_state.pick_memory_question", side_effect=questions),
     ):
         current = config.start_memory()
         for _ in range(MEMORY_CHAIN_LENGTH - 1):
@@ -53,8 +53,8 @@ def test_memory_starts_first_team_chain_with_every_team_qualified(team_count: in
     first_question = _question(1)
 
     with (
-        patch("domain.models.games.memory.random.randrange", return_value=team_count - 1),
-        patch("domain.models.games.memory.pick_memory_question", return_value=first_question),
+        patch("domain.memory.models.memory_state.random.randrange", return_value=team_count - 1),
+        patch("domain.memory.models.memory_state.pick_memory_question", return_value=first_question),
     ):
         started = config.start_memory()
 
@@ -88,7 +88,7 @@ def test_correct_sequence_moves_to_next_team_with_a_fresh_chain() -> None:
     _, recitation, first_chain = _play_chain(_memory_config(), start_index=1, prefix="A")
     next_question = _question(1, "B")
 
-    with patch("domain.models.games.memory.pick_memory_question", return_value=next_question):
+    with patch("domain.memory.models.memory_state.pick_memory_question", return_value=next_question):
         next_team = recitation.validate_memory_sequence()
 
     memory = next_team.session.memory
@@ -107,7 +107,7 @@ def test_fault_is_allowed_only_after_eight_questions_and_resets_next_team_chain(
 
     _, recitation, _ = _play_chain(config, start_index=0)
     next_question = _question(1, "B")
-    with patch("domain.models.games.memory.pick_memory_question", return_value=next_question):
+    with patch("domain.memory.models.memory_state.pick_memory_question", return_value=next_question):
         continued = recitation.disqualify_memory_team()
 
     memory = continued.session.memory
@@ -146,8 +146,8 @@ def test_memory_rejects_sequence_validation_before_recitation() -> None:
         config.validate_memory_sequence()
 
     with (
-        patch("domain.models.games.memory.random.randrange", return_value=0),
-        patch("domain.models.games.memory.pick_memory_question", return_value=_question(1)),
+        patch("domain.memory.models.memory_state.random.randrange", return_value=0),
+        patch("domain.memory.models.memory_state.pick_memory_question", return_value=_question(1)),
     ):
         started = config.start_memory()
 
@@ -190,8 +190,8 @@ def test_display_snapshot_never_contains_current_chain_answers() -> None:
     config = _memory_config()
     questions = [_question(1, "SECRET_"), _question(2, "SECRET_")]
     with (
-        patch("domain.models.games.memory.random.randrange", return_value=0),
-        patch("domain.models.games.memory.pick_memory_question", side_effect=questions),
+        patch("domain.memory.models.memory_state.random.randrange", return_value=0),
+        patch("domain.memory.models.memory_state.pick_memory_question", side_effect=questions),
     ):
         progressed = config.start_memory().next_memory_question()
     controller, display = progressed.client_views()
@@ -209,7 +209,7 @@ def test_display_snapshot_never_contains_current_chain_answers() -> None:
 def test_memory_commands_are_controller_only() -> None:
     harness = GameHarness(_memory_config())
 
-    with patch("domain.models.games.memory.pick_memory_question", side_effect=lambda asked: _question(len(asked) + 1)):
+    with patch("domain.memory.models.memory_state.pick_memory_question", side_effect=lambda asked: _question(len(asked) + 1)):
         harness.run("memory.start")
         harness.run("memory.next-question")
     with pytest.raises(CommandNotAllowedError, match="lecture seule"):

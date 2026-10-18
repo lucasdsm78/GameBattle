@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from domain.models.game_config import GameConfig
-from domain.repositories.game_config import GameConfigRepository
+from domain.game_night.models.game_config import GameConfig
+from domain.game_night.repositories.game_config_repository import GameConfigRepository
 
 
 class CachedGameConfigRepository(GameConfigRepository):

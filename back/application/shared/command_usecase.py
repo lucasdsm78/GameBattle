@@ -9,7 +9,7 @@ from typing import Protocol
 from application.blindtest.playlist_service import BlindtestPlaylistService
 from application.shared.snapshot import GameConfigSnapshot
 from application.shared.unit_of_work import UnitOfWork
-from domain.models.game_config import GameConfig
+from domain.game_night.models.game_config import GameConfig
 
 
 def wall_clock_ms() -> int:

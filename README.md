@@ -71,12 +71,16 @@ Chaque couche ne dépend que des couches internes (vérifié par `tests/test_arc
 
 ```text
 back/
-├── domain/                  # Métier pur : aucune dépendance technique
-│   ├── events/              # Un fichier par événement, rangé par domaine (forbidden_word/word_found.py…)
-│   ├── models/              # Racine d'agrégat GameConfig, session, réglages, un état par jeu (games/)
-│   ├── repositories/        # Interface du dépôt (abstraite)
-│   ├── services/            # Services métier : scores, séquence des manches, catalogues de contenus
-│   └── vo/                  # Objets-valeurs : morceau, question, carte, tour, différence, manche active
+├── domain/                  # Métier pur, un dossier par domaine
+│   ├── shared/              # Noyau partagé : GameState, DomainEvent, buzz et réponse jugée,
+│   │                        # questions de culture (Culture + Mémoire), scores, horloge
+│   ├── game_night/          # La soirée : racine d'agrégat GameConfig, session, réglages, registre des jeux,
+│   │                        # séquence des manches, dépôt (repositories/) et événements de soirée
+│   ├── forbidden_word/      # models/ (état, carte), services/ (catalogue), events/ (un fichier par événement)
+│   ├── seven_differences/   # models/, services/ (catalogue + JSON), events/
+│   ├── auction/             # models/, services/ (catalogue), events/
+│   ├── bombe/  memory/  stopchrono/   # models/, events/
+│   └── blindtest/  culture/           # models/ (leurs événements sont ceux du noyau partagé)
 ├── application/             # Un dossier par domaine
 │   ├── shared/              # CommandUseCase (base), Unit of Work, instantanés diffusés, schémas communs
 │   ├── game_night/          # Soirée : configuration, lancement, manches, classement (+ lecture de l'état)
@@ -97,7 +101,9 @@ back/
 └── main.py                  # Application factory FastAPI
 ```
 
-- Un jeu = un module `domain/models/games/<jeu>.py` : ses règles, ses invariants et ce que l'écran
+- Les dépendances entre modules du domaine sont vérifiées par les tests : un jeu n'importe que `shared/`,
+  `shared/` n'importe aucun autre module, seule `game_night/` orchestre les jeux.
+- Un jeu = un dossier `domain/<jeu>/` : son état (`models/<jeu>_state.py`) porte ses règles, ses invariants et ce que l'écran
   public n'a pas le droit de voir (`display_view`).
 - Chaque jeu a son use case d'écriture (`application/<jeu>/<jeu>_command_usecase.py`), avec une méthode typée par
   action (`await auction.select_bid(command)`). La classe de base `CommandUseCase` applique la
@@ -111,7 +117,7 @@ back/
 
 ### Événements de domaine et Unit of Work
 
-- Chaque transition produit des **événements de domaine** (`domain/events/<domaine>/<événement>.py`) : chaque jeu décrit ce
+- Chaque transition produit des **événements de domaine** (`domain/<domaine>/events/<événement>.py`) : chaque jeu décrit ce
   qui s'est passé dans `events_since`, l'agrégat y ajoute l'orchestration (début et fin de manche, fin
   de soirée, révélation du classement). Ils s'accumulent dans `GameConfig.pending_events`, ne sont
   jamais persistés et ne transportent aucun secret.
@@ -285,7 +291,7 @@ sur **TROUVÉ** (ou **Volume +**) ; **Passer** (ou **Volume −**) change de mot
 arbitré par le serveur, l’écran public n’affiche jamais le mot en cours (seulement l’équipe, le temps
 et les mots déjà trouvés) et l’équipe qui a fait deviner le plus de mots remporte la manche. L’écran
 du téléphone reste allumé pendant le tour. Le catalogue de cartes se trouve dans
-`back/domain/services/catalogs/forbidden_word.py`.
+`back/domain/forbidden_word/services/forbidden_word_catalog.py`.
 
 ### Générer automatiquement un puzzle
 
@@ -325,7 +331,7 @@ back/.venv/bin/python scripts/generate-seven-differences.py \
 graine stabilise le choix de la photographie Pexels, mais une édition générative peut varier entre
 deux exécutions. Les images générées sont placées dans
 `app-presentateur/public/seven-differences/` et le manifeste
-`back/domain/services/catalogs/seven_differences.json` est mis à jour atomiquement. Pour
+`back/domain/seven_differences/services/seven_differences_catalog.json` est mis à jour atomiquement. Pour
 remplacer volontairement un identifiant existant, ajouter `--id mon-puzzle --replace`. Redémarrer
 ensuite le backend pour charger le catalogue actualisé.
 

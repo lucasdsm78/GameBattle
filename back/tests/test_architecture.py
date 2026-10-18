@@ -7,9 +7,9 @@ from typing import get_args
 import pytest
 
 from application.game_night.game_night_commands import GameKey
-from domain.models.games import GAME_STATE_TYPES
-from domain.models.session import GameSession
-from domain.models.settings import SUPPORTED_GAME_KEYS
+from domain.game_night.models.game_registry import GAME_STATE_TYPES
+from domain.game_night.models.session import GameSession
+from domain.game_night.models.settings import SUPPORTED_GAME_KEYS
 from interface.realtime.routes import ROUTES
 
 
@@ -73,3 +73,32 @@ def test_layers_only_depend_inwards(layer: str) -> None:
     ]
 
     assert violations == []
+
+
+GAME_MODULES = ("blindtest", "culture", "stopchrono", "bombe", "memory", "seven_differences", "auction", "forbidden_word")
+
+
+def _domain_dependencies(module: str) -> set[str]:
+    return {
+        imported.split(".")[1]
+        for path in (BACK_DIR / "domain" / module).rglob("*.py")
+        for imported in _imported_modules(path)
+        if imported.startswith("domain.") and imported.count(".") >= 1
+    }
+
+
+@pytest.mark.parametrize("game", GAME_MODULES)
+def test_a_game_only_depends_on_the_shared_kernel(game: str) -> None:
+    assert _domain_dependencies(game) <= {game, "shared"}
+
+
+def test_the_shared_kernel_depends_on_no_other_domain_module() -> None:
+    assert _domain_dependencies("shared") <= {"shared"}
+
+
+def test_every_domain_module_follows_the_same_layout() -> None:
+    expected = {"game_night", "shared", *GAME_MODULES}
+    modules = {path.name for path in (BACK_DIR / "domain").iterdir() if path.is_dir() and path.name != "__pycache__"}
+
+    assert modules == expected
+    assert all((BACK_DIR / "domain" / module / "models").is_dir() for module in expected)

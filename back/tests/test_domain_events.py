@@ -3,36 +3,28 @@ from __future__ import annotations
 import json
 
 from application.shared.snapshot import serialize_event
-from domain.events import (
-    AnswerJudged,
-    AuctionResolved,
-    BidAccepted,
-    BombeArmed,
-    BombeDieRolling,
-    BombeExploded,
-    BombePassed,
-    BuzzerPressed,
-    ChainRecited,
-    ChronoStarted,
-    ChronoStopped,
-    DifferenceFound,
-    DomainEvent,
+from domain.auction.events import AuctionResolved, BidAccepted
+from domain.blindtest.models.blindtest_track import build_blindtest_track
+from domain.bombe.events import BombeArmed, BombeDieRolling, BombeExploded, BombePassed
+from domain.forbidden_word.events import TurnEnded, TurnStarted, WordFound, WordSkipped
+from domain.forbidden_word.models.forbidden_word_state import FORBIDDEN_WORD_TURN_MS
+from domain.game_night.events import (
     GameNightFinished,
     GameNightStarted,
     MancheFinished,
     MancheStarted,
     RankingRevealed,
-    TeamDisqualified,
-    TurnEnded,
-    TurnStarted,
-    WordFound,
-    WordSkipped,
 )
-from domain.models.game_config import GameConfig
-from domain.models.games.forbidden_word import FORBIDDEN_WORD_TURN_MS
-from domain.models.games.memory import MEMORY_CHAIN_LENGTH
-from domain.models.games.seven_differences import SEVEN_DIFFERENCES_MEMORIZATION_MS
-from domain.vo.blindtest_track import build_blindtest_track
+from domain.game_night.models.game_config import GameConfig
+from domain.memory.events import ChainRecited, TeamDisqualified
+from domain.memory.models.memory_state import MEMORY_CHAIN_LENGTH
+from domain.seven_differences.events import DifferenceFound
+from domain.seven_differences.models.seven_differences_state import (
+    SEVEN_DIFFERENCES_MEMORIZATION_MS,
+)
+from domain.shared.events import AnswerJudged, BuzzerPressed
+from domain.shared.events.domain_event import DomainEvent
+from domain.stopchrono.events import ChronoStarted, ChronoStopped
 from infrastructure.repositories.game_config_mapper import game_config_from_payload
 from support import started_config
 
@@ -233,13 +225,13 @@ def test_events_never_leak_secrets_to_the_public_screen() -> None:
     running = ready.start_forbidden_word_turn(1_000)
     card = running.session.forbidden_word.current_card
     assert card is not None
-    public = json.dumps([serialize_event(event) for event in running.pending_events], ensure_ascii=False)
-    assert card.word not in public and not any(word in public for word in card.forbidden_words)
+    public_values = {value for event in running.pending_events for value in serialize_event(event).values()}
+    assert public_values.isdisjoint({card.word, *card.forbidden_words})
 
     question = fresh(started_config("culture", teams=TWO_TEAMS).start_culture().select_culture_difficulty("facile"))
     judged = question.register_culture_buzzer("Rouges").answer_culture(False)
     answer = question.session.culture.current_question.answer  # type: ignore[union-attr]
-    assert answer not in json.dumps([serialize_event(event) for event in judged.pending_events], ensure_ascii=False)
+    assert answer not in {value for event in judged.pending_events for value in serialize_event(event).values()}
 
     prepared = fresh(started_config("bombe", teams=TWO_TEAMS).start_bombe(now_ms=1_000))
     roller = prepared.settings.teams[prepared.session.bombe.roller_team_index or 0]

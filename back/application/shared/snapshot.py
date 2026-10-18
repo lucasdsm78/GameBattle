@@ -6,8 +6,8 @@ from enum import StrEnum
 from itertools import count
 from typing import Any
 
-from domain.events import DomainEvent
-from domain.models.game_config import GameConfig
+from domain.game_night.models.game_config import GameConfig
+from domain.shared.events.domain_event import DomainEvent
 
 _revisions = count(1)
 

@@ -8,7 +8,9 @@ from pathlib import Path
 import httpx
 from PIL import Image, ImageChops
 
-from domain.services.catalogs.seven_differences import load_seven_differences_catalog
+from domain.seven_differences.services.seven_differences_catalog import (
+    load_seven_differences_catalog,
+)
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "generate-seven-differences.py"
 SPEC = importlib.util.spec_from_file_location("generate_seven_differences", SCRIPT_PATH)

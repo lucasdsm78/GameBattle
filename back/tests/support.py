@@ -6,8 +6,8 @@ from typing import Any
 
 from application.shared.snapshot import ClientRole, GameConfigSnapshot
 from application.use_cases import GameUseCases
-from domain.models.game_config import GameConfig, build_default_game_config
-from domain.repositories.game_config import GameConfigRepository
+from domain.game_night.models.game_config import GameConfig, build_default_game_config
+from domain.game_night.repositories.game_config_repository import GameConfigRepository
 from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.routes import ROUTES
