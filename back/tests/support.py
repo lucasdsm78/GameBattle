@@ -4,11 +4,12 @@ import asyncio
 from collections.abc import Callable
 from typing import Any
 
-from application.commands import ALL_COMMANDS
-from application.commands.bus import GameCommandBus
+from application.commands import GameUseCases
 from application.services.snapshot import ClientRole, GameConfigSnapshot
 from domain.models.game_config import GameConfig, build_default_game_config
 from domain.repositories.game_config import GameConfigRepository
+from interface.realtime.dispatcher import RealtimeDispatcher
+from interface.realtime.routes import ROUTES
 
 
 def started_config(game_key: str, *, teams: list[str] | None = None, total_rounds: int = 1) -> GameConfig:
@@ -57,17 +58,20 @@ class StubPlaylists:
         return config
 
 
-class BusHarness:
+class GameHarness:
+    """Use cases réels sur un dépôt en mémoire, pilotables directement ou via le protocole WebSocket."""
+
     def __init__(self, config: GameConfig, *, now_ms: int | Callable[[], int] = 1_000, delay_seconds: float = 0.0) -> None:
         self.repository = InMemoryRepository(config, delay_seconds=delay_seconds)
         self.publisher = RecordingPublisher()
         self.playlists = StubPlaylists()
         clock = now_ms if callable(now_ms) else (lambda: now_ms)
-        self.bus = GameCommandBus(self.repository, self.playlists, self.publisher, ALL_COMMANDS, clock=clock)  # type: ignore[arg-type]
+        self.use_cases = GameUseCases.build(self.repository, self.publisher, self.playlists, clock)  # type: ignore[arg-type]
+        self.dispatcher = RealtimeDispatcher(self.use_cases, ROUTES)
 
     @property
     def config(self) -> GameConfig:
         return self.repository.current
 
     def run(self, name: str, payload: dict[str, Any] | None = None, role: ClientRole = ClientRole.CONTROLLER):
-        return asyncio.run(self.bus.execute(name, payload, role))
+        return asyncio.run(self.dispatcher.dispatch(name, payload, role))

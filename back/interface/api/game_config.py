@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 
 from application.commands.payloads import (
     AnswerCommand,
@@ -14,11 +13,13 @@ from application.commands.payloads import (
     SpotifyPlaylistImportCommand,
     TeamCommand,
 )
-from application.services.snapshot import ClientRole
+from application.queries.game_config import GameConfigQueryService
+from application.services.snapshot import ClientRole, GameConfigSnapshot
 from interface.dependencies import (
-    CommandBusDep,
+    BlindtestUseCaseDep,
     OptionalControllerToken,
     QueryServiceDep,
+    SessionUseCaseDep,
     authorize_client,
     require_controller_token,
 )
@@ -28,9 +29,9 @@ router = APIRouter(prefix="/api/game-config", tags=["game-config"])
 commands = APIRouter(dependencies=[Depends(require_controller_token)], responses={401: {"description": "Jeton régie invalide"}})
 
 
-async def _run(bus: CommandBusDep, query: QueryServiceDep, name: str, payload: BaseModel | None = None) -> dict[str, Any]:
-    snapshot = await bus.execute(name, payload, ClientRole.CONTROLLER) or await query.get_current()
-    return snapshot.controller
+async def controller_view(snapshot: GameConfigSnapshot | None, query: GameConfigQueryService) -> dict[str, Any]:
+    """Vue régie du nouvel état, ou de l'état courant si la commande n'a rien changé."""
+    return (snapshot or await query.get_current()).controller
 
 
 @router.get("/current", response_model=GameConfigResponse, summary="Lire la configuration courante")
@@ -41,54 +42,60 @@ async def get_current_game_config(query: QueryServiceDep, token: OptionalControl
 
 
 @commands.put("/current", response_model=GameConfigResponse, summary="Remplacer la configuration courante")
-async def replace_current_game_config(payload: GameConfigUpsertModel, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
-    return await _run(bus, query, "game.config.replace", payload)
+async def replace_current_game_config(
+    payload: GameConfigUpsertModel, session: SessionUseCaseDep, query: QueryServiceDep
+) -> dict[str, Any]:
+    return await controller_view(await session.replace_config(payload), query)
 
 
 @commands.post("/launch", response_model=GameConfigResponse, summary="Lancer la partie")
-async def launch_game(bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
-    return await _run(bus, query, "game.config.launch")
+async def launch_game(session: SessionUseCaseDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await controller_view(await session.launch_game(), query)
 
 
 @commands.put("/blindtest/playlist", response_model=GameConfigResponse, summary="Charger une playlist blindtest manuelle")
-async def load_blindtest_playlist(payload: PlaylistLoadCommand, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
-    return await _run(bus, query, "blindtest.playlist.load", payload)
+async def load_blindtest_playlist(
+    payload: PlaylistLoadCommand, blindtest: BlindtestUseCaseDep, query: QueryServiceDep
+) -> dict[str, Any]:
+    return await controller_view(await blindtest.load_playlist(payload), query)
 
 
 @commands.post(
     "/blindtest/playlist/import-spotify", response_model=GameConfigResponse, summary="Importer une playlist blindtest Spotify"
 )
 async def import_blindtest_playlist_from_spotify(
-    payload: SpotifyPlaylistImportCommand, bus: CommandBusDep, query: QueryServiceDep
+    payload: SpotifyPlaylistImportCommand, blindtest: BlindtestUseCaseDep, query: QueryServiceDep
 ) -> dict[str, Any]:
-    return await _run(bus, query, "blindtest.playlist.import-spotify", payload)
+    return await controller_view(await blindtest.import_spotify_playlist(payload), query)
 
 
 @commands.post("/blindtest/buzzer", response_model=GameConfigResponse, summary="Enregistrer un buzz blindtest")
-async def register_blindtest_buzzer(payload: TeamCommand, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
-    return await _run(bus, query, "blindtest.buzzer", payload)
+async def register_blindtest_buzzer(payload: TeamCommand, blindtest: BlindtestUseCaseDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await controller_view(await blindtest.register_buzzer(payload), query)
 
 
 @commands.post("/blindtest/answer", response_model=GameConfigResponse, summary="Valider une réponse blindtest")
-async def answer_blindtest(payload: AnswerCommand, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
-    return await _run(bus, query, "blindtest.answer", payload)
+async def answer_blindtest(payload: AnswerCommand, blindtest: BlindtestUseCaseDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await controller_view(await blindtest.answer(payload), query)
 
 
 @commands.post("/blindtest/playback/control", response_model=GameConfigResponse, summary="Piloter la lecture blindtest")
 async def control_blindtest_playback(
-    payload: PlaybackControlCommand, bus: CommandBusDep, query: QueryServiceDep
+    payload: PlaybackControlCommand, blindtest: BlindtestUseCaseDep, query: QueryServiceDep
 ) -> dict[str, Any]:
-    return await _run(bus, query, "blindtest.playback.control", payload)
+    return await controller_view(await blindtest.control_playback(payload), query)
 
 
 @commands.post("/blindtest/playback/sync", response_model=GameConfigResponse, summary="Synchroniser la lecture blindtest")
-async def sync_blindtest_playback(payload: PlaybackSyncCommand, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
-    return await _run(bus, query, "blindtest.playback.sync", payload)
+async def sync_blindtest_playback(
+    payload: PlaybackSyncCommand, blindtest: BlindtestUseCaseDep, query: QueryServiceDep
+) -> dict[str, Any]:
+    return await controller_view(await blindtest.sync_playback(payload), query)
 
 
 @commands.post("/blindtest/next-track", response_model=GameConfigResponse, summary="Passer à la musique suivante")
-async def next_blindtest_track(bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
-    return await _run(bus, query, "blindtest.next-track")
+async def next_blindtest_track(blindtest: BlindtestUseCaseDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await controller_view(await blindtest.next_track(), query)
 
 
 router.include_router(commands)

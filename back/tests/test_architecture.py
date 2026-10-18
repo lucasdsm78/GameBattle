@@ -6,11 +6,11 @@ from typing import get_args
 
 import pytest
 
-from application.commands import ALL_COMMANDS
 from application.commands.payloads import GameKey
 from domain.models.games import GAME_STATE_TYPES
 from domain.models.session import GameSession
 from domain.models.settings import SUPPORTED_GAME_KEYS
+from interface.realtime.routes import ROUTES
 
 
 def test_every_game_is_registered_consistently_across_layers() -> None:
@@ -20,14 +20,14 @@ def test_every_game_is_registered_consistently_across_layers() -> None:
     assert set(GAME_STATE_TYPES) <= session_fields
 
 
-def test_command_names_are_unique() -> None:
-    names = [spec.name for spec in ALL_COMMANDS]
+def test_websocket_events_are_unique() -> None:
+    names = [route.event for route in ROUTES]
 
     assert len(names) == len(set(names))
 
 
 def test_display_can_only_trigger_buzzers_timers_and_spotify_token() -> None:
-    display_commands = {spec.name for spec in ALL_COMMANDS if "display" in spec.roles}
+    display_commands = {route.event for route in ROUTES if "display" in route.roles}
 
     assert display_commands == {
         "blindtest.buzzer",

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, status
 
 from application.services.snapshot import ClientRole
 from interface.dependencies import (
-    CommandBusDep,
+    DispatcherDep,
     QueryServiceDep,
     WebSocketHubDep,
     authorize_client,
@@ -28,7 +28,7 @@ async def game_config_websocket(
     websocket: WebSocket,
     hub: WebSocketHubDep,
     query: QueryServiceDep,
-    bus: CommandBusDep,
+    dispatcher: DispatcherDep,
     client_type: Literal["controller", "display"] = Query(...),
     token: Optional[str] = Query(default=None, max_length=256),
 ) -> None:
@@ -45,7 +45,7 @@ async def game_config_websocket(
         channel.push_snapshot(snapshot.revision, encode_snapshot("game.config.snapshot", snapshot, role))
         while True:
             raw = await websocket.receive_text()
-            reply = await handle_client_message(raw, role, bus) if limiter.allow() else error_reply("Trop de messages : ralentis.")
+            reply = await handle_client_message(raw, role, dispatcher) if limiter.allow() else error_reply("Trop de messages : ralentis.")
             if reply is not None:
                 channel.push_reply(reply)
     except WebSocketDisconnect:

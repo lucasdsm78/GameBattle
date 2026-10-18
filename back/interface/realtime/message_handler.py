@@ -6,9 +6,9 @@ from typing import Any, Optional
 
 from pydantic import ValidationError
 
-from application.commands.bus import GameCommandBus
 from application.services.snapshot import ClientRole
 from exceptions import ApplicationError, DomainError
+from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.schemas.websocket import ClientMessage
 
 logger = logging.getLogger(__name__)
@@ -39,8 +39,8 @@ def error_reply(detail: str) -> dict[str, str]:
     return {"type": "error", "detail": detail}
 
 
-async def handle_client_message(raw: str, role: ClientRole, bus: GameCommandBus) -> Optional[dict[str, Any]]:
-    """Traite un message entrant. Renvoie la réponse directe à l'émetteur, ou `None` (l'état est diffusé par le bus)."""
+async def handle_client_message(raw: str, role: ClientRole, dispatcher: RealtimeDispatcher) -> Optional[dict[str, Any]]:
+    """Traite un message entrant. Renvoie la réponse directe à l'émetteur, ou `None` (le nouvel état est diffusé à tous)."""
     if len(raw) > MAX_MESSAGE_CHARS:
         return error_reply("Message trop volumineux.")
     try:
@@ -50,7 +50,7 @@ async def handle_client_message(raw: str, role: ClientRole, bus: GameCommandBus)
     if message.type == "ping":
         return {"type": "pong"}
     try:
-        await bus.execute(message.type, message.payload, role)
+        await dispatcher.dispatch(message.type, message.payload, role)
     except (DomainError, ApplicationError) as exc:
         return error_reply(exc.message)
     except Exception:

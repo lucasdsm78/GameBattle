@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from application.commands.bus import CONTROLLER_AND_DISPLAY, CommandContext, CommandSpec
+from application.commands.base import CommandUseCase
 from application.commands.payloads import (
     AnswerCommand,
     PlaybackControlCommand,
@@ -10,47 +10,43 @@ from application.commands.payloads import (
     SpotifyTokenCommand,
     TeamCommand,
 )
-from domain.models.game_config import GameConfig
+from application.services.snapshot import GameConfigSnapshot
 from domain.vo.blindtest_track import build_blindtest_track
 
 
-def _load_manual_playlist(config: GameConfig, command: PlaylistLoadCommand, context: CommandContext) -> GameConfig:
-    tracks = [
-        build_blindtest_track(title=track.title, artist=track.artist, preview_url=track.preview_url, artwork_url=track.artwork_url)
-        for track in command.tracks
-    ]
-    return config.with_blindtest_tracks(tracks, playlist_name="Playlist manuelle", playlist_provider="manual")
+class BlindtestCommandUseCase(CommandUseCase):
+    async def load_playlist(self, command: PlaylistLoadCommand) -> GameConfigSnapshot | None:
+        tracks = [
+            build_blindtest_track(title=track.title, artist=track.artist, preview_url=track.preview_url, artwork_url=track.artwork_url)
+            for track in command.tracks
+        ]
+        return await self._execute(
+            lambda config, ctx: config.with_blindtest_tracks(tracks, playlist_name="Playlist manuelle", playlist_provider="manual")
+        )
 
+    async def import_spotify_playlist(self, command: SpotifyPlaylistImportCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: ctx.playlists.import_playlist(config, command.playlist_url))
 
-def _store_spotify_token(config: GameConfig, command: SpotifyTokenCommand, context: CommandContext) -> GameConfig:
-    context.playlists.set_user_token(command.access_token)
-    return config
+    async def reload_default_playlist(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: ctx.playlists.reload_default(config))
 
+    async def register_buzzer(self, command: TeamCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.register_buzzer(command.team))
 
-BLINDTEST_COMMANDS = (
-    CommandSpec("blindtest.playlist.load", _load_manual_playlist, PlaylistLoadCommand),
-    CommandSpec(
-        "blindtest.playlist.import-spotify",
-        lambda config, command, context: context.playlists.import_playlist(config, command.playlist_url),
-        SpotifyPlaylistImportCommand,
-    ),
-    CommandSpec("blindtest.playlist.reload", lambda config, _, context: context.playlists.reload_default(config)),
-    CommandSpec(
-        "blindtest.buzzer", lambda config, command, _: config.register_buzzer(command.team), TeamCommand, CONTROLLER_AND_DISPLAY
-    ),
-    CommandSpec("blindtest.answer", lambda config, command, _: config.mark_answer(command.is_correct), AnswerCommand),
-    CommandSpec(
-        "blindtest.playback.control",
-        lambda config, command, _: config.control_playback(command.action, command.position_ms),
-        PlaybackControlCommand,
-    ),
-    CommandSpec(
-        "blindtest.playback.sync",
-        lambda config, command, _: config.sync_playback(
-            command.track_id, command.playback_state, command.position_ms, command.duration_ms
-        ),
-        PlaybackSyncCommand,
-    ),
-    CommandSpec("blindtest.next-track", lambda config, *_: config.advance_track()),
-    CommandSpec("spotify.user-token", _store_spotify_token, SpotifyTokenCommand, CONTROLLER_AND_DISPLAY),
-)
+    async def answer(self, command: AnswerCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.mark_answer(command.is_correct))
+
+    async def control_playback(self, command: PlaybackControlCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.control_playback(command.action, command.position_ms))
+
+    async def sync_playback(self, command: PlaybackSyncCommand) -> GameConfigSnapshot | None:
+        return await self._execute(
+            lambda config, ctx: config.sync_playback(command.track_id, command.playback_state, command.position_ms, command.duration_ms)
+        )
+
+    async def next_track(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.advance_track())
+
+    async def set_spotify_user_token(self, command: SpotifyTokenCommand) -> None:
+        # Aucun état de partie modifié : pas de verrou, pas de diffusion.
+        self._playlists.set_user_token(command.access_token)

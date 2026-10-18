@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-from application.commands.bus import CONTROLLER_AND_DISPLAY, CommandSpec
+from application.commands.base import CommandUseCase
 from application.commands.payloads import TeamCommand
+from application.services.snapshot import GameConfigSnapshot
 
-BOMBE_COMMANDS = (
-    CommandSpec("bombe.start", lambda config, _, context: config.start_bombe(context.now_ms)),
-    CommandSpec(
-        "bombe.buzzer",
-        lambda config, command, context: config.register_bombe_buzzer(command.team, context.now_ms),
-        TeamCommand,
-        CONTROLLER_AND_DISPLAY,
-    ),
-    CommandSpec(
-        "bombe.begin-after-roll",
-        lambda config, _, context: config.begin_bombe_after_roll(context.now_ms),
-        roles=CONTROLLER_AND_DISPLAY,
-    ),
-    CommandSpec("bombe.previous-team", lambda config, _, context: config.previous_bombe_team(context.now_ms)),
-    CommandSpec("bombe.explode", lambda config, _, context: config.explode_bombe(context.now_ms), roles=CONTROLLER_AND_DISPLAY),
-)
+
+class BombeCommandUseCase(CommandUseCase):
+    async def start(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.start_bombe(ctx.now_ms))
+
+    async def register_buzzer(self, command: TeamCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.register_bombe_buzzer(command.team, ctx.now_ms))
+
+    async def begin_after_roll(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.begin_bombe_after_roll(ctx.now_ms))
+
+    async def previous_team(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.previous_bombe_team(ctx.now_ms))
+
+    async def explode(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.explode_bombe(ctx.now_ms))

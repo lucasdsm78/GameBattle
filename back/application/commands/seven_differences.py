@@ -1,25 +1,22 @@
 from __future__ import annotations
 
-from application.commands.bus import CONTROLLER_AND_DISPLAY, CommandSpec
+from application.commands.base import CommandUseCase
 from application.commands.payloads import SevenDifferenceFoundCommand, TeamCommand
+from application.services.snapshot import GameConfigSnapshot
 
-SEVEN_DIFFERENCES_COMMANDS = (
-    CommandSpec("seven-differences.start", lambda config, _, context: config.start_seven_differences(context.now_ms)),
-    CommandSpec(
-        "seven-differences.open",
-        lambda config, _, context: config.open_seven_differences(context.now_ms),
-        roles=CONTROLLER_AND_DISPLAY,
-    ),
-    CommandSpec(
-        "seven-differences.buzzer",
-        lambda config, command, context: config.register_seven_differences_buzzer(command.team, context.now_ms),
-        TeamCommand,
-        CONTROLLER_AND_DISPLAY,
-    ),
-    CommandSpec(
-        "seven-differences.found",
-        lambda config, command, _: config.find_seven_difference(command.difference_id),
-        SevenDifferenceFoundCommand,
-    ),
-    CommandSpec("seven-differences.reject", lambda config, *_: config.reject_seven_differences_answer()),
-)
+
+class SevenDifferencesCommandUseCase(CommandUseCase):
+    async def start(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.start_seven_differences(ctx.now_ms))
+
+    async def open(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.open_seven_differences(ctx.now_ms))
+
+    async def register_buzzer(self, command: TeamCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.register_seven_differences_buzzer(command.team, ctx.now_ms))
+
+    async def mark_found(self, command: SevenDifferenceFoundCommand) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.find_seven_difference(command.difference_id))
+
+    async def reject_answer(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.reject_seven_differences_answer())

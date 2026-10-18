@@ -23,7 +23,7 @@ os.environ["GAMEBATTLE_DISPLAY_TOKEN"] = "display-test-token"
 os.environ["GAMEBATTLE_ALLOWED_ORIGINS"] = "http://localhost:5173,http://localhost:8081"
 os.environ["GAMEBATTLE_HARDWARE_TOKEN"] = "hardware-test-token"
 
-from interface.dependencies.container import game_command_bus
+from interface.dependencies.container import game_use_cases
 from main import app  # noqa: E402
 
 CONTROLLER_HEADERS = {"X-GameBattle-Controller-Token": "controller-test-token"}
@@ -428,7 +428,7 @@ def test_websocket_bombe_flow_accepts_and_broadcasts_hardware_buzzer() -> None:
                 assert roll_display["payload"]["session"]["bombe"]["die_result"] == ""
 
                 reveal_at = roll_response.json()["session"]["bombe"]["die_reveal_at_ms"]
-                with patch.object(game_command_bus(), "_clock", lambda: reveal_at):
+                with patch.object(game_use_cases().bombe, "_clock", lambda: reveal_at):
                     controller_ws.send_json({"type": "bombe.begin-after-roll"})
                     running_controller = controller_ws.receive_json()
                     running_display = display_ws.receive_json()
