@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from application.services.snapshot import serialize_event
+from application.shared.snapshot import serialize_event
 from domain.events import (
     AnswerJudged,
     AuctionResolved,

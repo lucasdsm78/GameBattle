@@ -4,8 +4,8 @@ import asyncio
 from collections.abc import Callable
 from typing import Any
 
-from application.commands import GameUseCases
-from application.services.snapshot import ClientRole, GameConfigSnapshot
+from application.shared.snapshot import ClientRole, GameConfigSnapshot
+from application.use_cases import GameUseCases
 from domain.models.game_config import GameConfig, build_default_game_config
 from domain.repositories.game_config import GameConfigRepository
 from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork

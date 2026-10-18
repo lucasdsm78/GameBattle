@@ -4,7 +4,7 @@ import asyncio
 from types import TracebackType
 from typing import Optional, Self
 
-from application.services.unit_of_work import UnitOfWork
+from application.shared.unit_of_work import UnitOfWork
 from domain.events import DomainEvent
 from domain.models.game_config import GameConfig
 from domain.repositories.game_config import GameConfigRepository

@@ -4,13 +4,13 @@ from typing import Annotated, Optional
 
 from fastapi import Depends, Header, HTTPException, status
 
-from application.commands.blindtest import BlindtestCommandUseCase
-from application.commands.session import SessionCommandUseCase
-from application.queries.game_config import GameConfigQueryService
+from application.blindtest.blindtest_command_usecase import BlindtestCommandUseCase
+from application.game_night.game_night_command_usecase import GameNightCommandUseCase
+from application.game_night.game_night_query_usecase import GameNightQueryUseCase
 from interface.dependencies.container import (
     authorize_client,
     authorize_hardware_token,
-    game_config_query_service,
+    game_night_query_usecase,
     game_use_cases,
     realtime_dispatcher,
     websocket_hub,
@@ -23,18 +23,18 @@ HARDWARE_TOKEN_HEADER = "X-GameBattle-Hardware-Token"
 
 
 
-def session_use_case() -> SessionCommandUseCase:
-    return game_use_cases().session
+def game_night_use_case() -> GameNightCommandUseCase:
+    return game_use_cases().game_night
 
 
 def blindtest_use_case() -> BlindtestCommandUseCase:
     return game_use_cases().blindtest
 
 
-SessionUseCaseDep = Annotated[SessionCommandUseCase, Depends(session_use_case)]
+GameNightUseCaseDep = Annotated[GameNightCommandUseCase, Depends(game_night_use_case)]
 BlindtestUseCaseDep = Annotated[BlindtestCommandUseCase, Depends(blindtest_use_case)]
 DispatcherDep = Annotated[RealtimeDispatcher, Depends(realtime_dispatcher)]
-QueryServiceDep = Annotated[GameConfigQueryService, Depends(game_config_query_service)]
+GameNightQueryDep = Annotated[GameNightQueryUseCase, Depends(game_night_query_usecase)]
 WebSocketHubDep = Annotated[WebSocketHub, Depends(websocket_hub)]
 OptionalControllerToken = Annotated[Optional[str], Header(alias=CONTROLLER_TOKEN_HEADER)]
 

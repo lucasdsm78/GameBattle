@@ -4,9 +4,9 @@ import secrets
 from functools import lru_cache
 from typing import Optional
 
-from application.commands import GameUseCases
-from application.queries.game_config import GameConfigQueryService
-from application.services.playlist import BlindtestPlaylistService
+from application.blindtest.playlist_service import BlindtestPlaylistService
+from application.game_night.game_night_query_usecase import GameNightQueryUseCase
+from application.use_cases import GameUseCases
 from infrastructure.config import Settings
 from infrastructure.database.database import Database
 from infrastructure.extern.spotify import SpotifyPlaylistService
@@ -67,12 +67,12 @@ def realtime_dispatcher() -> RealtimeDispatcher:
 
 
 @lru_cache
-def game_config_query_service() -> GameConfigQueryService:
-    return GameConfigQueryService(unit_of_work())
+def game_night_query_usecase() -> GameNightQueryUseCase:
+    return GameNightQueryUseCase(unit_of_work())
 
 
 def game_deadline_worker() -> GameDeadlineWorker:
-    return GameDeadlineWorker(game_use_cases().session)
+    return GameDeadlineWorker(game_use_cases().game_night)
 
 
 def authorize_client(client_type: str, token: Optional[str]) -> bool:
@@ -101,6 +101,6 @@ def reset_dependency_caches() -> None:
         blindtest_playlist_service,
         game_use_cases,
         realtime_dispatcher,
-        game_config_query_service,
+        game_night_query_usecase,
     ):
         factory.cache_clear()

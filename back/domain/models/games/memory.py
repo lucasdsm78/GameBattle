@@ -5,7 +5,8 @@ from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 from uuid import uuid4
 
-from domain.events import ChainRecited, DomainEvent, TeamDisqualified
+from domain.events.base import DomainEvent
+from domain.events.memory import ChainRecited, TeamDisqualified
 from domain.models.games.base import GameState
 from domain.models.games.culture import HIDDEN_ANSWER
 from domain.services.catalogs.culture import pick_one_culture_question

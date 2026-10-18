@@ -5,8 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from application.commands import GameUseCases
-from application.services.snapshot import ClientRole
+from application.shared.snapshot import ClientRole
+from application.use_cases import GameUseCases
 from exceptions import (
     CommandNotAllowedError,
     InvalidCommandPayloadError,

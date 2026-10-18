@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 from pydantic import ValidationError
 
-from application.services.snapshot import ClientRole
+from application.shared.snapshot import ClientRole
 from exceptions import ApplicationError, DomainError
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.schemas.websocket import ClientMessage

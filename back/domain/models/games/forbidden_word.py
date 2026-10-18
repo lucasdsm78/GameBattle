@@ -4,7 +4,8 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
-from domain.events import DomainEvent, TurnEnded, TurnStarted, WordFound, WordSkipped
+from domain.events.base import DomainEvent
+from domain.events.forbidden_word import TurnEnded, TurnStarted, WordFound, WordSkipped
 from domain.models.games.base import GameState
 from domain.services.catalogs.forbidden_word import pick_forbidden_word_card
 from domain.services.scoring import pick_round_winner

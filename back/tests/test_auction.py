@@ -5,7 +5,7 @@ from dataclasses import replace
 
 import pytest
 
-from application.services.snapshot import ClientRole
+from application.shared.snapshot import ClientRole
 from domain.models.game_config import build_default_game_config
 from domain.models.games.auction import (
     AUCTION_DURATION_MS,
@@ -184,7 +184,7 @@ def test_due_deadline_resolves_the_attempt_once_then_is_a_no_op() -> None:
 def test_deadline_worker_expires_and_broadcasts_an_overdue_attempt() -> None:
     clock = {"now": 1_000}
     harness = GameHarness(_ready_config().launch_auction_attempt(now_ms=1_000), now_ms=lambda: clock["now"])
-    worker = GameDeadlineWorker(harness.use_cases.session)
+    worker = GameDeadlineWorker(harness.use_cases.game_night)
 
     assert asyncio.run(worker.check_once()) is False
     clock["now"] = 1_000 + AUCTION_DURATION_MS

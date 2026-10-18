@@ -5,10 +5,10 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, status
 
-from application.services.snapshot import ClientRole
+from application.shared.snapshot import ClientRole
 from interface.dependencies import (
     DispatcherDep,
-    QueryServiceDep,
+    GameNightQueryDep,
     WebSocketHubDep,
     authorize_client,
 )
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/ws", tags=["realtime"])
 async def game_config_websocket(
     websocket: WebSocket,
     hub: WebSocketHubDep,
-    query: QueryServiceDep,
+    query: GameNightQueryDep,
     dispatcher: DispatcherDep,
     client_type: Literal["controller", "display"] = Query(...),
     token: Optional[str] = Query(default=None, max_length=256),

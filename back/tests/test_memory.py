@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from application.services.snapshot import ClientRole
+from application.shared.snapshot import ClientRole
 from domain.models.game_config import build_default_game_config
 from domain.models.games.memory import MEMORY_CHAIN_LENGTH
 from domain.vo.culture_question import CultureQuestion

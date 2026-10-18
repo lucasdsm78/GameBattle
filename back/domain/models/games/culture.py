@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
-from domain.events import AnswerJudged, BuzzerPressed, DomainEvent
+from domain.events.base import DomainEvent
+from domain.events.shared import AnswerJudged, BuzzerPressed
 from domain.models.games.base import GameState
 from domain.services.catalogs.culture import pick_one_culture_question
 from domain.services.scoring import TIE_LABEL, pick_round_winner, zero_scores

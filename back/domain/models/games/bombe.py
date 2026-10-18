@@ -5,13 +5,8 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
-from domain.events import (
-    BombeArmed,
-    BombeDieRolling,
-    BombeExploded,
-    BombePassed,
-    DomainEvent,
-)
+from domain.events.base import DomainEvent
+from domain.events.bombe import BombeArmed, BombeDieRolling, BombeExploded, BombePassed
 from domain.models.games.base import GameState
 from domain.services.scoring import zero_scores
 from exceptions import InvalidGameConfigError

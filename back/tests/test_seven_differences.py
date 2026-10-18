@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from application.services.snapshot import ClientRole
+from application.shared.snapshot import ClientRole
 from domain.models.game_config import build_default_game_config
 from domain.models.games.seven_differences import SEVEN_DIFFERENCES_MEMORIZATION_MS
 from domain.services.scoring import TIE_LABEL

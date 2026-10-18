@@ -6,22 +6,23 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from application.commands import GameUseCases
-from application.commands.payloads import (
-    AnswerCommand,
-    AuctionBidCommand,
-    CultureDifficultyCommand,
-    ForbiddenWordCardCommand,
-    GameConfigUpsertModel,
+from application.auction.auction_commands import AuctionBidCommand
+from application.blindtest.blindtest_commands import (
     PlaybackControlCommand,
     PlaybackSyncCommand,
     PlaylistLoadCommand,
-    SevenDifferenceFoundCommand,
     SpotifyPlaylistImportCommand,
     SpotifyTokenCommand,
-    TeamCommand,
 )
-from application.services.snapshot import ClientRole
+from application.culture.culture_commands import CultureDifficultyCommand
+from application.forbidden_word.forbidden_word_commands import ForbiddenWordCardCommand
+from application.game_night.game_night_commands import GameConfigUpsertModel
+from application.seven_differences.seven_differences_commands import (
+    SevenDifferenceFoundCommand,
+)
+from application.shared.commands import AnswerCommand, TeamCommand
+from application.shared.snapshot import ClientRole
+from application.use_cases import GameUseCases
 
 CONTROLLER_ONLY = frozenset({ClientRole.CONTROLLER})
 CONTROLLER_AND_DISPLAY = frozenset({ClientRole.CONTROLLER, ClientRole.DISPLAY})
@@ -41,11 +42,11 @@ class Route:
 
 ROUTES: tuple[Route, ...] = (
     # Session
-    Route("game.config.replace", lambda uc, cmd: uc.session.replace_config(cmd), GameConfigUpsertModel),
-    Route("game.config.validate-and-launch", lambda uc, cmd: uc.session.validate_and_launch(cmd), GameConfigUpsertModel),
-    Route("game.config.launch", lambda uc, _: uc.session.launch_game()),
-    Route("game.next-manche", lambda uc, _: uc.session.next_manche()),
-    Route("ranking.reveal-next", lambda uc, _: uc.session.reveal_next_ranking()),
+    Route("game.config.replace", lambda uc, cmd: uc.game_night.replace_config(cmd), GameConfigUpsertModel),
+    Route("game.config.validate-and-launch", lambda uc, cmd: uc.game_night.validate_and_launch(cmd), GameConfigUpsertModel),
+    Route("game.config.launch", lambda uc, _: uc.game_night.launch_game()),
+    Route("game.next-manche", lambda uc, _: uc.game_night.next_manche()),
+    Route("ranking.reveal-next", lambda uc, _: uc.game_night.reveal_next_ranking()),
     # Blindtest
     Route("blindtest.playlist.load", lambda uc, cmd: uc.blindtest.load_playlist(cmd), PlaylistLoadCommand),
     Route("blindtest.playlist.import-spotify", lambda uc, cmd: uc.blindtest.import_spotify_playlist(cmd), SpotifyPlaylistImportCommand),

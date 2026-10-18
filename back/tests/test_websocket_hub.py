@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from application.services.snapshot import ClientRole
+from application.shared.snapshot import ClientRole
 from interface.realtime.hub import ClientChannel, WebSocketHub
 from support import GameHarness, started_config
 
