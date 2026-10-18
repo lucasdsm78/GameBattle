@@ -72,6 +72,7 @@ Chaque couche ne dépend que des couches internes (vérifié par `tests/test_arc
 ```text
 back/
 ├── domain/                  # Métier pur : aucune dépendance technique
+│   ├── events/              # Événements de domaine (MotTrouvé, BombeExplosée, MancheTerminée…)
 │   ├── models/              # Racine d'agrégat GameConfig, session, réglages, un état par jeu (games/)
 │   ├── repositories/        # Interface du dépôt (abstraite)
 │   ├── services/            # Services métier : scores, séquence des manches, catalogues de contenus
@@ -79,10 +80,10 @@ back/
 ├── application/
 │   ├── commands/            # Un use case par jeu (SessionCommandUseCase, AuctionCommandUseCase…) et schémas d'entrée
 │   ├── queries/             # Lecture de l'état courant
-│   └── services/            # Instantanés diffusés, playlists blindtest (port Spotify)
+│   └── services/            # Unit of Work (interface), instantanés diffusés, playlists blindtest (port Spotify)
 ├── infrastructure/
 │   ├── database/            # Moteur SQLAlchemy et tables
-│   ├── repositories/        # Dépôt PostgreSQL, cache mémoire, mapper de persistance
+│   ├── repositories/        # Unit of Work, dépôt PostgreSQL, cache mémoire, mapper de persistance
 │   └── extern/              # Spotify, bridge buzzers USB
 ├── interface/
 │   ├── api/                 # Routeurs HTTP et WebSocket
@@ -104,6 +105,21 @@ back/
   use case et, si elle est pilotée en WebSocket, une ligne dans `interface/realtime/routes.py`.
 - Les modèles du domaine sont des dataclasses (plus rapides et sans dépendance) ; Pydantic est réservé
   aux frontières (`application/commands/payloads.py`, `interface/schemas/`).
+
+### Événements de domaine et Unit of Work
+
+- Chaque transition produit des **événements de domaine** (`domain/events/`) : chaque jeu décrit ce
+  qui s'est passé dans `events_since`, l'agrégat y ajoute l'orchestration (début et fin de manche, fin
+  de soirée, révélation du classement). Ils s'accumulent dans `GameConfig.pending_events`, ne sont
+  jamais persistés et ne transportent aucun secret.
+- L'**Unit of Work** (`application/services/unit_of_work.py`, implémentée dans
+  `infrastructure/repositories/unit_of_work.py`) encadre chaque commande : transaction exclusive,
+  `add()` puis `commit()` qui persiste l'agrégat et remet ses événements ; sans `commit()` (ou sur
+  exception), rien n'est écrit.
+- Les événements ne sont publiés qu'après une écriture réussie, avec le nouvel état :
+  `{"type": "game.config.updated", "payload": {...}, "events": [{"type": "forbidden_word.word_found", "team": "Rouges", "word": "Paris"}]}`.
+  Un client lent peut sauter des états intermédiaires, mais jamais d'événement : idéal pour déclencher
+  animations et sons sur l'écran public.
 
 ### Sécurité
 

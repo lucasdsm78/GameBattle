@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
+from domain.events import AnswerJudged, BuzzerPressed, DomainEvent
 from domain.models.games.base import GameState
 from domain.services.catalogs.culture import pick_one_culture_question
 from domain.services.scoring import TIE_LABEL, pick_round_winner, zero_scores
@@ -126,3 +127,15 @@ class CultureState(GameState):
             )
         winner = pick_round_winner(list(self.scores), self.scores)
         return replace(self, phase="finished", current_buzzer_team=None, winner_team=winner)
+
+    def events_since(self, previous: CultureState, teams: list[str]) -> list[DomainEvent]:
+        if previous.phase != "question" or self.phase != "question":
+            return []
+        if self.current_buzzer_team and self.current_buzzer_team != previous.current_buzzer_team:
+            return [BuzzerPressed("culture", self.current_buzzer_team)]
+        if previous.current_buzzer_team and not previous.answered:
+            if self.answered:
+                return [AnswerJudged("culture", previous.current_buzzer_team, correct=True)]
+            if self.current_buzzer_team is None:
+                return [AnswerJudged("culture", previous.current_buzzer_team, correct=False)]
+        return []

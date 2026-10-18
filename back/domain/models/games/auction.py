@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
+from domain.events import AuctionResolved, BidAccepted, BuzzerPressed, DomainEvent
 from domain.models.games.base import GameState
 from domain.services.catalogs.auction import pick_auction_theme
 from domain.services.scoring import TIE_LABEL, zero_scores
@@ -163,3 +164,12 @@ class AuctionState(GameState):
             points_awarded=points,
             winner_team=winner,
         )
+
+    def events_since(self, previous: AuctionState, teams: list[str]) -> list[DomainEvent]:
+        if previous.phase == self.phase == "bidding" and len(self.bidding_teams) > len(previous.bidding_teams):
+            return [BuzzerPressed("auction", self.bidding_teams[-1])]
+        if previous.phase == "bidding" and self.phase == "ready" and self.active_team:
+            return [BidAccepted(self.active_team, target_count=self.target_count)]
+        if previous.phase == "running" and self.phase in {"resolved", "finished"} and self.active_team:
+            return [AuctionResolved(self.active_team, target_count=self.target_count, succeeded=bool(self.attempt_succeeded))]
+        return []

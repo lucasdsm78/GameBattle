@@ -5,6 +5,13 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
+from domain.events import (
+    BombeArmed,
+    BombeDieRolling,
+    BombeExploded,
+    BombePassed,
+    DomainEvent,
+)
 from domain.models.games.base import GameState
 from domain.services.scoring import zero_scores
 from exceptions import InvalidGameConfigError
@@ -195,3 +202,14 @@ class BombeState(GameState):
             scores=scores,
             eligible_team_indices=contenders,
         )
+
+    def events_since(self, previous: BombeState, teams: list[str]) -> list[DomainEvent]:
+        if previous.phase == "awaiting_roll" and self.phase == "rolling":
+            return [BombeDieRolling(teams[self.roller_team_index or 0])]
+        if previous.phase == "rolling" and self.phase == "running":
+            return [BombeArmed(teams[self.current_team_index], die_result=self.die_result)]
+        if previous.phase == "running" and self.phase == "exploded" and self.exploded_team:
+            return [BombeExploded(self.exploded_team)]
+        if previous.phase == self.phase == "running" and previous.current_team_index != self.current_team_index:
+            return [BombePassed(from_team=teams[previous.current_team_index], to_team=teams[self.current_team_index])]
+        return []

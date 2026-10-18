@@ -14,6 +14,7 @@ from infrastructure.repositories.cached_game_config import CachedGameConfigRepos
 from infrastructure.repositories.postgresql_game_config import (
     PostgreSQLGameConfigRepository,
 )
+from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
 from interface.realtime.deadline_worker import GameDeadlineWorker
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.hub import WebSocketHub
@@ -36,6 +37,11 @@ def game_config_repository() -> CachedGameConfigRepository:
 
 
 @lru_cache
+def unit_of_work() -> GameConfigUnitOfWork:
+    return GameConfigUnitOfWork(game_config_repository())
+
+
+@lru_cache
 def websocket_hub() -> WebSocketHub:
     return WebSocketHub()
 
@@ -52,7 +58,7 @@ def blindtest_playlist_service() -> BlindtestPlaylistService:
 
 @lru_cache
 def game_use_cases() -> GameUseCases:
-    return GameUseCases.build(game_config_repository(), websocket_hub(), blindtest_playlist_service())
+    return GameUseCases.build(unit_of_work(), websocket_hub(), blindtest_playlist_service())
 
 
 @lru_cache
@@ -62,7 +68,7 @@ def realtime_dispatcher() -> RealtimeDispatcher:
 
 @lru_cache
 def game_config_query_service() -> GameConfigQueryService:
-    return GameConfigQueryService(game_config_repository())
+    return GameConfigQueryService(unit_of_work())
 
 
 def game_deadline_worker() -> GameDeadlineWorker:
@@ -89,6 +95,7 @@ def reset_dependency_caches() -> None:
         get_settings,
         database,
         game_config_repository,
+        unit_of_work,
         websocket_hub,
         spotify_playlist_service,
         blindtest_playlist_service,

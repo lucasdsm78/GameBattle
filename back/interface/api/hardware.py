@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends
 
 from application.commands.payloads import TeamCommand
 from interface.api.game_config import controller_view
-from interface.dependencies import QueryServiceDep, SessionUseCaseDep, require_hardware_token
+from interface.dependencies import (
+    QueryServiceDep,
+    SessionUseCaseDep,
+    require_hardware_token,
+)
 from interface.schemas.game_config import GameConfigResponse
 
 router = APIRouter(prefix="/api/hardware", tags=["hardware"], dependencies=[Depends(require_hardware_token)])

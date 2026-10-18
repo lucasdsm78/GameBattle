@@ -300,6 +300,7 @@ def test_websocket_broadcast_from_controller_to_display() -> None:
         with client.websocket_connect("/ws/game-config?client_type=display&token=display-test-token") as display_ws:
             first = display_ws.receive_json()
             assert first["type"] == "game.config.snapshot"
+            assert first["events"] == []
 
             with client.websocket_connect("/ws/game-config?client_type=controller&token=controller-test-token") as controller_ws:
                 snapshot = controller_ws.receive_json()
@@ -340,8 +341,10 @@ def test_websocket_blindtest_flow() -> None:
 
                 controller_ws.send_json({"type": "blindtest.buzzer", "payload": {"team": "Bleus"}})
                 buzzer_display = display_ws.receive_json()
-                controller_ws.receive_json()
+                buzzer_controller = controller_ws.receive_json()
                 assert buzzer_display["payload"]["session"]["blindtest"]["current_buzzer_team"] == "Bleus"
+                expected_events = [{"type": "buzzer.pressed", "game_key": "blindtest", "team": "Bleus"}]
+                assert buzzer_display["events"] == buzzer_controller["events"] == expected_events
 
 
 def test_websocket_spotify_import_broadcast() -> None:

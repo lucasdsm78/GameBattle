@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
+from domain.events import AnswerJudged, BuzzerPressed, DifferenceFound, DomainEvent
 from domain.models.games.base import GameState
 from domain.services.catalogs.seven_differences import pick_seven_differences_puzzle
 from domain.services.scoring import TIE_LABEL, pick_round_winner, zero_scores
@@ -168,3 +169,12 @@ class SevenDifferencesState(GameState):
         if self.phase != "claimed" or not self.current_buzzer_team:
             raise InvalidGameConfigError("Aucune réponse ne peut être refusée actuellement.")
         return replace(self, phase="open", blocked_team=self.current_buzzer_team, current_buzzer_team=None)
+
+    def events_since(self, previous: SevenDifferencesState, teams: list[str]) -> list[DomainEvent]:
+        if len(self.found_difference_ids) > len(previous.found_difference_ids) and previous.current_buzzer_team:
+            return [DifferenceFound(previous.current_buzzer_team, remaining=DIFFERENCE_COUNT - len(self.found_difference_ids))]
+        if previous.phase == "claimed" and self.phase == "open" and previous.current_buzzer_team:
+            return [AnswerJudged("seven_differences", previous.current_buzzer_team, correct=False)]
+        if self.phase == "claimed" and self.current_buzzer_team and self.current_buzzer_team != previous.current_buzzer_team:
+            return [BuzzerPressed("seven_differences", self.current_buzzer_team)]
+        return []

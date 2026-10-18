@@ -4,6 +4,7 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
+from domain.events import DomainEvent, TurnEnded, TurnStarted, WordFound, WordSkipped
 from domain.models.games.base import GameState
 from domain.services.catalogs.forbidden_word import pick_forbidden_word_card
 from domain.services.scoring import pick_round_winner
@@ -142,3 +143,18 @@ class ForbiddenWordState(GameState):
         if len(self.turns) < len(self.turn_order):
             return replace(ended, phase="ready")
         return replace(ended, phase="finished", winner_team=pick_round_winner(teams, self.scores(teams)))
+
+    def events_since(self, previous: ForbiddenWordState, teams: list[str]) -> list[DomainEvent]:
+        if previous.phase == "ready" and self.phase == "running":
+            return [TurnStarted(self.turns[-1].team)]
+        if previous.phase != "running":
+            return []
+        before, after = previous.turns[-1], self.turns[-1]
+        events: list[DomainEvent] = []
+        if len(after.found_words) > len(before.found_words):
+            events.append(WordFound(after.team, after.found_words[-1]))
+        if len(after.skipped_words) > len(before.skipped_words):
+            events.append(WordSkipped(after.team, after.skipped_words[-1]))
+        if self.phase != "running":
+            events.append(TurnEnded(before.team, found_count=len(before.found_words)))
+        return events
