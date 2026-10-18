@@ -1,235 +1,79 @@
 from __future__ import annotations
 
-from domain.game_config.model.game_config import (
-    ActiveRound,
-    AuctionState,
-    BlindtestState,
-    BlindtestTrack,
-    BombeState,
-    CultureQuestion,
-    CultureState,
-    ForbiddenWordCard,
-    ForbiddenWordState,
-    ForbiddenWordTurn,
-    GameConfig,
-    GameDefinition,
-    GameRoundPlan,
-    GameSession,
-    GameSettings,
-    MemoryState,
-    MEMORY_RULES_VERSION,
-    SevenDifference,
-    SevenDifferencesState,
-    StopChronoState,
-)
+from dataclasses import fields, is_dataclass
+from functools import cache
+from types import NoneType, UnionType
+from typing import Any, Union, get_args, get_origin, get_type_hints
+
+from domain.game_config.model.game_config import GameConfig
+from domain.game_config.model.games.memory import MEMORY_RULES_VERSION
 
 
-def _memory_state_from_payload(payload: dict, teams: list[str]) -> MemoryState:
-    if payload.get("rules_version") != MEMORY_RULES_VERSION:
-        winner = payload.get("winner_team")
-        if payload.get("phase") == "finished" and winner in teams:
-            winner_index = teams.index(winner)
-            return MemoryState(
-                phase="finished",
-                current_team_index=winner_index,
-                qualified_team_indices=[winner_index],
-                disqualified_teams=[team for team in teams if team != winner],
-                winner_team=winner,
-            )
-        return MemoryState()
-
-    question_payload = payload.get("current_question")
-    return MemoryState(
-        phase=payload.get("phase", "idle"),
-        current_team_index=payload.get("current_team_index", 0),
-        qualified_team_indices=list(payload.get("qualified_team_indices", []) or []),
-        disqualified_teams=list(payload.get("disqualified_teams", []) or []),
-        current_question=(CultureQuestion(**question_payload) if question_payload else None),
-        validated_answers=list(payload.get("validated_answers", []) or []),
-        asked_questions=list(payload.get("asked_questions", []) or []),
-        turn_number=payload.get("turn_number", 0),
-        winner_team=payload.get("winner_team"),
-        rules_version=MEMORY_RULES_VERSION,
-    )
-
-
-def _forbidden_word_state_from_payload(payload: dict) -> ForbiddenWordState:
-    card_payload = payload.get("current_card")
-    return ForbiddenWordState(
-        phase=payload.get("phase", "idle"),
-        turn_order=list(payload.get("turn_order", []) or []),
-        turns=[
-            ForbiddenWordTurn(
-                team=turn["team"],
-                found_words=list(turn.get("found_words", []) or []),
-                skipped_words=list(turn.get("skipped_words", []) or []),
-            )
-            for turn in payload.get("turns", []) or []
-        ],
-        current_card=(
-            ForbiddenWordCard(
-                id=card_payload["id"],
-                word=card_payload["word"],
-                forbidden_words=list(card_payload.get("forbidden_words", []) or []),
-            )
-            if card_payload
-            else None
-        ),
-        started_at_ms=payload.get("started_at_ms", 0),
-        deadline_at_ms=payload.get("deadline_at_ms", 0),
-        used_card_ids=list(payload.get("used_card_ids", []) or []),
-        winner_team=payload.get("winner_team"),
-    )
-
-
-def game_config_from_payload(payload: dict) -> GameConfig:
-    teams_payload = list(payload["settings"].get("teams", []))
-    session_payload = payload.get("session", {})
-    blindtest_payload = session_payload.get("blindtest", {})
-    stopchrono_payload = session_payload.get("stopchrono", {})
-    culture_payload = session_payload.get("culture", {})
-    bombe_payload = session_payload.get("bombe", {})
-    memory_payload = session_payload.get("memory", {})
-    seven_differences_payload = session_payload.get("seven_differences", {})
-    auction_payload = session_payload.get("auction", {})
-    active_round_payload = session_payload.get("active_round")
-
-    config = GameConfig(
-        settings=GameSettings(
-            game_title=payload["settings"].get("game_title", "GameBattle Night"),
-            random_round_order=payload["settings"].get("random_round_order", True),
-            teams=teams_payload,
-            buzzer_keys=payload["settings"].get("buzzer_keys", []),
-            total_rounds=payload["settings"].get("total_rounds", 1),
-            culture_difficulty=payload["settings"].get("culture_difficulty", "toutes"),
-        ),
-        games=[GameDefinition(**game_payload) for game_payload in payload.get("games", [])],
-        rounds=[GameRoundPlan(**round_payload) for round_payload in payload.get("rounds", [])],
-        session=GameSession(
-            active_round=ActiveRound(**active_round_payload) if active_round_payload else None,
-            blindtest=BlindtestState(
-                round_id=blindtest_payload.get("round_id", ""),
-                total_tracks=blindtest_payload.get("total_tracks", 0),
-                current_track_index=blindtest_payload.get("current_track_index", 0),
-                current_track=(
-                    BlindtestTrack(**blindtest_payload["current_track"])
-                    if blindtest_payload.get("current_track")
-                    else None
-                ),
-                current_buzzer_team=blindtest_payload.get("current_buzzer_team"),
-                revealed=blindtest_payload.get("revealed", False),
-                playback_state=blindtest_payload.get("playback_state", "stopped"),
-                scores=blindtest_payload.get("scores", {}) or {},
-                winner_team=blindtest_payload.get("winner_team"),
-                tracks=[BlindtestTrack(**track_payload) for track_payload in blindtest_payload.get("tracks", [])],
-                playlist_name=blindtest_payload.get("playlist_name", ""),
-                playlist_source_url=blindtest_payload.get("playlist_source_url", ""),
-                playlist_provider=blindtest_payload.get("playlist_provider", ""),
-                playback_position_ms=blindtest_payload.get("playback_position_ms", 0),
-                playback_duration_ms=blindtest_payload.get("playback_duration_ms", 0),
-                playback_updated_at=blindtest_payload.get("playback_updated_at", payload.get("updated_at", "")),
-            ),
-            stopchrono=StopChronoState(
-                target_ms=stopchrono_payload.get("target_ms", 0),
-                phase=stopchrono_payload.get("phase", "idle"),
-                current_team_index=stopchrono_payload.get("current_team_index", 0),
-                started_at_ms=stopchrono_payload.get("started_at_ms", 0),
-                results=stopchrono_payload.get("results", {}) or {},
-                scores=stopchrono_payload.get("scores", {}) or {},
-                winner_team=stopchrono_payload.get("winner_team"),
-            ),
-            culture=CultureState(
-                phase=culture_payload.get("phase", "idle"),
-                current_index=culture_payload.get("current_index", 0),
-                total_questions=culture_payload.get("total_questions", 0),
-                difficulty=culture_payload.get("difficulty", "toutes"),
-                current_question=(
-                    CultureQuestion(
-                        id=culture_payload["current_question"].get("id", ""),
-                        question=culture_payload["current_question"].get("question", ""),
-                        answer=culture_payload["current_question"].get("answer", ""),
-                        explanation=culture_payload["current_question"].get("explanation", ""),
-                        difficulty=culture_payload["current_question"].get("difficulty", "toutes"),
-                    )
-                    if culture_payload.get("current_question")
-                    else None
-                ),
-                asked_questions=list(culture_payload.get("asked_questions", []) or []),
-                current_buzzer_team=culture_payload.get("current_buzzer_team"),
-                answered=culture_payload.get("answered", False),
-                scores=culture_payload.get("scores", {}) or {},
-                winner_team=culture_payload.get("winner_team"),
-            ),
-            bombe=BombeState(
-                phase=bombe_payload.get("phase", "idle"),
-                letter=bombe_payload.get("letter", ""),
-                current_team_index=bombe_payload.get("current_team_index", 0),
-                turn_history=list(bombe_payload.get("turn_history", []) or []),
-                started_at_ms=bombe_payload.get("started_at_ms", 0),
-                deadline_at_ms=bombe_payload.get("deadline_at_ms", 0),
-                exploded_team=bombe_payload.get("exploded_team"),
-                winner_team=bombe_payload.get("winner_team"),
-                scores=bombe_payload.get("scores", {}) or {team: 0 for team in teams_payload},
-                eligible_team_indices=list(
-                    bombe_payload.get("eligible_team_indices", [])
-                    or (
-                        range(len(teams_payload))
-                        if bombe_payload.get("phase") in {"awaiting_roll", "rolling", "running"}
-                        else []
-                    )
-                ),
-                tiebreak_round=bombe_payload.get("tiebreak_round", 0),
-                sound=bombe_payload.get("sound", ""),
-                die_result=bombe_payload.get("die_result", ""),
-                roller_team_index=bombe_payload.get("roller_team_index"),
-                die_reveal_at_ms=bombe_payload.get("die_reveal_at_ms", 0),
-            ),
-            memory=_memory_state_from_payload(memory_payload, teams_payload),
-            seven_differences=SevenDifferencesState(
-                phase=seven_differences_payload.get("phase", "idle"),
-                puzzle_id=seven_differences_payload.get("puzzle_id", ""),
-                title=seven_differences_payload.get("title", ""),
-                original_image_url=seven_differences_payload.get("original_image_url", ""),
-                modified_image_url=seven_differences_payload.get("modified_image_url", ""),
-                differences=[SevenDifference(**item) for item in seven_differences_payload.get("differences", [])],
-                found_difference_ids=list(seven_differences_payload.get("found_difference_ids", []) or []),
-                reveal_at_ms=seven_differences_payload.get("reveal_at_ms", 0),
-                current_buzzer_team=seven_differences_payload.get("current_buzzer_team"),
-                blocked_team=seven_differences_payload.get("blocked_team"),
-                scores=seven_differences_payload.get("scores", {}) or {},
-                winner_team=seven_differences_payload.get("winner_team"),
-            ),
-            auction=AuctionState(
-                phase=auction_payload.get("phase", "idle"),
-                theme_id=auction_payload.get("theme_id", ""),
-                prompt=auction_payload.get("prompt", ""),
-                answers=list(auction_payload.get("answers", []) or []),
-                bidding_teams=list(auction_payload.get("bidding_teams", []) or []),
-                active_team=auction_payload.get("active_team"),
-                target_count=auction_payload.get("target_count", 0),
-                correct_count=auction_payload.get("correct_count", 0),
-                started_at_ms=auction_payload.get("started_at_ms", 0),
-                deadline_at_ms=auction_payload.get("deadline_at_ms", 0),
-                scores=auction_payload.get("scores", {}) or {},
-                attempt_succeeded=auction_payload.get("attempt_succeeded"),
-                points_awarded=auction_payload.get("points_awarded", {}) or {},
-                asked_theme_ids=list(auction_payload.get("asked_theme_ids", []) or []),
-                winner_team=auction_payload.get("winner_team"),
-            ),
-            forbidden_word=_forbidden_word_state_from_payload(session_payload.get("forbidden_word", {})),
-            round_sequence=list(session_payload.get("round_sequence", []) or []),
-            round_index=session_payload.get("round_index", 0),
-            total_rounds=session_payload.get("total_rounds", 0),
-            manches_won=session_payload.get("manches_won", {}) or {},
-            manche_finished=session_payload.get("manche_finished", False),
-            manche_winner=session_payload.get("manche_winner"),
-            final_ranking=list(session_payload.get("final_ranking", []) or []),
-            ranking_reveal_count=session_payload.get("ranking_reveal_count", 0),
-            last_bombe_roller_index=session_payload.get("last_bombe_roller_index"),
-            updated_at=session_payload.get("updated_at", payload.get("updated_at", "")),
-        ),
-        status=payload.get("status", "configuring"),
-        updated_at=payload.get("updated_at", ""),
-    )
+def game_config_from_payload(payload: dict[str, Any]) -> GameConfig:
+    config = _decode(GameConfig, _upgrade_legacy_payload(payload))
     config.validate()
     return config
+
+
+@cache
+def _init_fields(cls: type) -> tuple[tuple[str, Any], ...]:
+    hints = get_type_hints(cls)
+    return tuple((field.name, hints[field.name]) for field in fields(cls) if field.init)
+
+
+def _decode(annotation: Any, value: Any) -> Any:
+    """Reconstruit récursivement une dataclass ; les clés calculées ou inconnues sont ignorées."""
+    origin = get_origin(annotation)
+    if origin is list:
+        (item_type,) = get_args(annotation)
+        return [_decode(item_type, item) for item in value or ()]
+    if origin is dict:
+        return dict(value or {})
+    if value is None:
+        return None
+    if origin in (Union, UnionType):
+        (inner,) = (arg for arg in get_args(annotation) if arg is not NoneType)
+        return _decode(inner, value)
+    if is_dataclass(annotation):
+        return annotation(**{name: _decode(field_type, value[name]) for name, field_type in _init_fields(annotation) if name in value})
+    return value
+
+
+def _upgrade_legacy_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    session = dict(payload.get("session") or {})
+    teams = list(payload["settings"].get("teams", []))
+    if "bombe" in session:
+        session["bombe"] = _upgrade_bombe(session["bombe"], teams)
+    if "memory" in session:
+        session["memory"] = _upgrade_memory(session["memory"], teams)
+    return {**payload, "session": session}
+
+
+def _upgrade_bombe(bombe: dict[str, Any], teams: list[str]) -> dict[str, Any]:
+    """Les anciennes parties en cours n'enregistraient ni pénalités ni équipes en lice."""
+    phase = bombe.get("phase", "idle")
+    if phase == "idle":
+        return bombe
+    upgraded = dict(bombe)
+    if not bombe.get("scores"):
+        upgraded["scores"] = {team: 0 for team in teams}
+    if not bombe.get("eligible_team_indices") and phase in {"awaiting_roll", "rolling", "running"}:
+        upgraded["eligible_team_indices"] = list(range(len(teams)))
+    return upgraded
+
+
+def _upgrade_memory(memory: dict[str, Any], teams: list[str]) -> dict[str, Any]:
+    """Les règles v1 ne sont pas rejouables : on ne conserve qu'un éventuel vainqueur."""
+    if memory.get("rules_version") == MEMORY_RULES_VERSION:
+        return memory
+    winner = memory.get("winner_team")
+    if memory.get("phase") == "finished" and winner in teams:
+        winner_index = teams.index(winner)
+        return {
+            "phase": "finished",
+            "current_team_index": winner_index,
+            "qualified_team_indices": [winner_index],
+            "disqualified_teams": [team for team in teams if team != winner],
+            "winner_team": winner,
+        }
+    return {}

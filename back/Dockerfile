@@ -7,10 +7,12 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && useradd --system --no-create-home --uid 10001 gamebattle
 
-COPY . .
+COPY --chown=gamebattle:gamebattle . .
 
+USER gamebattle
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--ws-max-size", "65536", "--no-server-header"]

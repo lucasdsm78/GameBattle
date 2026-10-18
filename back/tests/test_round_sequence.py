@@ -5,7 +5,8 @@ from collections import Counter
 import pytest
 
 from domain.game_config.exception.game_config_exception import InvalidGameConfigError
-from domain.game_config.model.game_config import build_default_game_config, build_round_sequence
+from domain.game_config.model.game_config import build_default_game_config
+from domain.game_config.model.session import build_round_sequence
 
 
 def test_random_round_sequence_is_balanced_and_has_expected_length() -> None:
@@ -30,16 +31,11 @@ def test_manual_round_sequence_uses_predictable_round_robin_order() -> None:
     assert sequence == ["blindtest", "stopchrono", "blindtest", "stopchrono", "blindtest"]
 
 
-def test_read_model_does_not_expose_round_sequence() -> None:
+def test_client_views_never_expose_round_sequence() -> None:
     config = build_default_game_config().start_session()
-    payload = config.to_dict()
 
-    assert payload["session"]["round_sequence"]
-
-    from application.game_config.game_config_models import GameConfigReadModel
-
-    read_model_payload = GameConfigReadModel.from_domain(config).model_dump()
-    assert "round_sequence" not in read_model_payload["session"]
+    assert config.to_dict()["session"]["round_sequence"]
+    assert all("round_sequence" not in view["session"] for view in config.client_views())
 
 
 def test_culture_next_question_requires_correct_answer() -> None:

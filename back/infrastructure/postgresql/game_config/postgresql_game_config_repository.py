@@ -1,66 +1,58 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import hashlib
 import json
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from domain.game_config.model.game_config import GameConfig, build_default_game_config
 from domain.game_config.repository.game_config_repository import GameConfigRepository
 from infrastructure.game_config_payload_mapper import game_config_from_payload
-from infrastructure.postgresql.database import session_scope
+from infrastructure.postgresql.database import Database
 from infrastructure.postgresql.models import GameConfigStateModel
+
+AGGREGATE_KEY = "current"
+
+
+def _checksum(payload: dict[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def _new_row(payload: dict[str, Any], source: str) -> GameConfigStateModel:
+    return GameConfigStateModel(aggregate_key=AGGREGATE_KEY, payload=payload, checksum=_checksum(payload), source=source)
 
 
 class PostgreSQLGameConfigRepository(GameConfigRepository):
+    def __init__(self, database: Database) -> None:
+        self._database = database
+
     async def get_current(self) -> GameConfig:
-        async with session_scope() as session:
-            result = await session.execute(
-                select(GameConfigStateModel).where(GameConfigStateModel.aggregate_key == "current")
+        async with self._database.session() as session:
+            payload = await session.scalar(
+                select(GameConfigStateModel.payload).where(GameConfigStateModel.aggregate_key == AGGREGATE_KEY)
             )
-            row = result.scalar_one_or_none()
-            if row is None:
-                default_config = build_default_game_config()
-                payload = default_config.to_dict()
-                session.add(
-                    GameConfigStateModel(
-                        aggregate_key="current",
-                        payload=payload,
-                        checksum=self._checksum(payload),
-                        source="bootstrap",
-                    )
-                )
-                await session.flush()
-                return default_config
-            return self._to_domain(row.payload)
+            if payload is not None:
+                return game_config_from_payload(payload)
+            default_config = build_default_game_config()
+            session.add(_new_row(default_config.to_dict(), source="bootstrap"))
+            return default_config
 
     async def save(self, game_config: GameConfig) -> GameConfig:
         payload = game_config.to_dict()
-        async with session_scope() as session:
+        async with self._database.session() as session:
             result = await session.execute(
-                select(GameConfigStateModel).where(GameConfigStateModel.aggregate_key == "current")
-            )
-            row = result.scalar_one_or_none()
-            if row is None:
-                row = GameConfigStateModel(
-                    aggregate_key="current",
+                update(GameConfigStateModel)
+                .where(GameConfigStateModel.aggregate_key == AGGREGATE_KEY)
+                .values(
                     payload=payload,
-                    checksum=self._checksum(payload),
+                    checksum=_checksum(payload),
+                    revision=GameConfigStateModel.revision + 1,
                     source="api",
+                    updated_at=datetime.now(timezone.utc),
                 )
-                session.add(row)
-            else:
-                row.payload = payload
-                row.revision += 1
-                row.checksum = self._checksum(payload)
-                row.source = "api"
-            await session.flush()
+            )
+            if result.rowcount == 0:
+                session.add(_new_row(payload, source="api"))
         return game_config
-
-    def _checksum(self, payload: dict) -> str:
-        return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
-
-    def _to_domain(self, payload: dict) -> GameConfig:
-        return game_config_from_payload(payload)
-
-

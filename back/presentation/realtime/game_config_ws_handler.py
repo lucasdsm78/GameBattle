@@ -1,237 +1,66 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+import time
+from typing import Any, Optional
 
-from application.game_config.command import GameConfigCommandUseCase
-from application.game_config.game_config_models import (
-    AuctionBidCommandModel,
-    BlindtestAnswerCommandModel,
-    BlindtestBuzzerCommandModel,
-    BlindtestPlaybackCommandModel,
-    BlindtestPlaybackSyncCommandModel,
-    BlindtestPlaylistCommandModel,
-    BombeBuzzerCommandModel,
-    CultureDifficultyCommandModel,
-    ForbiddenWordCardCommandModel,
-    GameConfigEnvelope,
-    GameConfigReadModel,
-    GameConfigUpsertModel,
-    SpotifyPlaylistImportCommandModel,
-    SevenDifferenceFoundCommandModel,
-)
-from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from application.game_config.command_bus import GameCommandBus
+from application.game_config.errors import ApplicationError
+from application.game_config.snapshot import ClientRole
+from domain.game_config.exception.game_config_exception import GameConfigError
 
 logger = logging.getLogger(__name__)
 
-DISPLAY_ALLOWED_EVENTS = {
-    "blindtest.buzzer",
-    "stopchrono.start",
-    "stopchrono.stop",
-    "culture.buzzer",
-    "bombe.buzzer",
-    "bombe.begin-after-roll",
-    "bombe.explode",
-    "seven-differences.open",
-    "seven-differences.buzzer",
-    "auction.buzzer",
-}
+MAX_MESSAGE_CHARS = 64 * 1024
 
 
-def build_client_envelope(event_type: str, payload: GameConfigReadModel, client_type: str) -> dict[str, Any]:
-    """Construit l'enveloppe adaptée au client.
+class ClientMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True)
 
-    Le contrôleur reçoit l'état complet. L'écran public reçoit un état redigé pour éviter de
-    spoiler la réponse blindtest avant révélation.
-    """
-    envelope = GameConfigEnvelope(type=event_type, payload=payload).model_dump()
-    session = envelope.get("payload", {}).get("session")
-    if not isinstance(session, dict):
-        return envelope
-
-    session.pop("round_sequence", None)
-
-    bombe = session.get("bombe")
-    if isinstance(bombe, dict) and bombe.get("phase") == "rolling":
-        bombe["die_result"] = ""
-
-    memory = session.get("memory")
-    if client_type == "display" and isinstance(memory, dict):
-        memory["validated_answers"] = []
-        current_question = memory.get("current_question")
-        if isinstance(current_question, dict):
-            current_question["answer"] = "Réponse masquée"
-            current_question["explanation"] = ""
-
-    culture = session.get("culture")
-    if isinstance(culture, dict):
-        culture.pop("questions", None)
-        current_question = culture.get("current_question")
-        if client_type == "display" and isinstance(current_question, dict):
-            if not culture.get("answered"):
-                current_question["answer"] = "Réponse masquée"
-            current_question["explanation"] = ""
-
-    blindtest = session.get("blindtest")
-    if client_type == "display" and isinstance(blindtest, dict):
-        current_track = blindtest.get("current_track")
-        if not blindtest.get("revealed") and isinstance(current_track, dict):
-            blindtest["current_track"] = {
-                **current_track,
-                "title": "Titre masqué",
-                "artist": "Artiste masqué",
-                "preview_url": "",
-                "artwork_url": "",
-            }
-        blindtest["tracks"] = []
-
-    seven_differences = session.get("seven_differences")
-    if client_type == "display" and isinstance(seven_differences, dict):
-        seven_differences["differences"] = []
-        if seven_differences.get("phase") in {"idle", "memorizing"}:
-            seven_differences["modified_image_url"] = ""
-
-    auction = session.get("auction")
-    if isinstance(auction, dict):
-        auction.pop("asked_theme_ids", None)
-        if client_type == "display":
-            auction["answers"] = []
-
-    forbidden_word = session.get("forbidden_word")
-    if isinstance(forbidden_word, dict):
-        forbidden_word.pop("used_card_ids", None)
-        # Le mot et ses mots interdits ne quittent jamais la régie : l'équipe qui devine regarde l'écran.
-        if client_type == "display":
-            forbidden_word["current_card"] = None
-
-    return envelope
+    type: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9.-]+$")
+    payload: Optional[dict[str, Any]] = None
 
 
-def build_broadcast_envelopes(event_type: str, payload: GameConfigReadModel) -> dict[str, dict[str, Any]]:
-    return {
-        "controller": build_client_envelope(event_type, payload, "controller"),
-        "display": build_client_envelope(event_type, payload, "display"),
-    }
+class RateLimiter:
+    """Seau à jetons par connexion : absorbe les rafales (boutons volume) sans laisser un client inonder le serveur."""
+
+    def __init__(self, rate_per_second: float = 20.0, burst: int = 40) -> None:
+        self._rate = rate_per_second
+        self._capacity = float(burst)
+        self._tokens = float(burst)
+        self._updated_at = time.monotonic()
+
+    def allow(self) -> bool:
+        now = time.monotonic()
+        self._tokens = min(self._capacity, self._tokens + (now - self._updated_at) * self._rate)
+        self._updated_at = now
+        if self._tokens < 1:
+            return False
+        self._tokens -= 1
+        return True
 
 
-async def dispatch_game_config_event(
-    *,
-    client_type: str,
-    event_type: str,
-    payload: dict[str, Any],
-    command_usecase: GameConfigCommandUseCase,
-) -> GameConfigReadModel | dict[str, str] | None:
-    """Applique un évènement WebSocket et retourne un snapshot, une réponse courte, ou None.
+def error_reply(detail: str) -> dict[str, str]:
+    return {"type": "error", "detail": detail}
 
-    - `None` : aucune diffusion/réponse attendue.
-    - `dict` : réponse directe au client appelant (`pong`, `error`, etc.).
-    - `GameConfigReadModel` : état mis à jour à broadcaster.
-    """
-    if event_type == "ping":
-        return {"type": "pong"}
 
-    if event_type == "spotify.user-token":
-        token = str(payload.get("access_token", ""))
-        await command_usecase.set_spotify_user_token(token)
-        return None
-
-    if client_type != "controller" and event_type not in DISPLAY_ALLOWED_EVENTS:
-        return {"type": "error", "detail": "Le client display est en lecture seule."}
-
+async def handle_client_message(raw: str, role: ClientRole, bus: GameCommandBus) -> Optional[dict[str, Any]]:
+    """Traite un message entrant. Renvoie la réponse directe à l'émetteur, ou `None` (l'état est diffusé par le bus)."""
+    if len(raw) > MAX_MESSAGE_CHARS:
+        return error_reply("Message trop volumineux.")
     try:
-        if event_type == "game.config.replace":
-            return await command_usecase.replace_config(GameConfigUpsertModel(**payload))
-        if event_type == "game.config.validate-and-launch":
-            return await command_usecase.validate_and_launch(GameConfigUpsertModel(**payload))
-        if event_type == "game.config.launch":
-            return await command_usecase.launch_game()
-        if event_type == "blindtest.playlist.load":
-            return await command_usecase.load_blindtest_playlist(BlindtestPlaylistCommandModel(**payload))
-        if event_type == "blindtest.playlist.import-spotify":
-            return await command_usecase.import_blindtest_playlist_from_spotify(SpotifyPlaylistImportCommandModel(**payload))
-        if event_type == "blindtest.playlist.reload":
-            return await command_usecase.reload_default_playlist()
-        if event_type == "blindtest.buzzer":
-            return await command_usecase.register_blindtest_buzzer(BlindtestBuzzerCommandModel(**payload))
-        if event_type == "blindtest.answer":
-            return await command_usecase.answer_blindtest(BlindtestAnswerCommandModel(**payload))
-        if event_type == "blindtest.playback.control":
-            return await command_usecase.control_blindtest_playback(BlindtestPlaybackCommandModel(**payload))
-        if event_type == "blindtest.playback.sync":
-            return await command_usecase.sync_blindtest_playback(BlindtestPlaybackSyncCommandModel(**payload))
-        if event_type == "blindtest.next-track":
-            return await command_usecase.next_blindtest_track()
-        if event_type == "stopchrono.start":
-            return await command_usecase.start_stopchrono()
-        if event_type == "stopchrono.stop":
-            return await command_usecase.stop_stopchrono()
-        if event_type == "stopchrono.next-team":
-            return await command_usecase.next_stopchrono_team()
-        if event_type == "culture.start":
-            return await command_usecase.start_culture()
-        if event_type == "culture.select-difficulty":
-            return await command_usecase.select_culture_difficulty(CultureDifficultyCommandModel(**payload))
-        if event_type == "culture.buzzer":
-            return await command_usecase.register_culture_buzzer(BlindtestBuzzerCommandModel(**payload))
-        if event_type == "culture.answer":
-            return await command_usecase.answer_culture(BlindtestAnswerCommandModel(**payload))
-        if event_type == "culture.next-question":
-            return await command_usecase.next_culture_question()
-        if event_type == "bombe.start":
-            return await command_usecase.start_bombe()
-        if event_type == "bombe.buzzer":
-            return await command_usecase.register_bombe_buzzer(BombeBuzzerCommandModel(**payload))
-        if event_type == "bombe.begin-after-roll":
-            return await command_usecase.begin_bombe_after_roll()
-        if event_type == "bombe.previous-team":
-            return await command_usecase.previous_bombe_team()
-        if event_type == "bombe.explode":
-            return await command_usecase.explode_bombe()
-        if event_type == "memory.start":
-            return await command_usecase.start_memory()
-        if event_type == "memory.next-question":
-            return await command_usecase.next_memory_question()
-        if event_type == "memory.validate-sequence":
-            return await command_usecase.validate_memory_sequence()
-        if event_type == "memory.disqualify-team":
-            return await command_usecase.disqualify_memory_team()
-        if event_type == "seven-differences.start":
-            return await command_usecase.start_seven_differences()
-        if event_type == "seven-differences.open":
-            return await command_usecase.open_seven_differences()
-        if event_type == "seven-differences.buzzer":
-            return await command_usecase.register_seven_differences_buzzer(BlindtestBuzzerCommandModel(**payload))
-        if event_type == "seven-differences.found":
-            return await command_usecase.mark_seven_difference_found(SevenDifferenceFoundCommandModel(**payload))
-        if event_type == "seven-differences.reject":
-            return await command_usecase.reject_seven_differences_answer()
-        if event_type == "auction.start":
-            return await command_usecase.start_auction()
-        if event_type == "auction.buzzer":
-            return await command_usecase.register_auction_buzzer(BlindtestBuzzerCommandModel(**payload))
-        if event_type == "auction.select":
-            return await command_usecase.select_auction_bid(AuctionBidCommandModel(**payload))
-        if event_type == "auction.launch":
-            return await command_usecase.launch_auction_attempt()
-        if event_type == "auction.increment":
-            return await command_usecase.increment_auction_count()
-        if event_type == "auction.decrement":
-            return await command_usecase.decrement_auction_count()
-        if event_type == "auction.next-theme":
-            return await command_usecase.next_auction_theme()
-        if event_type == "forbidden-word.start-turn":
-            return await command_usecase.start_forbidden_word_turn()
-        if event_type == "forbidden-word.found":
-            return await command_usecase.mark_forbidden_word_found(ForbiddenWordCardCommandModel(**payload))
-        if event_type == "forbidden-word.skip":
-            return await command_usecase.skip_forbidden_word(ForbiddenWordCardCommandModel(**payload))
-        if event_type == "game.next-manche":
-            return await command_usecase.next_manche()
-        if event_type == "ranking.reveal-next":
-            return await command_usecase.reveal_next_ranking()
-        return {"type": "error", "detail": "Type d'évènement non supporté."}
-    except (InvalidGameConfigError, GameConfigurationNotReadyError) as exc:
-        return {"type": "error", "detail": exc.message}
+        message = ClientMessage.model_validate_json(raw)
+    except ValidationError:
+        return error_reply("Message JSON invalide.")
+    if message.type == "ping":
+        return {"type": "pong"}
+    try:
+        await bus.execute(message.type, message.payload, role)
+    except (GameConfigError, ApplicationError) as exc:
+        return error_reply(exc.message)
     except Exception:
-        logger.exception("game_config.websocket.dispatch_failed", extra={"event_type": event_type})
-        return {"type": "error", "detail": "Erreur interne lors de la mise à jour."}
+        logger.exception("game_config.websocket.dispatch_failed", extra={"event_type": message.type})
+        return error_reply("Erreur interne lors de la mise à jour.")
+    return None

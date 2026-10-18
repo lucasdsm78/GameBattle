@@ -1,105 +1,94 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 from application.game_config.game_config_models import (
-    BlindtestAnswerCommandModel,
-    BlindtestBuzzerCommandModel,
-    BlindtestPlaybackCommandModel,
-    BlindtestPlaybackSyncCommandModel,
-    BlindtestPlaylistCommandModel,
+    AnswerCommand,
     GameConfigReadModel,
     GameConfigUpsertModel,
-    SpotifyPlaylistImportCommandModel,
+    PlaybackControlCommand,
+    PlaybackSyncCommand,
+    PlaylistLoadCommand,
+    SpotifyPlaylistImportCommand,
+    TeamCommand,
 )
-from presentation.dependencies import GameConfigCommandDep, GameConfigQueryDep, authorize_client
-from presentation.realtime.game_config_ws_handler import build_client_envelope
+from application.game_config.snapshot import ClientRole
+from presentation.dependencies import (
+    CommandBusDep,
+    OptionalControllerToken,
+    QueryServiceDep,
+    authorize_client,
+    require_controller_token,
+)
 
 router = APIRouter(prefix="/api/game-config", tags=["game-config"])
+commands = APIRouter(dependencies=[Depends(require_controller_token)], responses={401: {"description": "Jeton régie invalide"}})
+
+
+async def _run(bus: CommandBusDep, query: QueryServiceDep, name: str, payload: BaseModel | None = None) -> dict[str, Any]:
+    snapshot = await bus.execute(name, payload, ClientRole.CONTROLLER) or await query.get_current()
+    return snapshot.controller
 
 
 @router.get("/current", response_model=GameConfigReadModel, summary="Lire la configuration courante")
-async def get_current_game_config(
-    query_usecase: GameConfigQueryDep,
-    controller_token: Optional[str] = Header(default=None, alias="X-GameBattle-Controller-Token"),
-) -> GameConfigReadModel | dict[str, Any]:
-    current = await query_usecase.get_current()
-    if authorize_client(client_type="controller", token=controller_token):
-        return current
-    return build_client_envelope("game.config.snapshot", current, "display")["payload"]
+async def get_current_game_config(query: QueryServiceDep, token: OptionalControllerToken = None) -> dict[str, Any]:
+    """Vue régie avec le jeton contrôleur, sinon vue écran public (sans aucun secret)."""
+    role = ClientRole.CONTROLLER if authorize_client("controller", token) else ClientRole.DISPLAY
+    return (await query.get_current()).for_role(role)
 
 
-@router.put("/current", response_model=GameConfigReadModel, summary="Remplacer la configuration courante")
-async def replace_current_game_config(
-    payload: GameConfigUpsertModel,
-    command_usecase: GameConfigCommandDep,
-) -> GameConfigReadModel:
-    return await command_usecase.replace_config(payload)
+@commands.put("/current", response_model=GameConfigReadModel, summary="Remplacer la configuration courante")
+async def replace_current_game_config(payload: GameConfigUpsertModel, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await _run(bus, query, "game.config.replace", payload)
 
 
-@router.post("/launch", response_model=GameConfigReadModel, summary="Valider et lancer la partie")
-async def launch_game(
-    command_usecase: GameConfigCommandDep,
-) -> GameConfigReadModel:
-    return await command_usecase.launch_game()
+@commands.post("/launch", response_model=GameConfigReadModel, summary="Lancer la partie")
+async def launch_game(bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await _run(bus, query, "game.config.launch")
 
 
-@router.put("/blindtest/playlist", response_model=GameConfigReadModel, summary="Charger la playlist blindtest")
-async def load_blindtest_playlist(
-    payload: BlindtestPlaylistCommandModel,
-    command_usecase: GameConfigCommandDep,
-) -> GameConfigReadModel:
-    return await command_usecase.load_blindtest_playlist(payload)
+@commands.put("/blindtest/playlist", response_model=GameConfigReadModel, summary="Charger une playlist blindtest manuelle")
+async def load_blindtest_playlist(payload: PlaylistLoadCommand, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await _run(bus, query, "blindtest.playlist.load", payload)
 
 
-@router.post(
-    "/blindtest/playlist/import-spotify",
-    response_model=GameConfigReadModel,
-    summary="Importer une playlist blindtest depuis Spotify",
+@commands.post(
+    "/blindtest/playlist/import-spotify", response_model=GameConfigReadModel, summary="Importer une playlist blindtest Spotify"
 )
 async def import_blindtest_playlist_from_spotify(
-    payload: SpotifyPlaylistImportCommandModel,
-    command_usecase: GameConfigCommandDep,
-) -> GameConfigReadModel:
-    return await command_usecase.import_blindtest_playlist_from_spotify(payload)
+    payload: SpotifyPlaylistImportCommand, bus: CommandBusDep, query: QueryServiceDep
+) -> dict[str, Any]:
+    return await _run(bus, query, "blindtest.playlist.import-spotify", payload)
 
 
-@router.post("/blindtest/buzzer", response_model=GameConfigReadModel, summary="Enregistrer un buzzer blindtest")
-async def register_blindtest_buzzer(
-    payload: BlindtestBuzzerCommandModel,
-    command_usecase: GameConfigCommandDep,
-) -> GameConfigReadModel:
-    return await command_usecase.register_blindtest_buzzer(payload)
+@commands.post("/blindtest/buzzer", response_model=GameConfigReadModel, summary="Enregistrer un buzz blindtest")
+async def register_blindtest_buzzer(payload: TeamCommand, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await _run(bus, query, "blindtest.buzzer", payload)
 
 
-@router.post("/blindtest/answer", response_model=GameConfigReadModel, summary="Valider une réponse blindtest")
-async def answer_blindtest(
-    payload: BlindtestAnswerCommandModel,
-    command_usecase: GameConfigCommandDep,
-) -> GameConfigReadModel:
-    return await command_usecase.answer_blindtest(payload)
+@commands.post("/blindtest/answer", response_model=GameConfigReadModel, summary="Valider une réponse blindtest")
+async def answer_blindtest(payload: AnswerCommand, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await _run(bus, query, "blindtest.answer", payload)
 
 
-@router.post("/blindtest/playback/control", response_model=GameConfigReadModel, summary="Piloter la lecture blindtest")
+@commands.post("/blindtest/playback/control", response_model=GameConfigReadModel, summary="Piloter la lecture blindtest")
 async def control_blindtest_playback(
-    payload: BlindtestPlaybackCommandModel,
-    command_usecase: GameConfigCommandDep,
-) -> GameConfigReadModel:
-    return await command_usecase.control_blindtest_playback(payload)
+    payload: PlaybackControlCommand, bus: CommandBusDep, query: QueryServiceDep
+) -> dict[str, Any]:
+    return await _run(bus, query, "blindtest.playback.control", payload)
 
 
-@router.post("/blindtest/playback/sync", response_model=GameConfigReadModel, summary="Synchroniser la lecture blindtest")
-async def sync_blindtest_playback(
-    payload: BlindtestPlaybackSyncCommandModel,
-    command_usecase: GameConfigCommandDep,
-) -> GameConfigReadModel:
-    return await command_usecase.sync_blindtest_playback(payload)
+@commands.post("/blindtest/playback/sync", response_model=GameConfigReadModel, summary="Synchroniser la lecture blindtest")
+async def sync_blindtest_playback(payload: PlaybackSyncCommand, bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await _run(bus, query, "blindtest.playback.sync", payload)
 
 
-@router.post("/blindtest/next-track", response_model=GameConfigReadModel, summary="Passer à la musique blindtest suivante")
-async def next_blindtest_track(
-    command_usecase: GameConfigCommandDep,
-) -> GameConfigReadModel:
-    return await command_usecase.next_blindtest_track()
+@commands.post("/blindtest/next-track", response_model=GameConfigReadModel, summary="Passer à la musique suivante")
+async def next_blindtest_track(bus: CommandBusDep, query: QueryServiceDep) -> dict[str, Any]:
+    return await _run(bus, query, "blindtest.next-track")
+
+
+router.include_router(commands)

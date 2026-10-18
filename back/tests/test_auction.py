@@ -2,20 +2,16 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
-from unittest.mock import AsyncMock
 
 import pytest
+from support import BusHarness
 
-from application.game_config.game_config_models import GameConfigReadModel
+from application.game_config.errors import CommandNotAllowedError
+from application.game_config.snapshot import ClientRole
 from domain.game_config.exception.game_config_exception import InvalidGameConfigError
-from domain.game_config.model.game_config import (
-    AUCTION_DURATION_MS,
-    AUCTION_MAX_TARGET_COUNT,
-    AUCTION_WINNING_SCORE,
-    build_default_game_config,
-)
+from domain.game_config.model.game_config import build_default_game_config
+from domain.game_config.model.games.auction import AUCTION_DURATION_MS, AUCTION_MAX_TARGET_COUNT, AUCTION_WINNING_SCORE
 from infrastructure.game_config_payload_mapper import game_config_from_payload
-from presentation.realtime.game_config_ws_handler import build_client_envelope, dispatch_game_config_event
 from presentation.realtime.game_deadline_worker import GameDeadlineWorker
 
 
@@ -140,39 +136,33 @@ def test_persistence_round_trip_and_display_redaction() -> None:
     restored = game_config_from_payload(started.to_dict())
     assert restored.session.auction == started.session.auction
 
-    model = GameConfigReadModel.from_domain(started)
-    controller = build_client_envelope("game.config.updated", model, "controller")
-    display = build_client_envelope("game.config.updated", model, "display")
-    controller_game = controller["payload"]["session"]["auction"]
-    display_game = display["payload"]["session"]["auction"]
+    controller, display = started.client_views()
+    controller_game = controller["session"]["auction"]
+    display_game = display["session"]["auction"]
     assert controller_game["answers"]
     assert "asked_theme_ids" not in controller_game
     assert display_game["answers"] == []
     assert "asked_theme_ids" not in display_game
 
 
-class _DisplayCommands:
-    async def register_auction_buzzer(self, payload):
-        return f"buzz:{payload.team}"
-
-    async def increment_auction_count(self):
-        return "incremented"
-
-
 def test_display_can_only_buzz_for_auction() -> None:
-    commands = _DisplayCommands()
-    buzzed = asyncio.run(dispatch_game_config_event(
-        client_type="display", event_type="auction.buzzer", payload={"team": "Rouges"}, command_usecase=commands  # type: ignore[arg-type]
-    ))
-    forbidden_expiration = asyncio.run(dispatch_game_config_event(
-        client_type="display", event_type="auction.expire", payload={}, command_usecase=commands  # type: ignore[arg-type]
-    ))
-    forbidden = asyncio.run(dispatch_game_config_event(
-        client_type="display", event_type="auction.increment", payload={}, command_usecase=commands  # type: ignore[arg-type]
-    ))
-    assert buzzed == "buzz:Rouges"
-    assert forbidden_expiration == {"type": "error", "detail": "Le client display est en lecture seule."}
-    assert forbidden == {"type": "error", "detail": "Le client display est en lecture seule."}
+    harness = BusHarness(_auction_config().start_auction())
+
+    harness.run("auction.buzzer", {"team": "Rouges"}, role=ClientRole.DISPLAY)
+    for forbidden in ("auction.increment", "auction.next-theme"):
+        with pytest.raises(CommandNotAllowedError, match="lecture seule"):
+            harness.run(forbidden, role=ClientRole.DISPLAY)
+
+    assert harness.config.session.auction.bidding_teams == ["Rouges"]
+
+
+def test_duplicate_bid_buzz_is_a_no_op_without_write_or_broadcast() -> None:
+    harness = BusHarness(_auction_config().start_auction())
+
+    assert harness.run("auction.buzzer", {"team": "Rouges"}) is not None
+    assert harness.run("auction.buzzer", {"team": "Rouges"}) is None
+    assert harness.repository.saves == 1
+    assert len(harness.publisher.snapshots) == 1
 
 
 def test_due_deadline_resolves_the_attempt_once_then_is_a_no_op() -> None:
@@ -185,26 +175,22 @@ def test_due_deadline_resolves_the_attempt_once_then_is_a_no_op() -> None:
 
 
 def test_deadline_worker_expires_and_broadcasts_an_overdue_attempt() -> None:
-    running = _ready_config().launch_auction_attempt(now_ms=1_000)
-    resolved = GameConfigReadModel.from_domain(running.expire_auction_attempt(now_ms=31_000))
-    commands = AsyncMock()
-    commands.expire_due_deadline.return_value = resolved
-    hub = AsyncMock()
-    worker = GameDeadlineWorker(commands, hub)  # type: ignore[arg-type]
-
-    assert asyncio.run(worker.check_once()) is True
-    commands.expire_due_deadline.assert_awaited_once()
-    hub.broadcast_json_by_client_type.assert_awaited_once()
-    envelopes = hub.broadcast_json_by_client_type.await_args.args[0]
-    assert envelopes["display"]["payload"]["session"]["auction"]["answers"] == []
-
-
-def test_deadline_worker_ignores_an_attempt_before_its_deadline() -> None:
-    commands = AsyncMock()
-    commands.expire_due_deadline.return_value = None
-    hub = AsyncMock()
-    worker = GameDeadlineWorker(commands, hub)  # type: ignore[arg-type]
+    clock = {"now": 1_000}
+    harness = BusHarness(_ready_config().launch_auction_attempt(now_ms=1_000), now_ms=lambda: clock["now"])
+    worker = GameDeadlineWorker(harness.bus)
 
     assert asyncio.run(worker.check_once()) is False
-    commands.expire_due_deadline.assert_awaited_once()
-    hub.broadcast_json_by_client_type.assert_not_awaited()
+    clock["now"] = 1_000 + AUCTION_DURATION_MS
+    assert asyncio.run(worker.check_once()) is True
+    assert asyncio.run(worker.check_once()) is False
+
+    assert harness.config.session.auction.phase == "resolved"
+    assert harness.repository.saves == 1
+    assert harness.publisher.snapshots[-1].display["session"]["auction"]["answers"] == []
+
+
+def test_deadline_worker_is_reserved_to_the_system_role() -> None:
+    harness = BusHarness(_ready_config().launch_auction_attempt(now_ms=1_000))
+
+    with pytest.raises(CommandNotAllowedError):
+        harness.run("system.expire-deadlines", role=ClientRole.CONTROLLER)

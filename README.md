@@ -65,14 +65,35 @@ Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop 
 
 ## Architecture backend
 
-Le backend reprend le découpage DDD suivant :
+Le backend suit une architecture DDD en couches, chaque couche ne dépendant que des couches internes :
 
-- `domain/` : règles métier, agrégats, exceptions, repository abstrait
-- `application/` : modèles d'entrée / sortie et use cases
-- `infrastructure/` : config, PostgreSQL, temps réel
-- `presentation/` : routeurs HTTP / WebSocket
-- `dependency_injections.py` : composition racine
-- `main.py` : bootstrap FastAPI, middleware sécurité, CORS
+- `domain/` : le métier, sans aucune dépendance technique.
+  - `model/game_config.py` : racine d'agrégat `GameConfig` (orchestration des manches, classement).
+  - `model/games/<jeu>.py` : un module par jeu. L'état du jeu y porte ses règles, ses invariants
+    et ce que l'écran public n'a pas le droit de voir (`display_view`).
+  - `model/session.py`, `model/settings.py`, `model/shared.py`, catalogues de contenus.
+- `application/` : cas d'usage.
+  - `game_config/command_bus.py` : point d'entrée unique des écritures (droits, validation stricte,
+    verrou, persistance, diffusion). Une commande sans effet n'écrit ni ne diffuse rien.
+  - `games/<jeu>.py` : registre déclaratif des commandes (nom, schéma d'entrée, rôles autorisés).
+  - `game_config/game_config_models.py` : schémas Pydantic stricts (champs inconnus refusés).
+- `infrastructure/` : PostgreSQL (dépôt avec cache mémoire, mapper générique), Spotify, hub
+  WebSocket (file par client, états ordonnés), filtre de logs masquant les jetons.
+- `presentation/` : routeurs HTTP / WebSocket, worker des chronos serveur, erreurs, en-têtes de sécurité.
+- `dependency_injections.py` : composition racine. `main.py` : application factory FastAPI.
+
+Ajouter une commande = une méthode sur l'état du jeu, une méthode sur `GameConfig`, une ligne dans
+`application/games/<jeu>.py`. Le contrat WebSocket ne change pas.
+
+### Sécurité
+
+- Toutes les écritures HTTP exigent l'en-tête `X-GameBattle-Controller-Token` ; le WebSocket exige
+  le jeton du rôle (`controller` ou `display`), comparé en temps constant.
+- L'écran public ne peut déclencher que les buzzers, les chronos et l'envoi du jeton Spotify ; il ne
+  reçoit jamais les réponses, mots secrets ni descriptions de différences.
+- Messages WebSocket limités à 64 Ko, débit limité par connexion, entrées validées strictement.
+- Les jetons passés en query string sont masqués dans les logs uvicorn.
+- L'API tourne en un seul processus (verrou, cache et hub en mémoire) : ne pas lancer plusieurs workers.
 
 ---
 
@@ -89,8 +110,7 @@ Variables principales :
 - `GAMEBATTLE_HARDWARE_TOKEN`
 - `GAMEBATTLE_ALLOWED_ORIGINS`
 - `GAMEBATTLE_DATABASE_URL`
-- `GAMEBATTLE_SPOTIFY_CLIENT_ID`
-- `GAMEBATTLE_SPOTIFY_CLIENT_SECRET`
+- `GAMEBATTLE_BLINDTEST_PLAYLIST_URL` (playlist importée automatiquement en blindtest)
 - `PEXELS_API_KEY` pour rechercher automatiquement les photos sources
 - `OPENAI_API_KEY` pour analyser et retoucher les objets réels
 
@@ -294,7 +314,7 @@ Backend :
 
 ```bash
 cd /Users/lucasdasilvamarques/GameBattle/back
-./.venv/bin/python -m pytest tests/test_game_config_api.py -q
+./.venv/bin/python -m pytest -q
 ```
 
 Web :

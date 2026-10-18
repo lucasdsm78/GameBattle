@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-from copy import deepcopy
 
 import pytest
+from support import BusHarness
 
-from application.game_config.game_config_models import BlindtestBuzzerCommandModel, GameConfigReadModel
-from application.seven_differences.seven_differences_command_usecase import SevenDifferencesCommandUseCase
+from application.game_config.errors import CommandNotAllowedError
+from application.game_config.snapshot import ClientRole
 from domain.game_config.exception.game_config_exception import InvalidGameConfigError
-from domain.game_config.model.game_config import SEVEN_DIFFERENCES_MEMORIZATION_MS, TIE_LABEL, build_default_game_config
-from domain.game_config.repository.game_config_repository import GameConfigRepository
+from domain.game_config.model.game_config import build_default_game_config
+from domain.game_config.model.games.seven_differences import SEVEN_DIFFERENCES_MEMORIZATION_MS
+from domain.game_config.model.shared import TIE_LABEL
 from infrastructure.game_config_payload_mapper import game_config_from_payload
-from presentation.realtime.game_config_ws_handler import build_client_envelope, dispatch_game_config_event
 
 
 def _seven_config(*, teams: list[str] | None = None):
@@ -101,11 +101,10 @@ def test_seven_found_differences_finish_round_with_tie_and_round_trip() -> None:
 
 def test_display_never_receives_secret_labels_or_modified_image_before_reveal() -> None:
     started = _seven_config().start_seven_differences(now_ms=1_000)
-    controller = build_client_envelope("game.config.updated", GameConfigReadModel.from_domain(started), "controller")
-    display = build_client_envelope("game.config.updated", GameConfigReadModel.from_domain(started), "display")
+    controller, display = started.client_views()
 
-    controller_game = controller["payload"]["session"]["seven_differences"]
-    display_game = display["payload"]["session"]["seven_differences"]
+    controller_game = controller["session"]["seven_differences"]
+    display_game = display["session"]["seven_differences"]
     assert len(controller_game["differences"]) == 7
     assert controller_game["modified_image_url"]
     assert display_game["differences"] == []
@@ -113,76 +112,35 @@ def test_display_never_receives_secret_labels_or_modified_image_before_reveal() 
     assert display_game["original_image_url"]
 
     opened = started.open_seven_differences(started.session.seven_differences.reveal_at_ms)
-    revealed = build_client_envelope("game.config.updated", GameConfigReadModel.from_domain(opened), "display")
-    assert revealed["payload"]["session"]["seven_differences"]["modified_image_url"]
-    assert revealed["payload"]["session"]["seven_differences"]["differences"] == []
-
-
-class _SlowRepository(GameConfigRepository):
-    def __init__(self, current):
-        self.current = current
-
-    async def get_current(self):
-        await asyncio.sleep(0.01)
-        return deepcopy(self.current)
-
-    async def save(self, game_config):
-        await asyncio.sleep(0.01)
-        self.current = deepcopy(game_config)
-        return game_config
+    _, revealed = opened.client_views()
+    assert revealed["session"]["seven_differences"]["modified_image_url"]
+    assert revealed["session"]["seven_differences"]["differences"] == []
 
 
 def test_concurrent_buzzes_accept_exactly_one_team() -> None:
-    repository = _SlowRepository(_open_config(teams=["Rouges", "Bleus"]))
-    usecase = SevenDifferencesCommandUseCase(repository)
-
-    async def buzz(team: str):
-        return await usecase.register_buzzer(BlindtestBuzzerCommandModel(team=team))
+    harness = BusHarness(_open_config(teams=["Rouges", "Bleus"]), now_ms=40_000, delay_seconds=0.01)
 
     async def race():
-        return await asyncio.gather(buzz("Rouges"), buzz("Bleus"), return_exceptions=True)
+        return await asyncio.gather(
+            *(harness.bus.execute("seven-differences.buzzer", {"team": team}, ClientRole.CONTROLLER) for team in ("Rouges", "Bleus")),
+            return_exceptions=True,
+        )
 
     results = asyncio.run(race())
-    successes = [result for result in results if not isinstance(result, Exception)]
-    failures = [result for result in results if isinstance(result, InvalidGameConfigError)]
 
-    assert len(successes) == 1
-    assert len(failures) == 1
-    assert repository.current.session.seven_differences.current_buzzer_team in {"Rouges", "Bleus"}
-
-
-class _DisplayCommands:
-    async def open_seven_differences(self):
-        return "opened"
-
-    async def register_seven_differences_buzzer(self, payload):
-        return f"buzz:{payload.team}"
-
-    async def mark_seven_difference_found(self, payload):
-        return f"found:{payload.difference_id}"
+    assert sum(not isinstance(result, Exception) for result in results) == 1
+    assert sum(isinstance(result, InvalidGameConfigError) for result in results) == 1
+    assert harness.config.session.seven_differences.current_buzzer_team in {"Rouges", "Bleus"}
+    assert harness.repository.saves == 1
 
 
 def test_display_can_only_open_and_buzz_not_validate_a_difference() -> None:
-    commands = _DisplayCommands()
-    opened = asyncio.run(dispatch_game_config_event(
-        client_type="display",
-        event_type="seven-differences.open",
-        payload={},
-        command_usecase=commands,  # type: ignore[arg-type]
-    ))
-    buzzed = asyncio.run(dispatch_game_config_event(
-        client_type="display",
-        event_type="seven-differences.buzzer",
-        payload={"team": "Rouges"},
-        command_usecase=commands,  # type: ignore[arg-type]
-    ))
-    forbidden = asyncio.run(dispatch_game_config_event(
-        client_type="display",
-        event_type="seven-differences.found",
-        payload={"difference_id": "score"},
-        command_usecase=commands,  # type: ignore[arg-type]
-    ))
+    started = _seven_config().start_seven_differences(now_ms=1_000)
+    harness = BusHarness(started, now_ms=started.session.seven_differences.reveal_at_ms)
 
-    assert opened == "opened"
-    assert buzzed == "buzz:Rouges"
-    assert forbidden == {"type": "error", "detail": "Le client display est en lecture seule."}
+    harness.run("seven-differences.open", role=ClientRole.DISPLAY)
+    harness.run("seven-differences.buzzer", {"team": "Rouges"}, role=ClientRole.DISPLAY)
+    with pytest.raises(CommandNotAllowedError, match="lecture seule"):
+        harness.run("seven-differences.found", {"difference_id": "score"}, role=ClientRole.DISPLAY)
+
+    assert harness.config.session.seven_differences.current_buzzer_team == "Rouges"
