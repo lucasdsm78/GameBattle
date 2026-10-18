@@ -13,7 +13,7 @@ if [ ! -d .venv ]; then
 fi
 
 ./.venv/bin/pip install -r requirements.txt
-./.venv/bin/python -m infrastructure.hardware.usb_buzzer_bridge \
+./.venv/bin/python -m infrastructure.extern.usb_buzzer_bridge \
   --config "$CONFIG_PATH" \
   --api-base-url "$API_BASE_URL" \
   --hardware-token "$HARDWARE_TOKEN"

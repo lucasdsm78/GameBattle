@@ -65,25 +65,42 @@ Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop 
 
 ## Architecture backend
 
-Le backend suit une architecture DDD en couches, chaque couche ne dépendant que des couches internes :
+Le backend suit l'architecture DDD décrite dans
+[Implementing Domain-Driven Design with FastAPI](https://medium.com/delivus/implementing-domain-driven-design-with-fastapi-6aed788779af).
+Chaque couche ne dépend que des couches internes (vérifié par `tests/test_architecture.py`) :
 
-- `domain/` : le métier, sans aucune dépendance technique.
-  - `model/game_config.py` : racine d'agrégat `GameConfig` (orchestration des manches, classement).
-  - `model/games/<jeu>.py` : un module par jeu. L'état du jeu y porte ses règles, ses invariants
-    et ce que l'écran public n'a pas le droit de voir (`display_view`).
-  - `model/session.py`, `model/settings.py`, `model/shared.py`, catalogues de contenus.
-- `application/` : cas d'usage.
-  - `game_config/command_bus.py` : point d'entrée unique des écritures (droits, validation stricte,
-    verrou, persistance, diffusion). Une commande sans effet n'écrit ni ne diffuse rien.
-  - `games/<jeu>.py` : registre déclaratif des commandes (nom, schéma d'entrée, rôles autorisés).
-  - `game_config/game_config_models.py` : schémas Pydantic stricts (champs inconnus refusés).
-- `infrastructure/` : PostgreSQL (dépôt avec cache mémoire, mapper générique), Spotify, hub
-  WebSocket (file par client, états ordonnés), filtre de logs masquant les jetons.
-- `presentation/` : routeurs HTTP / WebSocket, worker des chronos serveur, erreurs, en-têtes de sécurité.
-- `dependency_injections.py` : composition racine. `main.py` : application factory FastAPI.
+```text
+back/
+├── domain/                  # Métier pur : aucune dépendance technique
+│   ├── models/              # Racine d'agrégat GameConfig, session, réglages, un état par jeu (games/)
+│   ├── repositories/        # Interface du dépôt (abstraite)
+│   ├── services/            # Services métier : scores, séquence des manches, catalogues de contenus
+│   └── vo/                  # Objets-valeurs : morceau, question, carte, tour, différence, manche active
+├── application/
+│   ├── commands/            # Bus de commandes, schémas d'entrée et registre déclaratif par jeu
+│   ├── queries/             # Lecture de l'état courant
+│   └── services/            # Instantanés diffusés, playlists blindtest (port Spotify)
+├── infrastructure/
+│   ├── database/            # Moteur SQLAlchemy et tables
+│   ├── repositories/        # Dépôt PostgreSQL, cache mémoire, mapper de persistance
+│   └── extern/              # Spotify, bridge buzzers USB
+├── interface/
+│   ├── api/                 # Routeurs HTTP et WebSocket
+│   ├── schemas/             # Schémas de réponse et enveloppe des messages WebSocket
+│   ├── dependencies/        # Composition racine (container) et authentification
+│   └── realtime/            # Hub WebSocket, traitement des messages, worker des chronos
+├── exceptions.py            # DomainError / ApplicationError
+└── main.py                  # Application factory FastAPI
+```
 
-Ajouter une commande = une méthode sur l'état du jeu, une méthode sur `GameConfig`, une ligne dans
-`application/games/<jeu>.py`. Le contrat WebSocket ne change pas.
+- Un jeu = un module `domain/models/games/<jeu>.py` : ses règles, ses invariants et ce que l'écran
+  public n'a pas le droit de voir (`display_view`).
+- Toute écriture passe par `application/commands/bus.py` : droits, validation stricte, verrou,
+  persistance puis diffusion. Une commande sans effet n'écrit ni ne diffuse rien.
+- Ajouter une commande = une méthode sur l'état du jeu, une méthode sur `GameConfig`, une ligne dans
+  `application/commands/<jeu>.py`. Le contrat WebSocket ne change pas.
+- Les modèles du domaine sont des dataclasses (plus rapides et sans dépendance) ; Pydantic est réservé
+  aux frontières (`application/commands/payloads.py`, `interface/schemas/`).
 
 ### Sécurité
 
@@ -246,7 +263,7 @@ sur **TROUVÉ** (ou **Volume +**) ; **Passer** (ou **Volume −**) change de mot
 arbitré par le serveur, l’écran public n’affiche jamais le mot en cours (seulement l’équipe, le temps
 et les mots déjà trouvés) et l’équipe qui a fait deviner le plus de mots remporte la manche. L’écran
 du téléphone reste allumé pendant le tour. Le catalogue de cartes se trouve dans
-`back/domain/game_config/model/forbidden_word_catalog.py`.
+`back/domain/services/catalogs/forbidden_word.py`.
 
 ### Générer automatiquement un puzzle
 
@@ -286,7 +303,7 @@ back/.venv/bin/python scripts/generate-seven-differences.py \
 graine stabilise le choix de la photographie Pexels, mais une édition générative peut varier entre
 deux exécutions. Les images générées sont placées dans
 `app-presentateur/public/seven-differences/` et le manifeste
-`back/domain/game_config/model/seven_differences_catalog.json` est mis à jour atomiquement. Pour
+`back/domain/services/catalogs/seven_differences.json` est mis à jour atomiquement. Pour
 remplacer volontairement un identifiant existant, ajouter `--id mon-puzzle --replace`. Redémarrer
 ensuite le backend pour charger le catalogue actualisé.
 
@@ -304,7 +321,7 @@ Pour un buzzer USB plus avancé qui n'émule pas un clavier, utilise le bridge l
 
 - fichier d'exemple : `scripts/hardware-buzzers.example.json`
 - runner : `scripts/dev-buzzers.sh`
-- module Python : `back/infrastructure/hardware/usb_buzzer_bridge.py`
+- module Python : `back/infrastructure/extern/usb_buzzer_bridge.py`
 
 ---
 
@@ -335,7 +352,7 @@ Bridge USB local :
 
 ```bash
 cd /Users/lucasdasilvamarques/GameBattle/back
-./.venv/bin/python -m infrastructure.hardware.usb_buzzer_bridge --help
+./.venv/bin/python -m infrastructure.extern.usb_buzzer_bridge --help
 ```
 
 ---

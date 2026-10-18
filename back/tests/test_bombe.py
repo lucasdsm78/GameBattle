@@ -4,15 +4,15 @@ from unittest.mock import patch
 
 import pytest
 
-from domain.game_config.exception.game_config_exception import InvalidGameConfigError
-from domain.game_config.model.game_config import build_default_game_config
-from domain.game_config.model.games.bombe import (
+from domain.models.game_config import build_default_game_config
+from domain.models.games.bombe import (
     BOMBE_DIE_ROLL_MS,
     BOMBE_MAX_DURATION_MS,
     BOMBE_MIN_DURATION_MS,
     generate_bombe_sound,
 )
-from infrastructure.game_config_payload_mapper import game_config_from_payload
+from exceptions import InvalidGameConfigError
+from infrastructure.repositories.game_config_mapper import game_config_from_payload
 
 
 def _bombe_config(*, teams: list[str] | None = None, total_rounds: int = 1):
@@ -36,9 +36,9 @@ def test_bombe_prepares_random_sound_and_starts_timer_only_after_die_roll() -> N
     config = _bombe_config(teams=["Rouges", "Bleus", "Verts"])
 
     with (
-        patch("domain.game_config.model.games.bombe.random.randrange", return_value=2),
-        patch("domain.game_config.model.games.bombe.random.randint", return_value=BOMBE_MIN_DURATION_MS),
-        patch("domain.game_config.model.games.bombe.random.choice", side_effect=["S", "O", "L", "BOUM"]),
+        patch("domain.models.games.bombe.random.randrange", return_value=2),
+        patch("domain.models.games.bombe.random.randint", return_value=BOMBE_MIN_DURATION_MS),
+        patch("domain.models.games.bombe.random.choice", side_effect=["S", "O", "L", "BOUM"]),
     ):
         prepared = config.start_bombe(now_ms=1_000_000)
         assert prepared.session.bombe.phase == "awaiting_roll"
@@ -78,13 +78,13 @@ def test_bombe_prepares_random_sound_and_starts_timer_only_after_die_roll() -> N
     ],
 )
 def test_bombe_sound_is_composed_dynamically(parts: tuple[str, str, str], expected: str) -> None:
-    with patch("domain.game_config.model.games.bombe.random.choice", side_effect=parts):
+    with patch("domain.models.games.bombe.random.choice", side_effect=parts):
         assert generate_bombe_sound() == expected
 
 
 def test_bombe_only_current_team_can_pass_then_presenter_can_go_back() -> None:
     config = _bombe_config(teams=["Rouges", "Bleus", "Verts"])
-    with patch("domain.game_config.model.games.bombe.random.randrange", return_value=0):
+    with patch("domain.models.games.bombe.random.randrange", return_value=0):
         started = _running_bombe(config, now_ms=10_000)
 
     with pytest.raises(InvalidGameConfigError, match="Rouges"):
@@ -113,8 +113,8 @@ def test_bombe_cannot_go_back_without_previous_team() -> None:
 def test_bombe_rejects_early_explosion_and_explodes_at_exact_deadline() -> None:
     config = _bombe_config(teams=["Rouges", "Bleus"])
     with (
-        patch("domain.game_config.model.games.bombe.random.randrange", return_value=0),
-        patch("domain.game_config.model.games.bombe.random.randint", return_value=BOMBE_MIN_DURATION_MS),
+        patch("domain.models.games.bombe.random.randrange", return_value=0),
+        patch("domain.models.games.bombe.random.randint", return_value=BOMBE_MIN_DURATION_MS),
     ):
         started = _running_bombe(config, now_ms=20_000)
     passed = started.register_bombe_buzzer("Rouges", now_ms=started.session.bombe.started_at_ms + 1)
@@ -136,7 +136,7 @@ def test_bombe_rejects_early_explosion_and_explodes_at_exact_deadline() -> None:
 
 def test_bombe_tiebreak_keeps_lowest_scores_until_one_winner_remains() -> None:
     config = _bombe_config(teams=["Rouges", "Bleus", "Verts"])
-    with patch("domain.game_config.model.games.bombe.random.randrange", return_value=0):
+    with patch("domain.models.games.bombe.random.randrange", return_value=0):
         started = _running_bombe(config, now_ms=20_000)
     passed = started.register_bombe_buzzer("Rouges", now_ms=started.session.bombe.started_at_ms + 1)
 
@@ -149,7 +149,7 @@ def test_bombe_tiebreak_keeps_lowest_scores_until_one_winner_remains() -> None:
     assert tied.session.active_round is not None
     assert tied.session.active_round.completed is False
 
-    with patch("domain.game_config.model.games.bombe.random.randrange", return_value=0):
+    with patch("domain.models.games.bombe.random.randrange", return_value=0):
         prepared = tied.start_bombe(now_ms=tied.session.bombe.deadline_at_ms + 1)
         roller = prepared.settings.teams[prepared.session.bombe.roller_team_index or 0]
         rolling = prepared.register_bombe_buzzer(roller, now_ms=tied.session.bombe.deadline_at_ms + 2)
@@ -171,7 +171,7 @@ def test_bombe_tiebreak_keeps_lowest_scores_until_one_winner_remains() -> None:
 
 def test_explosion_on_roller_keeps_a_valid_tiebreak_state() -> None:
     config = _bombe_config(teams=["Rouges", "Bleus", "Verts"])
-    with patch("domain.game_config.model.games.bombe.random.randrange", return_value=0):
+    with patch("domain.models.games.bombe.random.randrange", return_value=0):
         started = _running_bombe(config, now_ms=25_000)
 
     tied = started.explode_bombe(now_ms=started.session.bombe.deadline_at_ms)
@@ -239,7 +239,7 @@ def test_bombe_winner_is_counted_in_final_ranking() -> None:
 
 def test_next_bombe_round_uses_the_team_after_previous_roller() -> None:
     config = _bombe_config(total_rounds=2)
-    with patch("domain.game_config.model.games.bombe.random.randrange", return_value=0):
+    with patch("domain.models.games.bombe.random.randrange", return_value=0):
         first = _running_bombe(config, now_ms=60_000)
 
     assert first.session.bombe.roller_team_index == 0

@@ -23,7 +23,7 @@ from PIL import Image, ImageChops, ImageFilter, ImageOps, ImageStat, Unidentifie
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_DIR = ROOT / "app-presentateur" / "public" / "seven-differences"
-CATALOG_PATH = ROOT / "back" / "domain" / "game_config" / "model" / "seven_differences_catalog.json"
+CATALOG_PATH = ROOT / "back" / "domain" / "services" / "catalogs" / "seven_differences.json"
 DOTENV_PATH = ROOT / "back" / ".env"
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
 MAX_PIXELS = 30_000_000
@@ -497,3 +497,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

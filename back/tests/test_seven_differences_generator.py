@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import importlib.util
-from io import BytesIO
 import json
+from io import BytesIO
 from pathlib import Path
 
 import httpx
 from PIL import Image, ImageChops
 
-from domain.game_config.model.seven_differences_catalog import load_seven_differences_catalog
+from domain.services.catalogs.seven_differences import load_seven_differences_catalog
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "generate-seven-differences.py"
 SPEC = importlib.util.spec_from_file_location("generate_seven_differences", SCRIPT_PATH)
@@ -217,3 +217,4 @@ def test_planner_preserves_quota_error(monkeypatch) -> None:
         raise AssertionError("L’erreur de quota aurait dû être conservée.")
 
     assert attempts == 1
+

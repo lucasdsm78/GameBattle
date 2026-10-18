@@ -1,23 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import replace
 import re
 import unicodedata
+from dataclasses import replace
 
 import pytest
 from pydantic import ValidationError
 
+from application.commands.payloads import ForbiddenWordCardCommand
+from application.services.snapshot import ClientRole
+from domain.models.game_config import GameConfig, build_default_game_config
+from domain.models.games.forbidden_word import FORBIDDEN_WORD_TURN_MS
+from domain.services.catalogs.forbidden_word import FORBIDDEN_WORD_CARDS
+from domain.services.scoring import TIE_LABEL
+from domain.vo.forbidden_word import ForbiddenWordTurn
+from exceptions import CommandNotAllowedError, InvalidGameConfigError
+from infrastructure.repositories.game_config_mapper import game_config_from_payload
 from support import BusHarness
-
-from application.game_config.errors import CommandNotAllowedError
-from application.game_config.game_config_models import ForbiddenWordCardCommand
-from application.game_config.snapshot import ClientRole
-from domain.game_config.exception.game_config_exception import InvalidGameConfigError
-from domain.game_config.model.forbidden_word_catalog import FORBIDDEN_WORD_CARDS
-from domain.game_config.model.game_config import GameConfig, build_default_game_config
-from domain.game_config.model.games.forbidden_word import FORBIDDEN_WORD_TURN_MS, ForbiddenWordTurn
-from domain.game_config.model.shared import TIE_LABEL
-from infrastructure.game_config_payload_mapper import game_config_from_payload
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 
