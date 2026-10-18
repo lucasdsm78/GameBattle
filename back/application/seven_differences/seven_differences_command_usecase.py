@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import time
-
 from application.game_config.command.base import GameConfigCommandBase
 from application.game_config.game_config_models import (
     BlindtestBuzzerCommandModel,
@@ -11,10 +9,6 @@ from application.game_config.game_config_models import (
 
 
 class SevenDifferencesCommandUseCase(GameConfigCommandBase):
-    @staticmethod
-    def _now_ms() -> int:
-        return int(time.time() * 1000)
-
     async def start(self) -> GameConfigReadModel:
         return await self._mutate(lambda config: config.start_seven_differences(self._now_ms()))
 

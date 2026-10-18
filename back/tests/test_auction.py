@@ -16,7 +16,7 @@ from domain.game_config.model.game_config import (
 )
 from infrastructure.game_config_payload_mapper import game_config_from_payload
 from presentation.realtime.game_config_ws_handler import build_client_envelope, dispatch_game_config_event
-from presentation.realtime.auction_deadline_worker import AuctionDeadlineWorker
+from presentation.realtime.game_deadline_worker import GameDeadlineWorker
 
 
 def _auction_config(*, teams: list[str] | None = None):
@@ -175,16 +175,25 @@ def test_display_can_only_buzz_for_auction() -> None:
     assert forbidden == {"type": "error", "detail": "Le client display est en lecture seule."}
 
 
+def test_due_deadline_resolves_the_attempt_once_then_is_a_no_op() -> None:
+    running = _ready_config().launch_auction_attempt(now_ms=1_000)
+    assert running.expire_due_deadline(1_000 + AUCTION_DURATION_MS - 1) is running
+
+    resolved = running.expire_due_deadline(1_000 + AUCTION_DURATION_MS)
+    assert resolved.session.auction.phase == "resolved"
+    assert resolved.expire_due_deadline(1_000 + AUCTION_DURATION_MS + 5_000) is resolved
+
+
 def test_deadline_worker_expires_and_broadcasts_an_overdue_attempt() -> None:
     running = _ready_config().launch_auction_attempt(now_ms=1_000)
     resolved = GameConfigReadModel.from_domain(running.expire_auction_attempt(now_ms=31_000))
     commands = AsyncMock()
-    commands.expire_auction_attempt.return_value = resolved
+    commands.expire_due_deadline.return_value = resolved
     hub = AsyncMock()
-    worker = AuctionDeadlineWorker(commands, hub)  # type: ignore[arg-type]
+    worker = GameDeadlineWorker(commands, hub)  # type: ignore[arg-type]
 
     assert asyncio.run(worker.check_once()) is True
-    commands.expire_auction_attempt.assert_awaited_once()
+    commands.expire_due_deadline.assert_awaited_once()
     hub.broadcast_json_by_client_type.assert_awaited_once()
     envelopes = hub.broadcast_json_by_client_type.await_args.args[0]
     assert envelopes["display"]["payload"]["session"]["auction"]["answers"] == []
@@ -192,10 +201,10 @@ def test_deadline_worker_expires_and_broadcasts_an_overdue_attempt() -> None:
 
 def test_deadline_worker_ignores_an_attempt_before_its_deadline() -> None:
     commands = AsyncMock()
-    commands.expire_auction_attempt.side_effect = InvalidGameConfigError("Les 30 secondes ne sont pas encore écoulées.")
+    commands.expire_due_deadline.return_value = None
     hub = AsyncMock()
-    worker = AuctionDeadlineWorker(commands, hub)  # type: ignore[arg-type]
+    worker = GameDeadlineWorker(commands, hub)  # type: ignore[arg-type]
 
     assert asyncio.run(worker.check_once()) is False
-    commands.expire_auction_attempt.assert_awaited_once()
+    commands.expire_due_deadline.assert_awaited_once()
     hub.broadcast_json_by_client_type.assert_not_awaited()

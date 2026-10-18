@@ -1,17 +1,11 @@
 from __future__ import annotations
 
-import time
-
 from application.game_config.command.base import GameConfigCommandBase
 from application.game_config.game_config_models import BombeBuzzerCommandModel, GameConfigReadModel
 
 
 class BombeCommandUseCase(GameConfigCommandBase):
     """Commandes applicatives de La Bombe."""
-
-    @staticmethod
-    def _now_ms() -> int:
-        return int(time.time() * 1000)
 
     async def start(self) -> GameConfigReadModel:
         return await self._mutate(lambda config: config.start_bombe(self._now_ms()))

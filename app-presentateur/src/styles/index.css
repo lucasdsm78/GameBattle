@@ -775,6 +775,355 @@ button {
   }
 }
 
+/* --- Le mot interdit --- */
+.fw-screen {
+  align-content: start;
+}
+
+.fw-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.75fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.fw-stage {
+  min-height: min(68vh, 720px);
+  padding: clamp(24px, 5vw, 56px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 3vh, 28px);
+  text-align: center;
+  background: radial-gradient(circle at 50% 30%, rgba(34, 197, 94, 0.2), rgba(8, 20, 33, 0.92) 64%);
+}
+
+.fw-stage-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.fw-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: #ffd4db;
+  background: rgba(255, 93, 115, 0.16);
+  border: 1px solid rgba(255, 93, 115, 0.45);
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.fw-live i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: fw-pulse 1.2s ease-in-out infinite;
+}
+
+.fw-team-badge {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 10px 22px;
+  border-radius: 999px;
+  color: #052e16;
+  background: var(--accent);
+  font-weight: 900;
+  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+}
+
+.fw-scoreline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(28px, 7vw, 96px);
+}
+
+.fw-ring {
+  position: relative;
+  width: clamp(180px, 26vw, 300px);
+  aspect-ratio: 1;
+  max-width: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.fw-ring svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 14px rgba(34, 197, 94, 0.4));
+}
+
+.fw-ring circle {
+  fill: none;
+  stroke-width: 9;
+}
+
+.fw-ring-track {
+  stroke: rgba(255, 255, 255, 0.08);
+}
+
+.fw-ring-progress {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dashoffset: var(--fw-ring-from);
+  animation-name: fw-ring;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  transition: stroke 0.3s ease;
+}
+
+.fw-ring strong {
+  font-size: clamp(3.5rem, 9vw, 7rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.fw-ring.is-danger svg {
+  filter: drop-shadow(0 0 14px rgba(255, 93, 115, 0.45));
+}
+
+.fw-ring.is-danger .fw-ring-progress {
+  stroke: var(--danger);
+}
+
+.fw-ring.is-danger strong {
+  color: var(--danger);
+}
+
+.fw-found {
+  display: grid;
+  gap: 6px;
+}
+
+.fw-found strong {
+  font-size: clamp(5rem, 14vw, 10rem);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 45px rgba(34, 197, 94, 0.35);
+}
+
+.fw-found span,
+.fw-kicker {
+  color: var(--accent);
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.fw-kicker {
+  margin: 0;
+}
+
+.fw-instruction {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 2vw, 1.3rem);
+  font-weight: 700;
+}
+
+.fw-reveal {
+  max-width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 16px clamp(24px, 4vw, 48px);
+  border-radius: 24px;
+  border: 1px solid rgba(34, 197, 94, 0.55);
+  background: rgba(34, 197, 94, 0.14);
+  box-shadow: 0 0 60px rgba(34, 197, 94, 0.22);
+  animation: fw-reveal-in 0.6s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.fw-reveal span {
+  color: var(--accent);
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.fw-reveal strong {
+  max-width: 100%;
+  font-size: clamp(2.2rem, 6vw, 4.6rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  text-shadow: 0 0 40px rgba(34, 197, 94, 0.45);
+}
+
+.fw-team-name {
+  max-width: 100%;
+  margin: 0;
+  font-size: clamp(2.6rem, 8vw, 6.5rem);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.fw-recap {
+  width: 100%;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.fw-recap-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.fw-recap-title strong {
+  color: var(--text);
+}
+
+.fw-feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.fw-chip {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+  animation: fw-chip-in 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.fw-chip.is-found {
+  color: #b6ffd5;
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+}
+
+.fw-chip.is-skipped {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-border);
+  text-decoration: line-through;
+}
+
+.fw-scores {
+  padding: 24px;
+}
+
+.fw-score-list {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fw-score {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+
+.fw-score.is-current,
+.fw-score.is-winner {
+  border-color: rgba(34, 197, 94, 0.6);
+  background: rgba(34, 197, 94, 0.12);
+  box-shadow: 0 0 26px rgba(34, 197, 94, 0.12);
+}
+
+.fw-score-team {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.fw-score-team strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fw-score-team small {
+  color: var(--muted);
+}
+
+.fw-score b {
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes fw-ring {
+  from { stroke-dashoffset: var(--fw-ring-from); }
+  to { stroke-dashoffset: var(--fw-ring-to); }
+}
+
+@keyframes fw-pulse {
+  50% { opacity: 0.25; transform: scale(0.7); }
+}
+
+@keyframes fw-reveal-in {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes fw-chip-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.92); }
+}
+
+@media (max-width: 1000px) {
+  .fw-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .fw-stage {
+    min-height: 52vh;
+  }
+}
+
+@media (max-width: 620px) {
+  .fw-scoreline {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .fw-stage-header {
+    flex-direction: column;
+  }
+
+  .fw-team-badge {
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fw-chip,
+  .fw-reveal,
+  .fw-live i {
+    animation: none;
+  }
+}
+
 /* --- Culture générale --- */
 .culture-stage {
   display: flex;

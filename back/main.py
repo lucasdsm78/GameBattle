@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from dependency_injections import auction_deadline_worker, get_settings
+from dependency_injections import game_deadline_worker, get_settings
 from infrastructure.config import Settings
 from infrastructure.http_exception_handlers import register_exception_handlers
 from infrastructure.postgresql.database import close_database, configure_database, init_database
@@ -39,12 +39,12 @@ def build_lifespan(settings: Settings):
         app.state.settings = settings
         configure_database(settings)
         await init_database()
-        auction_worker = auction_deadline_worker()
-        await auction_worker.start()
+        deadline_worker = game_deadline_worker()
+        await deadline_worker.start()
         try:
             yield
         finally:
-            await auction_worker.stop()
+            await deadline_worker.stop()
             await close_database()
 
     return lifespan

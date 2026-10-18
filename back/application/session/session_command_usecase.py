@@ -27,3 +27,6 @@ class SessionCommandUseCase(GameConfigCommandBase):
 
     async def reveal_next_ranking(self) -> GameConfigReadModel:
         return await self._mutate(lambda config: config.reveal_next_ranking())
+
+    async def expire_due_deadline(self) -> GameConfigReadModel | None:
+        return await self._mutate_if_changed(lambda config: config.expire_due_deadline(self._now_ms()))

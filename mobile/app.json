@@ -19,8 +19,8 @@
       }
     },
     "extra": {
-      "backendWsUrl": "ws://192.168.1.14:8000",
-      "backendHttpUrl": "http://192.168.1.14:8000",
+      "backendWsUrl": "ws://192.168.1.15:8000",
+      "backendHttpUrl": "http://192.168.1.15:8000",
       "controllerToken": "5C51sjkTnv5uEAaeJP-sHsd4QwGTaKtttpXwSMegjMU",
       "spotifyClientId": "bfaa4a2e5eec4a87b23797b73e75759f",
       "spotifyRedirectScheme": "gamebattlecontroller",

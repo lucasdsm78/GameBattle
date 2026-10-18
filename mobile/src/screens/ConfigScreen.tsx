@@ -12,8 +12,9 @@ const GAME_LABELS: Record<GameKey, string> = {
   memory: 'Mémoire en chaîne',
   seven_differences: 'Les 7 différences',
   auction: 'L’Enchère',
+  forbidden_word: 'Le mot interdit',
 };
-const GAME_KEYS: GameKey[] = ['blindtest', 'stopchrono', 'culture', 'bombe', 'memory', 'seven_differences', 'auction'];
+const GAME_KEYS = Object.keys(GAME_LABELS) as GameKey[];
 
 type Props = {
   draft: GameDraft;

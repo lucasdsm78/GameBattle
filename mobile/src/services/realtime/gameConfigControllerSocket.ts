@@ -297,9 +297,21 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'auction.decrement' });
   }
 
-
   nextAuctionTheme(): void {
     this.sendMessage({ type: 'auction.next-theme' });
+  }
+
+  startForbiddenWordTurn(): void {
+    this.sendMessage({ type: 'forbidden-word.start-turn' });
+  }
+
+  // `card_id` rend TROUVÉ / PASSER idempotents côté serveur (double appui ignoré).
+  forbiddenWordFound(cardId: string): void {
+    this.sendMessage({ type: 'forbidden-word.found', payload: { card_id: cardId } });
+  }
+
+  forbiddenWordSkip(cardId: string): void {
+    this.sendMessage({ type: 'forbidden-word.skip', payload: { card_id: cardId } });
   }
 
   nextManche(): void {

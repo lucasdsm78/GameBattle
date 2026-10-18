@@ -14,6 +14,7 @@ import { MemoryLiveScreen } from './src/screens/MemoryLiveScreen';
 import { FinalRankingScreen } from './src/screens/FinalRankingScreen';
 import { SevenDifferencesLiveScreen } from './src/screens/SevenDifferencesLiveScreen';
 import { AuctionLiveScreen } from './src/screens/AuctionLiveScreen';
+import { ForbiddenWordActionBar, ForbiddenWordLiveScreen } from './src/screens/ForbiddenWordLiveScreen';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
@@ -56,6 +57,8 @@ export default function App() {
   const partyFinished = remoteSnapshot?.status === 'finished';
   const mancheFinished = Boolean(session?.manche_finished) && !partyFinished;
   const memory = activeGameKey === 'memory' ? session?.memory : undefined;
+  const forbiddenWordCard =
+    activeGameKey === 'forbidden_word' && session?.forbidden_word.phase === 'running' ? session.forbidden_word.current_card : null;
 
   return (
     <SafeAreaProvider>
@@ -123,7 +126,14 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'auction' ? (
+            {activeGameKey === 'forbidden_word' ? (
+              <ForbiddenWordLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStartTurn={() => socket.startForbiddenWordTurn()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'auction' ? (
               <AuctionLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}
@@ -229,6 +239,14 @@ export default function App() {
             </>
           )}
           </View>
+        ) : null}
+
+        {step === 'live' && forbiddenWordCard ? (
+          <ForbiddenWordActionBar
+            cardId={forbiddenWordCard.id}
+            onFound={(cardId) => socket.forbiddenWordFound(cardId)}
+            onSkip={(cardId) => socket.forbiddenWordSkip(cardId)}
+          />
         ) : null}
       </SafeAreaView>
     </SafeAreaProvider>

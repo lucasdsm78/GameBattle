@@ -8,6 +8,9 @@ from domain.game_config.model.game_config import (
     BombeState,
     CultureQuestion,
     CultureState,
+    ForbiddenWordCard,
+    ForbiddenWordState,
+    ForbiddenWordTurn,
     GameConfig,
     GameDefinition,
     GameRoundPlan,
@@ -47,6 +50,35 @@ def _memory_state_from_payload(payload: dict, teams: list[str]) -> MemoryState:
         turn_number=payload.get("turn_number", 0),
         winner_team=payload.get("winner_team"),
         rules_version=MEMORY_RULES_VERSION,
+    )
+
+
+def _forbidden_word_state_from_payload(payload: dict) -> ForbiddenWordState:
+    card_payload = payload.get("current_card")
+    return ForbiddenWordState(
+        phase=payload.get("phase", "idle"),
+        turn_order=list(payload.get("turn_order", []) or []),
+        turns=[
+            ForbiddenWordTurn(
+                team=turn["team"],
+                found_words=list(turn.get("found_words", []) or []),
+                skipped_words=list(turn.get("skipped_words", []) or []),
+            )
+            for turn in payload.get("turns", []) or []
+        ],
+        current_card=(
+            ForbiddenWordCard(
+                id=card_payload["id"],
+                word=card_payload["word"],
+                forbidden_words=list(card_payload.get("forbidden_words", []) or []),
+            )
+            if card_payload
+            else None
+        ),
+        started_at_ms=payload.get("started_at_ms", 0),
+        deadline_at_ms=payload.get("deadline_at_ms", 0),
+        used_card_ids=list(payload.get("used_card_ids", []) or []),
+        winner_team=payload.get("winner_team"),
     )
 
 
@@ -184,6 +216,7 @@ def game_config_from_payload(payload: dict) -> GameConfig:
                 asked_theme_ids=list(auction_payload.get("asked_theme_ids", []) or []),
                 winner_team=auction_payload.get("winner_team"),
             ),
+            forbidden_word=_forbidden_word_state_from_payload(session_payload.get("forbidden_word", {})),
             round_sequence=list(session_payload.get("round_sequence", []) or []),
             round_index=session_payload.get("round_index", 0),
             total_rounds=session_payload.get("total_rounds", 0),

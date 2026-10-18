@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCountdown } from '../hooks/useCountdown';
 import { colors, styles } from '../theme';
 import { GameConfigSnapshot } from '../types/gameConfig';
 
@@ -28,24 +29,16 @@ export function AuctionLiveScreen({
 }: Props) {
   const game = snapshot.session.auction;
   const [bid, setBid] = useState('1');
-  const [now, setNow] = useState(Date.now());
+  const running = game.phase === 'running';
+  const countdownMs = useCountdown(game.deadline_at_ms, running, 100);
   const parsedBid = Number.parseInt(bid, 10);
   const validBid = Number.isInteger(parsedBid) && parsedBid >= 1 && parsedBid <= 100;
-
-  useEffect(() => {
-    if (game.phase !== 'running') return;
-    setNow(Date.now());
-    const tick = setInterval(() => setNow(Date.now()), 100);
-    return () => {
-      clearInterval(tick);
-    };
-  }, [game.deadline_at_ms, game.phase]);
 
   useEffect(() => {
     if (game.phase === 'bidding') setBid('1');
   }, [game.phase, game.theme_id]);
 
-  const millisecondsLeft = game.phase === 'running' ? Math.max(0, game.deadline_at_ms - now) : 30_000;
+  const millisecondsLeft = running ? countdownMs : 30_000;
   const secondsLeft = Math.ceil(millisecondsLeft / 1000);
 
   return (

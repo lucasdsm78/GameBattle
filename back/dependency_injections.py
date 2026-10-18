@@ -14,7 +14,7 @@ from infrastructure.config import Settings
 from infrastructure.postgresql.game_config.postgresql_game_config_repository import PostgreSQLGameConfigRepository
 from infrastructure.realtime.websocket_hub import WebSocketHub
 from infrastructure.spotify.spotify_playlist_service import SpotifyPlaylistService
-from presentation.realtime.auction_deadline_worker import AuctionDeadlineWorker
+from presentation.realtime.game_deadline_worker import GameDeadlineWorker
 
 
 @lru_cache()
@@ -54,8 +54,8 @@ def game_config_query_usecase() -> GameConfigQueryUseCase:
     return GameConfigQueryUseCaseImpl(game_config_repository_singleton())
 
 
-def auction_deadline_worker() -> AuctionDeadlineWorker:
-    return AuctionDeadlineWorker(
+def game_deadline_worker() -> GameDeadlineWorker:
+    return GameDeadlineWorker(
         game_config_command_usecase(),
         websocket_hub_singleton(),
     )

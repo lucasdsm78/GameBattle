@@ -10,9 +10,10 @@ from uuid import uuid4
 from domain.game_config.exception.game_config_exception import GameConfigurationNotReadyError, InvalidGameConfigError
 from domain.game_config.model.auction_catalog import pick_auction_theme
 from domain.game_config.model.culture_questions import CULTURE_DIFFICULTIES, pick_one_culture_question
+from domain.game_config.model.forbidden_word_catalog import pick_forbidden_word_card
 from domain.game_config.model.seven_differences_catalog import pick_seven_differences_puzzle
 
-SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction"}
+SUPPORTED_GAME_KEYS = {"blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction", "forbidden_word"}
 ALLOWED_STATUSES = {"configuring", "ready", "live", "finished"}
 TRACKS_PER_RANDOM_BLINDTEST_ROUND = 10
 DEFAULT_BUZZER_KEYS = ["1", "2", "3", "4", "5", "6"]
@@ -31,6 +32,8 @@ AUCTION_PHASES = {"idle", "bidding", "ready", "running", "resolved", "finished"}
 AUCTION_DURATION_MS = 30_000
 AUCTION_WINNING_SCORE = 20
 AUCTION_MAX_TARGET_COUNT = 100
+FORBIDDEN_WORD_PHASES = {"idle", "ready", "running", "finished"}
+FORBIDDEN_WORD_TURN_MS = 60_000
 BOMBE_PHASES = {"idle", "awaiting_roll", "rolling", "running", "exploded"}
 BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
 BOMBE_SOUND_ONSETS = tuple("BDFGKLMNPRSTV")
@@ -48,6 +51,13 @@ MAX_TOTAL_ROUNDS = 30
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def pick_round_winner(teams: list[str], scores: dict[str, int]) -> str:
+    """Équipe au meilleur score, ou `TIE_LABEL` si plusieurs équipes sont à égalité en tête."""
+    best = max((scores.get(team, 0) for team in teams), default=0)
+    leaders = [team for team in teams if scores.get(team, 0) == best]
+    return leaders[0] if len(leaders) == 1 else TIE_LABEL
 
 
 def generate_bombe_sound() -> str:
@@ -506,6 +516,81 @@ class AuctionState:
 
 
 @dataclass(slots=True)
+class ForbiddenWordCard:
+    id: str
+    word: str
+    forbidden_words: list[str]
+
+
+@dataclass(slots=True)
+class ForbiddenWordTurn:
+    team: str
+    found_words: list[str] = field(default_factory=list)
+    skipped_words: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class ForbiddenWordState:
+    """Chaque équipe joue un tour de 60 s, dans un ordre tiré au sort ; les scores sont dérivés des tours."""
+
+    phase: str = "idle"  # idle | ready | running | finished
+    turn_order: list[str] = field(default_factory=list)
+    turns: list[ForbiddenWordTurn] = field(default_factory=list)  # tours joués + tour en cours
+    current_card: Optional[ForbiddenWordCard] = None
+    started_at_ms: int = 0
+    deadline_at_ms: int = 0
+    used_card_ids: list[str] = field(default_factory=list)
+    winner_team: Optional[str] = None
+
+    @property
+    def current_team(self) -> Optional[str]:
+        if self.phase == "ready":
+            return self.turn_order[len(self.turns)]
+        if self.phase == "running":
+            return self.turns[-1].team
+        return None
+
+    def scores(self, teams: list[str]) -> dict[str, int]:
+        scores = {team: 0 for team in teams}
+        for turn in self.turns:
+            scores[turn.team] = len(turn.found_words)
+        return scores
+
+    def validate(self, teams: list[str]) -> None:
+        if self.phase not in FORBIDDEN_WORD_PHASES:
+            raise InvalidGameConfigError("La phase du Mot interdit est invalide.")
+        if self.phase == "idle":
+            if any((self.turn_order, self.turns, self.current_card, self.started_at_ms, self.deadline_at_ms, self.used_card_ids, self.winner_team)):
+                raise InvalidGameConfigError("L’état initial du Mot interdit est invalide.")
+            return
+        if sorted(self.turn_order) != sorted(teams):
+            raise InvalidGameConfigError("L’ordre de passage du Mot interdit est invalide.")
+        if [turn.team for turn in self.turns] != self.turn_order[: len(self.turns)]:
+            raise InvalidGameConfigError("Les tours du Mot interdit ne respectent pas l’ordre de passage.")
+        if len(set(self.used_card_ids)) != len(self.used_card_ids):
+            raise InvalidGameConfigError("Un mot du Mot interdit a été tiré plusieurs fois.")
+        if self.phase == "ready" and (
+            len(self.turns) >= len(teams) or self.current_card or self.started_at_ms or self.deadline_at_ms or self.winner_team
+        ):
+            raise InvalidGameConfigError("La préparation du tour du Mot interdit est invalide.")
+        if self.phase == "running" and (
+            not self.turns
+            or self.current_card is None
+            or self.current_card.id not in self.used_card_ids
+            or self.started_at_ms <= 0
+            or self.deadline_at_ms - self.started_at_ms != FORBIDDEN_WORD_TURN_MS
+            or self.winner_team
+        ):
+            raise InvalidGameConfigError("Le tour en cours du Mot interdit est invalide.")
+        if self.phase == "finished" and (
+            len(self.turns) != len(teams)
+            or self.current_card
+            or self.winner_team != pick_round_winner(teams, self.scores(teams))
+        ):
+            raise InvalidGameConfigError("La fin de manche du Mot interdit est invalide.")
+
+
+@dataclass(slots=True)
 class ActiveRound:
     round_id: str
     label: str
@@ -530,6 +615,7 @@ class GameSession:
     memory: MemoryState = field(default_factory=MemoryState)
     seven_differences: SevenDifferencesState = field(default_factory=SevenDifferencesState)
     auction: AuctionState = field(default_factory=AuctionState)
+    forbidden_word: ForbiddenWordState = field(default_factory=ForbiddenWordState)
     # Séquence des jeux pour chaque manche, déterminée au lancement et JAMAIS exposée aux apps
     # (le mobile et l'écran ne voient que la manche courante).
     round_sequence: list[str] = field(default_factory=list)
@@ -554,6 +640,7 @@ class GameSession:
         self.memory.validate(teams)
         self.seven_differences.validate(teams)
         self.auction.validate(teams)
+        self.forbidden_word.validate(teams)
         if set(self.manches_won.keys()) - allowed_teams:
             raise InvalidGameConfigError("Le classement contient une équipe inconnue.")
         if self.manche_winner and self.manche_winner not in allowed_teams and self.manche_winner != TIE_LABEL:
@@ -670,7 +757,7 @@ class GameConfig:
             return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState()
         if game_key == "seven_differences":
             return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState(scores=teams_scores)
-        if game_key == "auction":
+        if game_key in {"auction", "forbidden_word"}:
             return active_round, BlindtestState(), StopChronoState(), CultureState(), BombeState(), MemoryState(), SevenDifferencesState()
         blindtest = BlindtestState(
             round_id=active_round.round_id,
@@ -685,6 +772,11 @@ class GameConfig:
         game_key = self.session.round_sequence[index]
         active_round, blindtest, stopchrono, culture, bombe, memory, seven_differences = self._build_manche_states(game_key, index)
         auction = AuctionState(scores={team: 0 for team in self.settings.teams}) if game_key == "auction" else AuctionState()
+        forbidden_word = (
+            ForbiddenWordState(phase="ready", turn_order=random.sample(self.settings.teams, len(self.settings.teams)))
+            if game_key == "forbidden_word"
+            else ForbiddenWordState()
+        )
         return self._replace_session(
             active_round=active_round,
             blindtest=blindtest,
@@ -694,6 +786,7 @@ class GameConfig:
             memory=memory,
             seven_differences=seven_differences,
             auction=auction,
+            forbidden_word=forbidden_word,
             round_index=index,
             manche_finished=False,
             manche_winner=None,
@@ -1612,6 +1705,94 @@ class GameConfig:
             asked_theme_ids=[*state.asked_theme_ids, theme.id],
         ))
 
+    # --- Le mot interdit ---
+
+    def _ensure_forbidden_word_active(self) -> ForbiddenWordState:
+        if self.status != "live" or not self.session.active_round or self.session.active_round.game_key != "forbidden_word":
+            raise InvalidGameConfigError("Le Mot interdit n’est pas la manche active.")
+        return self.session.forbidden_word
+
+    @staticmethod
+    def _draw_forbidden_word_card(used_card_ids: list[str]) -> tuple[ForbiddenWordCard, list[str]]:
+        picked = pick_forbidden_word_card(used_card_ids)
+        if picked is None:
+            # Catalogue épuisé : on recommence un cycle complet plutôt que de bloquer la manche.
+            used_card_ids = []
+            picked = pick_forbidden_word_card(used_card_ids)
+        if picked is None:
+            raise InvalidGameConfigError("Le catalogue du Mot interdit est vide.")
+        card = ForbiddenWordCard(id=picked.id, word=picked.word, forbidden_words=list(picked.forbidden_words))
+        return card, [*used_card_ids, card.id]
+
+    def start_forbidden_word_turn(self, now_ms: int) -> "GameConfig":
+        state = self._ensure_forbidden_word_active()
+        if state.phase != "ready":
+            raise InvalidGameConfigError("Le tour ne peut démarrer que lorsque l’équipe est prête.")
+        card, used_card_ids = self._draw_forbidden_word_card(state.used_card_ids)
+        return self._replace_session(forbidden_word=replace(
+            state,
+            phase="running",
+            turns=[*state.turns, ForbiddenWordTurn(team=state.turn_order[len(state.turns)])],
+            current_card=card,
+            used_card_ids=used_card_ids,
+            started_at_ms=now_ms,
+            deadline_at_ms=now_ms + FORBIDDEN_WORD_TURN_MS,
+        ))
+
+    def resolve_forbidden_word_card(self, card_id: str, *, found: bool, now_ms: int) -> "GameConfig":
+        """Valide (TROUVÉ) ou passe la carte affichée puis tire la suivante.
+
+        `card_id` rend la commande idempotente : un double appui, ou un appui arrivé après le tirage
+        suivant ou la fin du tour, est ignoré au lieu de compter deux fois ou d'afficher une erreur.
+        """
+        state = self._ensure_forbidden_word_active()
+        if state.phase != "running" or state.current_card is None or state.current_card.id != card_id:
+            return self
+        if now_ms >= state.deadline_at_ms:
+            return self._end_forbidden_word_turn(state)
+        turn = state.turns[-1]
+        word = state.current_card.word
+        resolved_turn = (
+            replace(turn, found_words=[*turn.found_words, word])
+            if found
+            else replace(turn, skipped_words=[*turn.skipped_words, word])
+        )
+        card, used_card_ids = self._draw_forbidden_word_card(state.used_card_ids)
+        return self._replace_session(forbidden_word=replace(
+            state,
+            turns=[*state.turns[:-1], resolved_turn],
+            current_card=card,
+            used_card_ids=used_card_ids,
+        ))
+
+    def _end_forbidden_word_turn(self, state: ForbiddenWordState) -> "GameConfig":
+        ended = replace(state, current_card=None, started_at_ms=0, deadline_at_ms=0)
+        if len(state.turns) < len(state.turn_order):
+            return self._replace_session(forbidden_word=replace(ended, phase="ready"))
+        winner = pick_round_winner(self.settings.teams, state.scores(self.settings.teams))
+        active_round = replace(self.session.active_round, completed=True) if self.session.active_round else None
+        return self._replace_session(
+            active_round=active_round,
+            forbidden_word=replace(ended, phase="finished", winner_team=winner),
+            manche_finished=True,
+            manche_winner=winner,
+        )
+
+    # --- Chronos serveur ---
+
+    def expire_due_deadline(self, now_ms: int) -> "GameConfig":
+        """Clôt le chrono échu de la manche active ; renvoie `self` inchangé s’il n’y a rien à faire."""
+        if self.status != "live" or self.session.active_round is None:
+            return self
+        game_key = self.session.active_round.game_key
+        auction = self.session.auction
+        if game_key == "auction" and auction.phase == "running" and now_ms >= auction.deadline_at_ms:
+            return self._resolve_auction(auction)
+        forbidden_word = self.session.forbidden_word
+        if game_key == "forbidden_word" and forbidden_word.phase == "running" and now_ms >= forbidden_word.deadline_at_ms:
+            return self._end_forbidden_word_turn(forbidden_word)
+        return self
+
     # --- Orchestration des manches / classement final ---
 
     def next_manche(self) -> "GameConfig":
@@ -1701,6 +1882,12 @@ class GameConfig:
                     "differences_remaining": 7 - len(self.session.seven_differences.found_difference_ids),
                 },
                 "auction": asdict(self.session.auction),
+                "forbidden_word": {
+                    **asdict(self.session.forbidden_word),
+                    "current_team": self.session.forbidden_word.current_team,
+                    "scores": self.session.forbidden_word.scores(self.settings.teams),
+                    "turn_duration_ms": FORBIDDEN_WORD_TURN_MS,
+                },
                 # Orchestration. `round_sequence` est persisté (round-trip DB) mais retiré du
                 # payload envoyé aux clients par la couche WebSocket (les apps ne voient pas les prochains jeux).
                 "round_sequence": list(self.session.round_sequence),
@@ -1743,6 +1930,7 @@ def build_default_game_config() -> GameConfig:
             GameDefinition(game_key="memory", label="Mémoire en chaîne", enabled=False, round_count=0),
             GameDefinition(game_key="seven_differences", label="Les 7 différences", enabled=False, round_count=0),
             GameDefinition(game_key="auction", label="L’Enchère", enabled=False, round_count=0),
+            GameDefinition(game_key="forbidden_word", label="Le mot interdit", enabled=False, round_count=0),
         ],
         rounds=[],
         session=GameSession(updated_at=utc_now_iso()),

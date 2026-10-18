@@ -7,6 +7,8 @@ import { BombeBoard } from './BombeBoard';
 import { MemoryBoard } from './MemoryBoard';
 import { SevenDifferencesBoard } from './SevenDifferencesBoard';
 import { AuctionBoard } from './AuctionBoard';
+import { ForbiddenWordBoard } from './ForbiddenWordBoard';
+import { GameScreen } from './GameScreen';
 
 type Props = {
   gameConfig: GameConfigSnapshot | null;
@@ -192,6 +194,9 @@ export function DisplayBoard({
         }
         return;
       }
+
+      // Le mot interdit se pilote uniquement depuis le téléphone de l'orateur.
+      if (activeGameKey === 'forbidden_word') return;
 
       for (let index = 0; index < teams.length; index += 1) {
         if (matchesBinding(event, buzzerKeys[index] ?? '')) {
@@ -408,75 +413,52 @@ export function DisplayBoard({
 
   if (activeGameKey === 'seven_differences') {
     const game = gameConfig.session.seven_differences;
-    const recap = gameConfig.settings.teams.map((team) => `${team} : ${game.scores[team] ?? 0}`).join('   •   ');
     return (
-      <>
-        <main className="screen seven-screen">
-          <section className="hero glass-card">
-            <div>
-              <p className="eyebrow">Les 7 différences</p>
-              <h1>{gameConfig.settings.game_title}</h1>
-              <p className="meta">
-                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
-                <span>•</span>
-                <span>{gameConfig.settings.teams.length} équipes</span>
-              </p>
-            </div>
-            <div className="hero-aside">
-              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
-              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
-            </div>
-          </section>
-
-          <SevenDifferencesBoard gameConfig={gameConfig} onOpen={onSevenDifferencesOpen} />
-          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
-        </main>
-
-        {game.winner_team ? (
-          <div className="winner-overlay">
-            <p className="winner-eyebrow">Manche terminée</p>
-            <p className="winner-name">{game.winner_team === 'Égalité' ? 'Égalité !' : game.winner_team}</p>
-            <p className="winner-sub">{recap}</p>
-          </div>
-        ) : null}
-      </>
+      <GameScreen
+        gameConfig={gameConfig}
+        connectionState={connectionState}
+        errorMessage={errorMessage}
+        eyebrow="Les 7 différences"
+        className="seven-screen"
+        winnerTeam={game.winner_team}
+        scores={game.scores}
+      >
+        <SevenDifferencesBoard gameConfig={gameConfig} onOpen={onSevenDifferencesOpen} />
+      </GameScreen>
     );
   }
 
   if (activeGameKey === 'auction') {
     const game = gameConfig.session.auction;
-    const recap = gameConfig.settings.teams.map((team) => `${team} : ${game.scores[team] ?? 0}`).join('   •   ');
     return (
-      <>
-        <main className="screen auction-screen">
-          <section className="hero glass-card">
-            <div>
-              <p className="eyebrow">L’Enchère · première équipe à 20</p>
-              <h1>{gameConfig.settings.game_title}</h1>
-              <p className="meta">
-                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
-                <span>•</span>
-                <span>{gameConfig.settings.teams.length} équipes</span>
-              </p>
-            </div>
-            <div className="hero-aside">
-              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
-              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
-            </div>
-          </section>
+      <GameScreen
+        gameConfig={gameConfig}
+        connectionState={connectionState}
+        errorMessage={errorMessage}
+        eyebrow="L’Enchère · première équipe à 20"
+        className="auction-screen"
+        winnerTeam={game.winner_team}
+        scores={game.scores}
+      >
+        <AuctionBoard gameConfig={gameConfig} />
+      </GameScreen>
+    );
+  }
 
-          <AuctionBoard gameConfig={gameConfig} />
-          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
-        </main>
-
-        {game.winner_team ? (
-          <div className="winner-overlay">
-            <p className="winner-eyebrow">Manche terminée</p>
-            <p className="winner-name">{game.winner_team === 'Égalité' ? 'Égalité !' : game.winner_team}</p>
-            <p className="winner-sub">{recap}</p>
-          </div>
-        ) : null}
-      </>
+  if (activeGameKey === 'forbidden_word') {
+    const game = gameConfig.session.forbidden_word;
+    return (
+      <GameScreen
+        gameConfig={gameConfig}
+        connectionState={connectionState}
+        errorMessage={errorMessage}
+        eyebrow="Le mot interdit · 60 s par équipe"
+        className="fw-screen"
+        winnerTeam={game.winner_team}
+        scores={game.scores}
+      >
+        <ForbiddenWordBoard game={game} />
+      </GameScreen>
     );
   }
 
