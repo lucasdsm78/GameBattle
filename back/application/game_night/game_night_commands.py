@@ -5,8 +5,12 @@ from typing import Annotated, Any, Literal
 from pydantic import Field, StringConstraints, field_validator
 
 from application.shared.commands import CultureDifficulty, InputModel, TeamName
-from domain.models.game_config import GameConfig
-from domain.models.settings import GameDefinition, GameRoundPlan, GameSettings
+from domain.game_night.models.game_config import GameConfig
+from domain.game_night.models.settings import (
+    GameDefinition,
+    GameRoundPlan,
+    GameSettings,
+)
 
 GameKey = Literal["blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction", "forbidden_word"]
 GameStatus = Literal["configuring", "ready", "live", "finished"]

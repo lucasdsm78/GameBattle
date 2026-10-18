@@ -4,8 +4,8 @@ from collections import Counter
 
 import pytest
 
-from domain.models.game_config import build_default_game_config
-from domain.services.round_sequence import build_round_sequence
+from domain.game_night.models.game_config import build_default_game_config
+from domain.game_night.services.round_sequence import build_round_sequence
 from exceptions import InvalidGameConfigError
 
 

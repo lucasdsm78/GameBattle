@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 
 from application.blindtest.spotify_playlist_port import SpotifyPlaylistProvider
-from domain.models.game_config import GameConfig
-from domain.vo.blindtest_track import build_blindtest_track
+from domain.blindtest.models.blindtest_track import build_blindtest_track
+from domain.game_night.models.game_config import GameConfig
 from exceptions import InvalidGameConfigError
 
 logger = logging.getLogger(__name__)

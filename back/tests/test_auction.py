@@ -6,12 +6,12 @@ from dataclasses import replace
 import pytest
 
 from application.shared.snapshot import ClientRole
-from domain.models.game_config import build_default_game_config
-from domain.models.games.auction import (
+from domain.auction.models.auction_state import (
     AUCTION_DURATION_MS,
     AUCTION_MAX_TARGET_COUNT,
     AUCTION_WINNING_SCORE,
 )
+from domain.game_night.models.game_config import build_default_game_config
 from exceptions import (
     CommandNotAllowedError,
     InvalidGameConfigError,

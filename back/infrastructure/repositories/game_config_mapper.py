@@ -5,8 +5,8 @@ from functools import cache
 from types import NoneType, UnionType
 from typing import Any, Union, get_args, get_origin, get_type_hints
 
-from domain.models.game_config import GameConfig
-from domain.models.games.memory import MEMORY_RULES_VERSION
+from domain.game_night.models.game_config import GameConfig
+from domain.memory.models.memory_state import MEMORY_RULES_VERSION
 
 
 def game_config_from_payload(payload: dict[str, Any]) -> GameConfig:

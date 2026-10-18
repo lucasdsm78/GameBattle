@@ -5,9 +5,9 @@ from types import TracebackType
 from typing import Optional, Self
 
 from application.shared.unit_of_work import UnitOfWork
-from domain.events import DomainEvent
-from domain.models.game_config import GameConfig
-from domain.repositories.game_config import GameConfigRepository
+from domain.game_night.models.game_config import GameConfig
+from domain.game_night.repositories.game_config_repository import GameConfigRepository
+from domain.shared.events.domain_event import DomainEvent
 
 
 class GameConfigUnitOfWork(UnitOfWork):
