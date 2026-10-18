@@ -9,7 +9,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
-from infrastructure.spotify.spotify_playlist_service import SpotifyPlaylistImportResult, SpotifyPlaylistTrackData
+
+from infrastructure.extern.spotify import (
+    SpotifyPlaylistImportResult,
+    SpotifyPlaylistTrackData,
+)
 
 TEST_DB_PATH = Path(tempfile.gettempdir()) / "gamebattle_test.db"
 
@@ -19,7 +23,7 @@ os.environ["GAMEBATTLE_DISPLAY_TOKEN"] = "display-test-token"
 os.environ["GAMEBATTLE_ALLOWED_ORIGINS"] = "http://localhost:5173,http://localhost:8081"
 os.environ["GAMEBATTLE_HARDWARE_TOKEN"] = "hardware-test-token"
 
-from dependency_injections import game_command_bus  # noqa: E402
+from interface.dependencies.container import game_command_bus
 from main import app  # noqa: E402
 
 CONTROLLER_HEADERS = {"X-GameBattle-Controller-Token": "controller-test-token"}
@@ -209,7 +213,7 @@ def test_import_spotify_playlist_via_http() -> None:
         )
 
         with patch(
-            "infrastructure.spotify.spotify_playlist_service.SpotifyPlaylistService.import_playlist",
+            "infrastructure.extern.spotify.SpotifyPlaylistService.import_playlist",
             new=AsyncMock(return_value=spotify_result),
         ):
             response = client.post("/api/game-config/blindtest/playlist/import-spotify", headers=CONTROLLER_HEADERS,
@@ -360,7 +364,7 @@ def test_websocket_spotify_import_broadcast() -> None:
                 )
 
                 with patch(
-                    "infrastructure.spotify.spotify_playlist_service.SpotifyPlaylistService.import_playlist",
+                    "infrastructure.extern.spotify.SpotifyPlaylistService.import_playlist",
                     new=AsyncMock(return_value=spotify_result),
                 ):
                     controller_ws.send_json(

@@ -4,15 +4,18 @@ import asyncio
 from dataclasses import replace
 
 import pytest
-from support import BusHarness
 
-from application.game_config.errors import CommandNotAllowedError
-from application.game_config.snapshot import ClientRole
-from domain.game_config.exception.game_config_exception import InvalidGameConfigError
-from domain.game_config.model.game_config import build_default_game_config
-from domain.game_config.model.games.auction import AUCTION_DURATION_MS, AUCTION_MAX_TARGET_COUNT, AUCTION_WINNING_SCORE
-from infrastructure.game_config_payload_mapper import game_config_from_payload
-from presentation.realtime.game_deadline_worker import GameDeadlineWorker
+from application.services.snapshot import ClientRole
+from domain.models.game_config import build_default_game_config
+from domain.models.games.auction import (
+    AUCTION_DURATION_MS,
+    AUCTION_MAX_TARGET_COUNT,
+    AUCTION_WINNING_SCORE,
+)
+from exceptions import CommandNotAllowedError, InvalidGameConfigError
+from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from interface.realtime.deadline_worker import GameDeadlineWorker
+from support import BusHarness
 
 
 def _auction_config(*, teams: list[str] | None = None):

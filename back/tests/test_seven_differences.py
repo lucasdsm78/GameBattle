@@ -3,15 +3,14 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from support import BusHarness
 
-from application.game_config.errors import CommandNotAllowedError
-from application.game_config.snapshot import ClientRole
-from domain.game_config.exception.game_config_exception import InvalidGameConfigError
-from domain.game_config.model.game_config import build_default_game_config
-from domain.game_config.model.games.seven_differences import SEVEN_DIFFERENCES_MEMORIZATION_MS
-from domain.game_config.model.shared import TIE_LABEL
-from infrastructure.game_config_payload_mapper import game_config_from_payload
+from application.services.snapshot import ClientRole
+from domain.models.game_config import build_default_game_config
+from domain.models.games.seven_differences import SEVEN_DIFFERENCES_MEMORIZATION_MS
+from domain.services.scoring import TIE_LABEL
+from exceptions import CommandNotAllowedError, InvalidGameConfigError
+from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from support import BusHarness
 
 
 def _seven_config(*, teams: list[str] | None = None):

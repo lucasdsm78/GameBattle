@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from domain.game_config.model.culture_questions import (
+from domain.services.catalogs.culture import (
     CULTURE_DIFFICULTIES,
     CULTURE_QUESTIONS,
     pick_one_culture_question,

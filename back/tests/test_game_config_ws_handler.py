@@ -4,11 +4,15 @@ import asyncio
 import json
 
 import pytest
-from support import BusHarness, started_config
 
-from application.game_config.snapshot import ClientRole
-from domain.game_config.model.games.blindtest import build_blindtest_track
-from presentation.realtime.game_config_ws_handler import MAX_MESSAGE_CHARS, RateLimiter, handle_client_message
+from application.services.snapshot import ClientRole
+from domain.vo.blindtest_track import build_blindtest_track
+from interface.realtime.message_handler import (
+    MAX_MESSAGE_CHARS,
+    RateLimiter,
+    handle_client_message,
+)
+from support import BusHarness, started_config
 
 READ_ONLY = {"type": "error", "detail": "Le client display est en lecture seule."}
 

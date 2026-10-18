@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import ast
+from pathlib import Path
 from typing import get_args
 
-from application.game_config.game_config_models import GameKey
-from application.games import ALL_COMMANDS
-from domain.game_config.model.games import GAME_STATE_TYPES
-from domain.game_config.model.session import GameSession
-from domain.game_config.model.settings import SUPPORTED_GAME_KEYS
+import pytest
+
+from application.commands import ALL_COMMANDS
+from application.commands.payloads import GameKey
+from domain.models.games import GAME_STATE_TYPES
+from domain.models.session import GameSession
+from domain.models.settings import SUPPORTED_GAME_KEYS
 
 
 def test_every_game_is_registered_consistently_across_layers() -> None:
@@ -38,3 +42,34 @@ def test_display_can_only_trigger_buzzers_timers_and_spotify_token() -> None:
         "seven-differences.buzzer",
         "auction.buzzer",
     }
+
+
+BACK_DIR = Path(__file__).resolve().parents[1]
+FORBIDDEN_IMPORTS = {
+    "domain": ("application", "infrastructure", "interface", "fastapi", "pydantic", "sqlalchemy", "httpx"),
+    "application": ("infrastructure", "interface", "fastapi", "sqlalchemy", "httpx"),
+    "infrastructure": ("interface", "fastapi"),
+}
+
+
+def _imported_modules(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    modules: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            modules.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            modules.add(node.module)
+    return modules
+
+
+@pytest.mark.parametrize("layer", sorted(FORBIDDEN_IMPORTS))
+def test_layers_only_depend_inwards(layer: str) -> None:
+    violations = [
+        f"{path.relative_to(BACK_DIR)} -> {module}"
+        for path in (BACK_DIR / layer).rglob("*.py")
+        for module in _imported_modules(path)
+        if module.split(".")[0] in FORBIDDEN_IMPORTS[layer]
+    ]
+
+    assert violations == []

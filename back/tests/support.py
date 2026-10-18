@@ -4,11 +4,11 @@ import asyncio
 from collections.abc import Callable
 from typing import Any
 
-from application.game_config.command_bus import GameCommandBus
-from application.game_config.snapshot import ClientRole, GameConfigSnapshot
-from application.games import ALL_COMMANDS
-from domain.game_config.model.game_config import GameConfig, build_default_game_config
-from domain.game_config.repository.game_config_repository import GameConfigRepository
+from application.commands import ALL_COMMANDS
+from application.commands.bus import GameCommandBus
+from application.services.snapshot import ClientRole, GameConfigSnapshot
+from domain.models.game_config import GameConfig, build_default_game_config
+from domain.repositories.game_config import GameConfigRepository
 
 
 def started_config(game_key: str, *, teams: list[str] | None = None, total_rounds: int = 1) -> GameConfig:

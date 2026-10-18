@@ -4,9 +4,9 @@ from collections import Counter
 
 import pytest
 
-from domain.game_config.exception.game_config_exception import InvalidGameConfigError
-from domain.game_config.model.game_config import build_default_game_config
-from domain.game_config.model.session import build_round_sequence
+from domain.models.game_config import build_default_game_config
+from domain.services.round_sequence import build_round_sequence
+from exceptions import InvalidGameConfigError
 
 
 def test_random_round_sequence_is_balanced_and_has_expected_length() -> None:

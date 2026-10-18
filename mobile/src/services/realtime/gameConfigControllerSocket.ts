@@ -24,8 +24,16 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
   controllerToken?: string;
 };
 
+// En développement (Expo Go), le backend tourne sur la même machine que Metro : on reprend son IP
+// pour ne pas devoir modifier app.json à chaque changement de réseau. Un APK utilise app.json.
+const backendBaseUrl = (): string => {
+  const configured = (extra.backendWsUrl ?? 'ws://localhost:8000').replace(/\/$/, '');
+  const metroHost = __DEV__ ? Constants.expoConfig?.hostUri?.split(':')[0] : undefined;
+  return metroHost ? configured.replace(/^(wss?:\/\/)[^:/]+/, `$1${metroHost}`) : configured;
+};
+
 const socketUrl = (): string => {
-  const base = (extra.backendWsUrl ?? 'ws://localhost:8000').replace(/\/$/, '');
+  const base = backendBaseUrl();
   const token = extra.controllerToken ?? 'change-me-controller';
   return `${base}/ws/game-config?client_type=controller&token=${encodeURIComponent(token)}`;
 };

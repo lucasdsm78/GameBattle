@@ -7,14 +7,20 @@ from typing import Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from dependency_injections import database, game_config_repository, game_deadline_worker, get_settings, spotify_playlist_service
 from infrastructure.config import Settings
 from infrastructure.logging_filters import install_secret_redaction
-from presentation.game_config.game_config_router import router as game_config_router
-from presentation.hardware.hardware_buzzer_router import router as hardware_router
-from presentation.http_errors import register_exception_handlers
-from presentation.realtime.game_config_ws_router import router as realtime_router
-from presentation.security_headers import SecurityHeadersMiddleware
+from interface.api.game_config import router as game_config_router
+from interface.api.hardware import router as hardware_router
+from interface.api.realtime import router as realtime_router
+from interface.dependencies.container import (
+    database,
+    game_config_repository,
+    game_deadline_worker,
+    get_settings,
+    spotify_playlist_service,
+)
+from interface.errors import register_exception_handlers
+from interface.security import SecurityHeadersMiddleware
 
 
 def build_lifespan(settings: Settings):
