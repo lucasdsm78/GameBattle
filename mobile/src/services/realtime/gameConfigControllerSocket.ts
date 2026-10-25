@@ -209,6 +209,10 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'stopchrono.next-team' });
   }
 
+  revealCultureAnswer(): void {
+    this.sendMessage({ type: 'culture.reveal-answer' });
+  }
+
   startCulture(): void {
     this.sendMessage({ type: 'culture.start' });
   }

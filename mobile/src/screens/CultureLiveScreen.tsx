@@ -18,6 +18,7 @@ type Props = {
   onBuzz: (team: string) => void;
   onAnswer: (isCorrect: boolean) => void;
   onNext: () => void;
+  onReveal: () => void;
   onBack: () => void;
 };
 
@@ -29,6 +30,7 @@ export function CultureLiveScreen({
   onBuzz,
   onAnswer,
   onNext,
+  onReveal,
   onBack,
 }: Props) {
   const culture = snapshot.session.culture;
@@ -36,6 +38,8 @@ export function CultureLiveScreen({
   const buzzerKeys = snapshot.settings.buzzer_keys;
   const question = culture.current_question;
   const total = Math.max(culture.total_questions, 1);
+  const tiebreak = culture.tiebreak_teams.length > 0;
+  const progress = tiebreak ? 'Départage' : `Question ${culture.current_index}/${total}`;
 
   // Une équipe a buzzé et attend la validation (réponse pas encore validée).
   const answerPending = Boolean(culture.current_buzzer_team) && !culture.answered;
@@ -70,7 +74,7 @@ export function CultureLiveScreen({
         <View style={styles.badgeRow}>
           {culture.phase === 'question' ? (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>Question {culture.current_index}/{total}</Text>
+              <Text style={styles.badgeText}>{progress}</Text>
             </View>
           ) : null}
           <View style={styles.badge}>
@@ -89,7 +93,20 @@ export function CultureLiveScreen({
         </View>
       ) : null}
 
-      {culture.phase === 'selecting' ? (
+      {culture.phase === 'selecting' && tiebreak ? (
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Question de départage</Text>
+          <Text style={styles.helperText}>
+            Égalité entre {culture.tiebreak_teams.join(' et ')}. Question difficile : seules ces équipes buzzent, la première bonne
+            réponse remporte la manche.
+          </Text>
+          <Pressable style={styles.primaryButton} onPress={() => onSelectDifficulty('difficile')} accessibilityRole="button">
+            <Text style={styles.primaryButtonText}>⚔️ Poser la question de départage</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {culture.phase === 'selecting' && !tiebreak ? (
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Question {culture.current_index}/{total}</Text>
           <Text style={styles.helperText}>Choisis la difficulté de la question.</Text>
@@ -121,11 +138,13 @@ export function CultureLiveScreen({
             <View style={styles.scoreGrid}>
               {teams.map((team, index) => {
                 const active = culture.current_buzzer_team === team;
+                const out = tiebreak && !culture.tiebreak_teams.includes(team);
                 return (
                   <Pressable
                     key={team}
-                    style={[styles.scoreTile, active && styles.scoreTileActive]}
+                    style={[styles.scoreTile, active && styles.scoreTileActive, out && styles.primaryButtonDisabled]}
                     onPress={() => onBuzz(team)}
+                    disabled={out}
                   >
                     <Text style={styles.scoreTileLabel}>{team}</Text>
                     <Text style={styles.scoreTileValue}>{culture.scores?.[team] ?? 0}</Text>
@@ -158,9 +177,22 @@ export function CultureLiveScreen({
                 onPress={onNext}
                 disabled={!canGoNext}
               >
-                <Text style={styles.primaryButtonText}>Question suivante</Text>
+                <Text style={styles.primaryButtonText}>{tiebreak ? 'Nouvelle question de départage' : 'Question suivante'}</Text>
               </Pressable>
             </View>
+            <Pressable
+              style={[styles.ghostButton, culture.answered && styles.primaryButtonDisabled]}
+              onPress={onReveal}
+              disabled={culture.answered}
+              accessibilityRole="button"
+            >
+              <Text style={styles.ghostButtonText}>Révéler la réponse (personne ne marque)</Text>
+            </Pressable>
+            {culture.answered ? (
+              <Text style={styles.helperText}>
+                {culture.current_buzzer_team ? `✓ Trouvé par ${culture.current_buzzer_team}` : 'Réponse révélée : personne ne marque.'}
+              </Text>
+            ) : null}
             <Text style={styles.helperText}>
               {volumeButtonsActive
                 ? '🔊 Volume haut = Vrai puis Suivant après validation · 🔉 Volume bas = Faux'

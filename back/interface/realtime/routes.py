@@ -70,6 +70,7 @@ ROUTES: tuple[Route, ...] = (
     Route("culture.select-difficulty", lambda uc, cmd: uc.culture.select_difficulty(cmd), CultureDifficultyCommand),
     Route("culture.buzzer", lambda uc, cmd: uc.culture.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
     Route("culture.answer", lambda uc, cmd: uc.culture.answer(cmd), AnswerCommand),
+    Route("culture.reveal-answer", lambda uc, _: uc.culture.reveal_answer()),
     Route("culture.next-question", lambda uc, _: uc.culture.next_question()),
     # La Bombe
     Route("bombe.start", lambda uc, _: uc.bombe.start()),

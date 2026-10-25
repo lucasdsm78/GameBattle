@@ -9,6 +9,8 @@ export function CultureBoard({ gameConfig }: Props) {
   const teams = gameConfig.settings.teams;
   const question = culture.current_question;
   const total = Math.max(culture.total_questions, 1);
+  const tiebreak = culture.tiebreak_teams.length > 0;
+  const progress = tiebreak ? 'Départage' : `${culture.current_index}/${total}`;
 
   return (
     <section className="chrono-layout">
@@ -21,11 +23,23 @@ export function CultureBoard({ gameConfig }: Props) {
           </>
         ) : null}
 
-        {culture.phase === 'selecting' ? (
+        {culture.phase === 'selecting' && tiebreak ? (
           <>
             <div className="section-row">
               <span className="section-chip">Culture générale</span>
-              <strong className="progress-pill">{culture.current_index}/{total}</strong>
+              <strong className="progress-pill">Départage</strong>
+            </div>
+            <div className="culture-waiting">Question de départage</div>
+            <p className="culture-tiebreak-teams">{culture.tiebreak_teams.join(' · ')}</p>
+            <p className="chrono-state">Une question difficile : la première bonne réponse remporte la manche.</p>
+          </>
+        ) : null}
+
+        {culture.phase === 'selecting' && !tiebreak ? (
+          <>
+            <div className="section-row">
+              <span className="section-chip">Culture générale</span>
+              <strong className="progress-pill">{progress}</strong>
             </div>
             <div className="culture-waiting">Question {culture.current_index}</div>
             <p className="chrono-state">Choix de la difficulté en cours…</p>
@@ -35,19 +49,24 @@ export function CultureBoard({ gameConfig }: Props) {
         {culture.phase === 'question' && question ? (
           <>
             <div className="section-row">
-              <span className="section-chip">Question</span>
-              <strong className="progress-pill">{culture.current_index}/{total}</strong>
+              <span className="section-chip">{tiebreak ? 'Question de départage' : 'Question'}</span>
+              <strong className="progress-pill">{progress}</strong>
             </div>
             <p className="culture-question">{question.question}</p>
             {culture.answered ? (
               <div className="culture-answer">
                 <span className="culture-answer-label">Réponse</span>
                 <p className="culture-answer-text">{question.answer}</p>
+                <p className="culture-answer-by">
+                  {culture.current_buzzer_team ? `✓ Trouvé par ${culture.current_buzzer_team}` : 'Personne n’a trouvé'}
+                </p>
               </div>
             ) : culture.current_buzzer_team ? (
               <div className="culture-buzzer">Au buzzer : {culture.current_buzzer_team}</div>
             ) : (
-              <p className="chrono-state">Buzzez pour répondre !</p>
+              <p className="chrono-state">
+                {tiebreak ? `Départage : seules ${culture.tiebreak_teams.join(' et ')} peuvent buzzer !` : 'Buzzez pour répondre !'}
+              </p>
             )}
           </>
         ) : null}
@@ -60,8 +79,9 @@ export function CultureBoard({ gameConfig }: Props) {
         <div className="chrono-score-list">
           {teams.map((team) => {
             const active = team === culture.current_buzzer_team;
+            const out = tiebreak && !culture.tiebreak_teams.includes(team);
             return (
-              <div key={team} className={`chrono-score-item ${active ? 'chrono-score-item-active' : ''}`}>
+              <div key={team} className={`chrono-score-item ${active ? 'chrono-score-item-active' : ''} ${out ? 'is-out' : ''}`}>
                 <span className="chrono-score-team">{team}</span>
                 <span className="chrono-score-time">{culture.scores[team] ?? 0}</span>
               </div>

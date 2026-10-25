@@ -236,6 +236,7 @@ export default function App() {
                 onBuzz={(team) => socket.cultureBuzzer(team)}
                 onAnswer={(isCorrect) => socket.cultureAnswer(isCorrect)}
                 onNext={() => socket.nextCultureQuestion()}
+                onReveal={() => socket.revealCultureAnswer()}
                 onBack={() => setStep('config')}
               />
             ) : (
