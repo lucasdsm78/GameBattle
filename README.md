@@ -14,7 +14,7 @@ Le backend suit une architecture DDD inspirée de `BetLeague`.
 
 Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop Chrono**,
 **Culture générale**, **La Bombe**, **Mémoire en chaîne**, **Les 7 différences**, **L’Enchère**,
-**Le mot interdit**, **Le mot qui disparaît** et **Calcul flash**.
+**Le mot interdit**, **Le mot qui disparaît**, **Calcul flash** et **Le bon drapeau**.
 
 ### Déjà implémenté
 
@@ -81,6 +81,7 @@ back/
 │   ├── auction/             # models/, services/ (catalogue), events/
 │   ├── vanishing_word/      # models/, services/ (catalogue), events/
 │   ├── flash_calc/          # models/ (état, calcul, verdict), services/ (générateur par niveau), events/
+│   ├── right_flag/          # models/ (état, pays, verdict), services/ (catalogue de drapeaux), events/
 │   ├── bombe/  memory/  stopchrono/   # models/, events/
 │   └── blindtest/  culture/           # models/ (leurs événements sont ceux du noyau partagé)
 ├── application/             # Un dossier par domaine
@@ -89,7 +90,7 @@ back/
 │   │                        # et presenter de la soirée (vues régie / écran public)
 │   ├── blindtest/           # Use case, schémas, service de playlist et port Spotify
 │   ├── stopchrono/ culture/ bombe/ memory/ seven_differences/ auction/ forbidden_word/
-│   │   vanishing_word/ flash_calc/
+│   │   vanishing_word/ flash_calc/ right_flag/
 │   │                        # <jeu>_command_usecase.py, <jeu>_presenter.py (+ <jeu>_commands.py pour ses schémas)
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
@@ -324,6 +325,20 @@ table voisine, chiffres inversés). Le résultat exact n’est jamais envoyé au
 buzz reçu dans les 250 ms qui suivent l’apparition d’un calcul (réflexe sur le précédent) est ignoré. La
 régie peut mettre en pause. La première équipe à 5 points remporte la manche. Le générateur se trouve
 dans `back/domain/flash_calc/services/flash_calc_generator.py`.
+
+Pour **Le bon drapeau**, un pays s’affiche (« Brésil ») et 7 drapeaux défilent, dont surtout des sosies
+(drapeaux de la même famille : tricolores, croix nordiques, Union Jack…), le bon n’étant jamais le premier.
+Les équipes buzzent sur le bon drapeau : +1 si c’est lui, −1 sinon (jamais sous 0). Après un mauvais buzz,
+le défilement continue sur le même pays ; après le bon (ou s’il passe sans buzz, il est alors révélé), un
+nouveau pays arrive, un peu plus vite que le précédent. La régie voit en permanence le bon drapeau ; l’écran
+public ne le reçoit qu’une fois trouvé ou révélé, et la série à venir ne quitte jamais le serveur. La
+première équipe à 5 points remporte la manche. Le catalogue (environ 130 pays) se trouve dans
+`back/domain/right_flag/services/flag_catalog.py` ; l’écran affiche des drapeaux SVG livrés avec l’app
+(`country-flag-icons`), le mobile des drapeaux emoji natifs.
+
+Calcul flash et Le bon drapeau partagent la même mécanique « buzze seulement si… » :
+`back/domain/shared/models/buzz_stream_state.py` (défilement, fenêtre de buzz, +1 / −1, retour, pause,
+victoire). Un nouveau jeu de ce type n’a qu’à décrire ce qui défile.
 
 ### Générer automatiquement un puzzle
 

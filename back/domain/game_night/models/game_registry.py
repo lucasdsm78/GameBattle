@@ -5,6 +5,7 @@ from domain.culture.models.culture_state import CultureState
 from domain.flash_calc.models.flash_calc_state import FlashCalcState
 from domain.forbidden_word.models.forbidden_word_state import ForbiddenWordState
 from domain.memory.models.memory_state import MemoryState
+from domain.right_flag.models.right_flag_state import RightFlagState
 from domain.seven_differences.models.seven_differences_state import (
     SevenDifferencesState,
 )
@@ -25,6 +26,7 @@ GAME_STATE_TYPES: dict[str, type[GameState]] = {
         ForbiddenWordState,
         VanishingWordState,
         FlashCalcState,
+        RightFlagState,
     )
 }
 
@@ -37,6 +39,7 @@ __all__ = [
     "FlashCalcState",
     "ForbiddenWordState",
     "MemoryState",
+    "RightFlagState",
     "SevenDifferencesState",
     "StopChronoState",
     "VanishingWordState",

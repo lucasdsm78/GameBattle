@@ -13,6 +13,7 @@ from domain.game_night.models.active_round import ActiveRound
 from domain.game_night.models.game_registry import GAME_STATE_TYPES
 from domain.game_night.models.settings import SUPPORTED_GAME_KEYS
 from domain.memory.models.memory_state import MemoryState
+from domain.right_flag.models.right_flag_state import RightFlagState
 from domain.seven_differences.models.seven_differences_state import (
     SevenDifferencesState,
 )
@@ -37,6 +38,7 @@ class GameSession:
     forbidden_word: ForbiddenWordState = field(default_factory=ForbiddenWordState)
     vanishing_word: VanishingWordState = field(default_factory=VanishingWordState)
     flash_calc: FlashCalcState = field(default_factory=FlashCalcState)
+    right_flag: RightFlagState = field(default_factory=RightFlagState)
     # Persistée mais jamais exposée aux clients : les apps ne voient que la manche courante.
     round_sequence: list[str] = field(default_factory=list)
     round_index: int = 0

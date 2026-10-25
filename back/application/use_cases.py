@@ -14,6 +14,7 @@ from application.forbidden_word.forbidden_word_command_usecase import (
 )
 from application.game_night.game_night_command_usecase import GameNightCommandUseCase
 from application.memory.memory_command_usecase import MemoryCommandUseCase
+from application.right_flag.right_flag_command_usecase import RightFlagCommandUseCase
 from application.seven_differences.seven_differences_command_usecase import (
     SevenDifferencesCommandUseCase,
 )
@@ -44,6 +45,7 @@ class GameUseCases:
     forbidden_word: ForbiddenWordCommandUseCase
     vanishing_word: VanishingWordCommandUseCase
     flash_calc: FlashCalcCommandUseCase
+    right_flag: RightFlagCommandUseCase
 
     @classmethod
     def build(
@@ -66,6 +68,7 @@ class GameUseCases:
             forbidden_word=ForbiddenWordCommandUseCase(*dependencies),
             vanishing_word=VanishingWordCommandUseCase(*dependencies),
             flash_calc=FlashCalcCommandUseCase(*dependencies),
+            right_flag=RightFlagCommandUseCase(*dependencies),
         )
 
 __all__ = ["CommandUseCase", "GameUseCases", "SnapshotPublisher"]

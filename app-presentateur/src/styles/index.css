@@ -1049,33 +1049,133 @@ button {
   }
 }
 
-/* --- Calcul flash --- */
-.fc-screen {
-  align-content: start;
-}
-
-.fc-stage {
+/* --- Base partagée des jeux « buzze seulement si… » (Calcul flash, Le bon drapeau) --- */
+.stream-stage {
   position: relative;
   transition: box-shadow 0.25s ease, background 0.25s ease;
 }
 
-.fc-stage.is-good {
+.stream-stage.is-good {
   background: radial-gradient(circle at 50% 40%, rgba(34, 197, 94, 0.3), rgba(8, 20, 33, 0.92) 66%);
   box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.55);
 }
 
-.fc-stage.is-bad {
+.stream-stage.is-bad {
   background: radial-gradient(circle at 50% 40%, rgba(255, 93, 115, 0.28), rgba(8, 20, 33, 0.92) 66%);
   box-shadow: inset 0 0 0 2px rgba(255, 93, 115, 0.55);
-  animation: fc-shake 0.4s ease;
+  animation: stream-shake 0.4s ease;
 }
 
-.fc-topline {
+.stream-topline {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 12px 24px;
+}
+
+.stream-rules {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2.2vw, 1.6rem);
+  font-weight: 700;
+}
+
+.stream-rules strong {
+  color: var(--text);
+}
+
+.stream-rules .is-good {
+  color: var(--accent);
+}
+
+.stream-rules .is-bad {
+  color: var(--danger);
+}
+
+.stream-paused {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(2.4rem, 7vw, 5rem);
+  font-weight: 900;
+}
+
+.stream-correction {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(1.4rem, 3.4vw, 2.6rem);
+  font-weight: 800;
+}
+
+.stream-correction b {
+  color: var(--accent);
+}
+
+.stream-correction strong {
+  color: var(--text);
+}
+
+.stream-timer {
+  width: min(640px, 100%);
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.stream-timer span {
+  display: block;
+  height: 100%;
+  transform-origin: left;
+  animation-name: stream-drain;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+.stream-verdict {
+  margin: 0;
+  padding: 12px 28px;
+  border-radius: 999px;
+  font-size: clamp(1.3rem, 3vw, 2.2rem);
+  font-weight: 900;
+  animation: race-pop 0.4s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.stream-stage.is-good .stream-verdict {
+  color: #052e16;
+  background: var(--accent);
+}
+
+.stream-stage.is-bad .stream-verdict {
+  color: #fff;
+  background: var(--danger);
+}
+
+@keyframes stream-drain {
+  from { transform: scaleX(1); background: var(--accent); }
+  60% { background: var(--warning); }
+  to { transform: scaleX(0); background: var(--danger); }
+}
+
+@keyframes stream-shake {
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stream-verdict,
+  .stream-stage.is-bad {
+    animation: none;
+  }
+}
+
+/* --- Calcul flash --- */
+.fc-screen {
+  align-content: start;
 }
 
 .fc-level {
@@ -1112,36 +1212,6 @@ button {
   background: var(--warning);
 }
 
-.fc-rules {
-  display: grid;
-  gap: 14px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--muted);
-  font-size: clamp(1.05rem, 2.2vw, 1.6rem);
-  font-weight: 700;
-}
-
-.fc-rules strong {
-  color: var(--text);
-}
-
-.fc-rules .is-good {
-  color: var(--accent);
-}
-
-.fc-rules .is-bad {
-  color: var(--danger);
-}
-
-.fc-paused {
-  margin: 0;
-  color: var(--muted);
-  font-size: clamp(2.4rem, 7vw, 5rem);
-  font-weight: 900;
-}
-
 .fc-calc {
   display: flex;
   flex-wrap: wrap;
@@ -1169,86 +1239,109 @@ button {
   text-decoration-thickness: 0.08em;
 }
 
-.fc-correction {
-  margin: 0;
-  color: var(--muted);
-  font-size: clamp(1.4rem, 3.4vw, 2.6rem);
-  font-weight: 800;
-}
-
-.fc-correction b {
-  color: var(--accent);
-}
-
 .fc-calc.is-verdict {
   animation: none;
 }
 
-.fc-stage.is-good .fc-calc strong {
+.stream-stage.is-good .fc-calc strong {
   color: var(--accent);
   text-shadow: 0 0 40px rgba(34, 197, 94, 0.45);
 }
 
-.fc-stage.is-bad .fc-calc strong {
+.stream-stage.is-bad .fc-calc strong {
   text-shadow: none;
-}
-
-.fc-timer {
-  width: min(640px, 100%);
-  height: 12px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.fc-timer span {
-  display: block;
-  height: 100%;
-  transform-origin: left;
-  animation-name: fc-drain;
-  animation-timing-function: linear;
-  animation-fill-mode: both;
-}
-
-.fc-verdict {
-  margin: 0;
-  padding: 12px 28px;
-  border-radius: 999px;
-  font-size: clamp(1.3rem, 3vw, 2.2rem);
-  font-weight: 900;
-  animation: race-pop 0.4s cubic-bezier(0.2, 0.9, 0.2, 1);
-}
-
-.fc-stage.is-good .fc-verdict {
-  color: #052e16;
-  background: var(--accent);
-}
-
-.fc-stage.is-bad .fc-verdict {
-  color: #fff;
-  background: var(--danger);
 }
 
 @keyframes fc-calc-in {
   from { opacity: 0; transform: translateY(18px) scale(0.92); }
 }
 
-@keyframes fc-drain {
-  from { transform: scaleX(1); background: var(--accent); }
-  60% { background: var(--warning); }
-  to { transform: scaleX(0); background: var(--danger); }
+@media (prefers-reduced-motion: reduce) {
+  .fc-calc,
+  .fc-level > span:first-child {
+    animation: none;
+  }
 }
 
-@keyframes fc-shake {
-  20%, 60% { transform: translateX(-8px); }
-  40%, 80% { transform: translateX(8px); }
+/* --- Le bon drapeau --- */
+.rf-screen {
+  align-content: start;
+}
+
+.rf-progress {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.rf-country {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.rf-country span {
+  color: var(--muted);
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.rf-country strong {
+  font-size: clamp(2.4rem, 7vw, 5.5rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  animation: race-pop 0.45s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.rf-flag {
+  width: min(480px, 78%);
+  aspect-ratio: 3 / 2;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  animation: rf-flag-in 0.25s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.rf-flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+
+.rf-flag span {
+  font-size: clamp(4rem, 12vw, 8rem);
+}
+
+.stream-stage.is-good .rf-flag {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 0 4px var(--accent), 0 0 50px rgba(34, 197, 94, 0.45);
+}
+
+.stream-stage.is-bad .rf-flag {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 0 4px var(--danger);
+  filter: grayscale(0.35);
+}
+
+@keyframes rf-flag-in {
+  from { opacity: 0; transform: translateX(40px) scale(0.94); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fc-calc,
-  .fc-verdict,
-  .fc-stage.is-bad,
-  .fc-level > span:first-child {
+  .rf-country strong,
+  .rf-flag {
     animation: none;
   }
 }

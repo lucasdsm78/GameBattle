@@ -8,7 +8,8 @@ export type GameKey =
   | 'auction'
   | 'forbidden_word'
   | 'vanishing_word'
-  | 'flash_calc';
+  | 'flash_calc'
+  | 'right_flag';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
 
@@ -206,32 +207,56 @@ export type VanishingWordState = {
   words_per_list: number;
 };
 
-export type FlashCalcVerdict = {
+// Jeux « buzze seulement si… » : le serveur juge chaque buzz (+1 / −1, jamais sous 0).
+export type BuzzVerdict = {
   team: string;
   correct: boolean;
-  expression: string;
-  shown_result: number;
-  true_result: number;
   points: number;
 };
 
-// Le serveur ne révèle jamais si le calcul affiché est juste : seul `verdict` le dit, après un buzz.
-export type FlashCalcState = {
+export type BuzzStreamGame<Verdict extends BuzzVerdict = BuzzVerdict> = {
   phase: 'idle' | 'running' | 'feedback' | 'paused' | 'finished';
+  shown_at_ms: number;
+  deadline_ms: number;
+  verdict: Verdict | null;
+  scores: Record<string, number>;
+  winner_team: string | null;
+  feedback_ms: number;
+  winning_score: number;
+};
+
+export type FlashCalcVerdict = BuzzVerdict & {
+  expression: string;
+  shown_result: number;
+  true_result: number;
+};
+
+// Le serveur ne révèle jamais si le calcul affiché est juste : seul `verdict` le dit, après un buzz.
+export type FlashCalcState = BuzzStreamGame<FlashCalcVerdict> & {
   calc_number: number;
   expression: string;
   shown_result: number;
-  shown_at_ms: number;
-  deadline_ms: number;
-  verdict: FlashCalcVerdict | null;
-  scores: Record<string, number>;
-  winner_team: string | null;
   level: number;
   max_level: number;
   calcs_per_level: number;
   calc_duration_ms: number;
-  feedback_ms: number;
-  winning_score: number;
+};
+
+export type RightFlagVerdict = BuzzVerdict & {
+  flag_code: string;
+  flag_country: string;
+};
+
+// `country_code` (le bon drapeau) vaut "" côté écran public tant qu'il n'est ni trouvé ni révélé.
+export type RightFlagState = BuzzStreamGame<RightFlagVerdict> & {
+  round_number: number;
+  country_code: string;
+  country_name: string;
+  flag_index: number;
+  flag_code: string;
+  answer_revealed: boolean;
+  flag_number: number;
+  flags_per_round: number;
 };
 
 // `current_card` est toujours null côté écran public : le mot reste secret sur la régie.
@@ -260,6 +285,7 @@ export type GameSession = {
   forbidden_word: ForbiddenWordState;
   vanishing_word: VanishingWordState;
   flash_calc: FlashCalcState;
+  right_flag: RightFlagState;
   round_index: number;
   total_rounds: number;
   manche_number: number;
