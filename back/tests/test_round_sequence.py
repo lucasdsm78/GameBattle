@@ -4,9 +4,11 @@ from collections import Counter
 
 import pytest
 
+from application.game_night.game_config_presenter import present_game_config
 from domain.game_night.models.game_config import build_default_game_config
 from domain.game_night.services.round_sequence import build_round_sequence
 from exceptions import InvalidGameConfigError
+from infrastructure.repositories.game_config_mapper import game_config_to_payload
 
 
 def test_random_round_sequence_is_balanced_and_has_expected_length() -> None:
@@ -34,8 +36,8 @@ def test_manual_round_sequence_uses_predictable_round_robin_order() -> None:
 def test_client_views_never_expose_round_sequence() -> None:
     config = build_default_game_config().start_session()
 
-    assert config.to_dict()["session"]["round_sequence"]
-    assert all("round_sequence" not in view["session"] for view in config.client_views())
+    assert game_config_to_payload(config)["session"]["round_sequence"]
+    assert all("round_sequence" not in view["session"] for view in present_game_config(config))
 
 
 def test_culture_next_question_requires_correct_answer() -> None:

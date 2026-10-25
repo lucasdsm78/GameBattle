@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from domain.memory.events import ChainRecited, TeamDisqualified
 from domain.shared.events.domain_event import DomainEvent
-from domain.shared.models.culture_question import HIDDEN_ANSWER, CultureQuestion
+from domain.shared.models.culture_question import CultureQuestion
 from domain.shared.models.game_state import GameState
 from domain.shared.services.question_catalog import pick_one_culture_question
 from exceptions import InvalidGameConfigError
@@ -86,17 +86,6 @@ class MemoryState(GameState):
             raise InvalidGameConfigError("La chaîne de réponses de Mémoire en chaîne est invalide.")
         if self.rules_version != MEMORY_RULES_VERSION:
             raise InvalidGameConfigError("La version des règles de Mémoire en chaîne est invalide.")
-
-    def payload_extras(self, teams: list[str]) -> dict[str, Any]:
-        return {"sequence_length": len(self.validated_answers), "chain_length": MEMORY_CHAIN_LENGTH}
-
-    @staticmethod
-    def display_view(payload: dict[str, Any]) -> dict[str, Any]:
-        view = {**payload, "validated_answers": []}
-        question = payload.get("current_question")
-        if isinstance(question, dict):
-            view["current_question"] = {**question, "answer": HIDDEN_ANSWER, "explanation": ""}
-        return view
 
     def _ask(self, question: CultureQuestion, **changes: Any) -> MemoryState:
         return replace(self, current_question=question, asked_questions=[*self.asked_questions, question.question], **changes)

@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 
+from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
 from domain.game_night.models.game_config import build_default_game_config
 from domain.seven_differences.models.seven_differences_state import (
@@ -11,7 +12,10 @@ from domain.seven_differences.models.seven_differences_state import (
 )
 from domain.shared.services.scoring import TIE_LABEL
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from infrastructure.repositories.game_config_mapper import (
+    game_config_from_payload,
+    game_config_to_payload,
+)
 from support import GameHarness
 
 
@@ -96,13 +100,13 @@ def test_seven_found_differences_finish_round_with_tie_and_round_trip() -> None:
     assert current.session.manche_finished is True
     assert current.session.manche_winner == TIE_LABEL
 
-    restored = game_config_from_payload(current.to_dict())
+    restored = game_config_from_payload(game_config_to_payload(current))
     assert restored.session.seven_differences == game
 
 
 def test_display_never_receives_secret_labels_or_modified_image_before_reveal() -> None:
     started = _seven_config().start_seven_differences(now_ms=1_000)
-    controller, display = started.client_views()
+    controller, display = present_game_config(started)
 
     controller_game = controller["session"]["seven_differences"]
     display_game = display["session"]["seven_differences"]
@@ -113,7 +117,7 @@ def test_display_never_receives_secret_labels_or_modified_image_before_reveal() 
     assert display_game["original_image_url"]
 
     opened = started.open_seven_differences(started.session.seven_differences.reveal_at_ms)
-    _, revealed = opened.client_views()
+    _, revealed = present_game_config(opened)
     assert revealed["session"]["seven_differences"]["modified_image_url"]
     assert revealed["session"]["seven_differences"]["differences"] == []
 

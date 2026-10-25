@@ -78,23 +78,6 @@ class BlindtestState(GameState):
             return 0
         return max(self.total_tracks - self.current_track_index + 1, 0)
 
-    def payload_extras(self, teams: list[str]) -> dict[str, Any]:
-        return {"tracks_remaining": self.tracks_remaining}
-
-    @staticmethod
-    def display_view(payload: dict[str, Any]) -> dict[str, Any]:
-        view = {**payload, "tracks": []}
-        current_track = payload.get("current_track")
-        if not payload.get("revealed") and isinstance(current_track, dict):
-            view["current_track"] = {
-                **current_track,
-                "title": "Titre masqué",
-                "artist": "Artiste masqué",
-                "preview_url": "",
-                "artwork_url": "",
-            }
-        return view
-
     def _with_playback(self, **changes: Any) -> BlindtestState:
         return replace(self, playback_updated_at=utc_now_iso(), **changes)
 

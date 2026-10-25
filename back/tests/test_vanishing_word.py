@@ -6,6 +6,7 @@ from dataclasses import replace
 
 import pytest
 
+from application.game_night.game_config_presenter import present_game_config
 from application.shared.commands import TeamCommand
 from application.shared.snapshot import ClientRole
 from domain.shared.events import AnswerJudged, BuzzerPressed
@@ -23,7 +24,10 @@ from domain.vanishing_word.services.vanishing_word_catalog import (
     WORDS_PER_LIST,
 )
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from infrastructure.repositories.game_config_mapper import (
+    game_config_from_payload,
+    game_config_to_payload,
+)
 from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
@@ -164,11 +168,11 @@ def test_the_first_team_to_find_five_words_wins_the_manche() -> None:
 
 def test_the_public_screen_never_sees_the_vanished_word_before_the_reveal() -> None:
     memorizing = _memorizing()
-    _, display = memorizing.client_views()
+    _, display = present_game_config(memorizing)
     assert display["session"]["vanishing_word"]["words"] == memorizing.session.vanishing_word.words
 
     claimed = memorizing.expire_due_deadline(VANISH_MS).register_vanishing_buzzer("Rouges", now_ms=VANISH_MS + 1)
-    controller, display = claimed.client_views()
+    controller, display = present_game_config(claimed)
     hidden = display["session"]["vanishing_word"]
     vanished_word = claimed.session.vanishing_word.vanished_word
     assert controller["session"]["vanishing_word"]["vanished_word"] == vanished_word
@@ -176,7 +180,7 @@ def test_the_public_screen_never_sees_the_vanished_word_before_the_reveal() -> N
     assert vanished_word not in hidden["remaining_words"]
     assert "used_words" not in hidden and "used_words" not in controller["session"]["vanishing_word"]
 
-    _, revealed = claimed.judge_vanishing_word(True).client_views()
+    _, revealed = present_game_config(claimed.judge_vanishing_word(True))
     assert revealed["session"]["vanishing_word"]["vanished_word"] == vanished_word
 
 
@@ -205,7 +209,7 @@ def test_domain_events_follow_the_round() -> None:
 def test_persistence_round_trip() -> None:
     claimed = _vanished().register_vanishing_buzzer("Rouges", now_ms=VANISH_MS + 1).judge_vanishing_word(False)
 
-    assert game_config_from_payload(claimed.to_dict()).session.vanishing_word == claimed.session.vanishing_word
+    assert game_config_from_payload(game_config_to_payload(claimed)).session.vanishing_word == claimed.session.vanishing_word
 
 
 def test_tampered_states_are_rejected() -> None:

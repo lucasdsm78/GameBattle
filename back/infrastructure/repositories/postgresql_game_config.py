@@ -11,7 +11,10 @@ from domain.game_night.models.game_config import GameConfig, build_default_game_
 from domain.game_night.repositories.game_config_repository import GameConfigRepository
 from infrastructure.database.database import Database
 from infrastructure.database.models import GameConfigStateModel
-from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from infrastructure.repositories.game_config_mapper import (
+    game_config_from_payload,
+    game_config_to_payload,
+)
 
 AGGREGATE_KEY = "current"
 
@@ -36,11 +39,11 @@ class PostgreSQLGameConfigRepository(GameConfigRepository):
             if payload is not None:
                 return game_config_from_payload(payload)
             default_config = build_default_game_config()
-            session.add(_new_row(default_config.to_dict(), source="bootstrap"))
+            session.add(_new_row(game_config_to_payload(default_config), source="bootstrap"))
             return default_config
 
     async def save(self, game_config: GameConfig) -> GameConfig:
-        payload = game_config.to_dict()
+        payload = game_config_to_payload(game_config)
         async with self._database.session() as session:
             result = await session.execute(
                 update(GameConfigStateModel)

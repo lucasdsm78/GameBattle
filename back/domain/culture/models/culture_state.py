@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
-from domain.shared.models.culture_question import HIDDEN_ANSWER, CultureQuestion
+from domain.shared.models.culture_question import CultureQuestion
 from domain.shared.models.game_state import GameState
 from domain.shared.services.question_catalog import pick_one_culture_question
 from domain.shared.services.scoring import TIE_LABEL, pick_round_winner, zero_scores
@@ -52,17 +52,6 @@ class CultureState(GameState):
     @property
     def questions_remaining(self) -> int:
         return max(self.total_questions - self.current_index, 0)
-
-    def payload_extras(self, teams: list[str]) -> dict[str, Any]:
-        return {"questions_remaining": self.questions_remaining}
-
-    @staticmethod
-    def display_view(payload: dict[str, Any]) -> dict[str, Any]:
-        question = payload.get("current_question")
-        if not isinstance(question, dict):
-            return payload
-        hidden = {"explanation": ""} if payload.get("answered") else {"answer": HIDDEN_ANSWER, "explanation": ""}
-        return {**payload, "current_question": {**question, **hidden}}
 
     def start(self) -> CultureState:
         if self.phase != "idle":

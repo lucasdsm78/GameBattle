@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 import re
 from dataclasses import dataclass, field, replace
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from domain.bombe.events import BombeArmed, BombeDieRolling, BombeExploded, BombePassed
 from domain.shared.events.domain_event import DomainEvent
@@ -90,11 +90,6 @@ class BombeState(GameState):
             raise InvalidGameConfigError("Le dé de La Bombe doit avoir un résultat secret.")
         if self.die_reveal_at_ms < 0:
             raise InvalidGameConfigError("Le timer du dé de La Bombe est invalide.")
-
-    @classmethod
-    def shared_view(cls, payload: dict[str, Any]) -> dict[str, Any]:
-        # Le résultat du dé reste secret pour tous tant qu'il roule.
-        return {**payload, "die_result": ""} if payload.get("phase") == "rolling" else payload
 
     def start(self, teams: list[str], previous_roller: Optional[int]) -> BombeState:
         is_tiebreak = self.phase == "exploded" and self.winner_team is None

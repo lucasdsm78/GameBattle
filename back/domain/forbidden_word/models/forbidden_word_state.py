@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field, replace
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from domain.forbidden_word.events import TurnEnded, TurnStarted, WordFound, WordSkipped
 from domain.forbidden_word.models.forbidden_word_card import (
@@ -39,7 +39,6 @@ class ForbiddenWordState(GameState):
 
     game_key: ClassVar[str] = "forbidden_word"
     label: ClassVar[str] = "Le mot interdit"
-    private_fields: ClassVar[frozenset[str]] = frozenset({"used_card_ids"})
 
     phase: str = "idle"
     turn_order: list[str] = field(default_factory=list)
@@ -100,14 +99,6 @@ class ForbiddenWordState(GameState):
             or self.winner_team != pick_round_winner(teams, self.scores(teams))
         ):
             raise InvalidGameConfigError("La fin de manche du Mot interdit est invalide.")
-
-    def payload_extras(self, teams: list[str]) -> dict[str, Any]:
-        return {"current_team": self.current_team, "scores": self.scores(teams), "turn_duration_ms": FORBIDDEN_WORD_TURN_MS}
-
-    @staticmethod
-    def display_view(payload: dict[str, Any]) -> dict[str, Any]:
-        # Le mot et ses mots interdits ne quittent jamais la régie : l'équipe qui devine regarde l'écran.
-        return {**payload, "current_card": None}
 
     def start_turn(self, now_ms: int) -> ForbiddenWordState:
         if self.phase != "ready":

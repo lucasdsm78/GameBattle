@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field, replace
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
@@ -49,13 +49,6 @@ class StopChronoState(GameState):
             raise InvalidGameConfigError("L'index d'équipe du stop chrono est invalide.")
         if any(value < 0 for value in self.results.values()):
             raise InvalidGameConfigError("Un temps de stop chrono est invalide.")
-
-    def payload_extras(self, teams: list[str]) -> dict[str, Any]:
-        return {
-            "target_seconds": self.target_ms // 1000,
-            "current_team": teams[self.current_team_index] if 0 <= self.current_team_index < len(teams) else None,
-            "deltas_ms": {team: abs(elapsed - self.target_ms) for team, elapsed in self.results.items()},
-        }
 
     def start(self, now_ms: int) -> StopChronoState:
         if self.phase != "idle":

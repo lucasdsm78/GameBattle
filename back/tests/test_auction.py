@@ -5,6 +5,7 @@ from dataclasses import replace
 
 import pytest
 
+from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
 from domain.auction.models.auction_state import (
     AUCTION_DURATION_MS,
@@ -17,7 +18,10 @@ from exceptions import (
     InvalidGameConfigError,
     UnknownCommandError,
 )
-from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from infrastructure.repositories.game_config_mapper import (
+    game_config_from_payload,
+    game_config_to_payload,
+)
 from interface.realtime.deadline_worker import GameDeadlineWorker
 from support import GameHarness
 
@@ -140,10 +144,10 @@ def test_first_team_at_twenty_finishes_the_manche() -> None:
 
 def test_persistence_round_trip_and_display_redaction() -> None:
     started = _auction_config().start_auction()
-    restored = game_config_from_payload(started.to_dict())
+    restored = game_config_from_payload(game_config_to_payload(started))
     assert restored.session.auction == started.session.auction
 
-    controller, display = started.client_views()
+    controller, display = present_game_config(started)
     controller_game = controller["session"]["auction"]
     display_game = display["session"]["auction"]
     assert controller_game["answers"]

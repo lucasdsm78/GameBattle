@@ -1,12 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import fields, is_dataclass
+from dataclasses import asdict, fields, is_dataclass
 from functools import cache
 from types import NoneType, UnionType
 from typing import Any, Union, get_args, get_origin, get_type_hints
 
 from domain.game_night.models.game_config import GameConfig
 from domain.memory.models.memory_state import MEMORY_RULES_VERSION
+
+
+def game_config_to_payload(config: GameConfig) -> dict[str, Any]:
+    """Forme persistée : l'état brut de l'agrégat, sans vue client ni événement en attente."""
+    return {
+        "settings": asdict(config.settings),
+        "games": [asdict(game) for game in config.games],
+        "rounds": [asdict(round_config) for round_config in config.rounds],
+        "session": asdict(config.session),
+        "status": config.status,
+        "updated_at": config.updated_at,
+    }
 
 
 def game_config_from_payload(payload: dict[str, Any]) -> GameConfig:

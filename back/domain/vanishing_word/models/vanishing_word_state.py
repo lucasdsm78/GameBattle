@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field, replace
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
@@ -31,7 +31,6 @@ class VanishingWordState(GameState):
 
     game_key: ClassVar[str] = "vanishing_word"
     label: ClassVar[str] = "Le mot qui disparaît"
-    private_fields: ClassVar[frozenset[str]] = frozenset({"used_words"})
 
     phase: str = "idle"
     round_number: int = 0
@@ -88,20 +87,6 @@ class VanishingWordState(GameState):
             raise InvalidGameConfigError("Le mot disparu est incohérent avec la liste.")
         if (self.phase == "claimed") != bool(self.current_buzzer_team) or self.current_buzzer_team in self.excluded_teams:
             raise InvalidGameConfigError("La prise de main du Mot qui disparaît est invalide.")
-
-    def payload_extras(self, teams: list[str]) -> dict[str, Any]:
-        return {
-            "memorization_ms": VANISHING_WORD_MEMORIZATION_MS,
-            "winning_score": VANISHING_WORD_WINNING_SCORE,
-            "words_per_list": WORDS_PER_LIST,
-        }
-
-    @staticmethod
-    def display_view(payload: dict[str, Any]) -> dict[str, Any]:
-        # Tant que le mot n'est pas révélé, l'écran ne reçoit ni la liste d'origine ni le mot disparu.
-        if payload.get("phase") in HIDDEN_PHASES:
-            return {**payload, "words": [], "vanished_word": ""}
-        return payload
 
     def start_round(self, teams: list[str], now_ms: int) -> VanishingWordState:
         if self.phase not in {"idle", "revealed"}:

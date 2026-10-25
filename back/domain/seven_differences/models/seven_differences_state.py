@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from domain.seven_differences.events import DifferenceFound
 from domain.seven_differences.models.seven_difference import SevenDifference
@@ -99,16 +99,6 @@ class SevenDifferencesState(GameState):
             or self.winner_team != pick_round_winner(teams, self.scores)
         ):
             raise InvalidGameConfigError("La fin de manche des 7 différences est invalide.")
-
-    def payload_extras(self, teams: list[str]) -> dict[str, Any]:
-        return {"differences_remaining": DIFFERENCE_COUNT - len(self.found_difference_ids)}
-
-    @staticmethod
-    def display_view(payload: dict[str, Any]) -> dict[str, Any]:
-        view = {**payload, "differences": []}
-        if payload.get("phase") in {"idle", "memorizing"}:
-            view["modified_image_url"] = ""
-        return view
 
     def start(self, teams: list[str], now_ms: int) -> SevenDifferencesState:
         if self.phase != "idle":

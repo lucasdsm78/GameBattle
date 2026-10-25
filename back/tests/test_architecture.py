@@ -124,3 +124,22 @@ def test_every_game_has_its_state_and_actions_composed_into_the_aggregate() -> N
         if issubclass(base, GameActions) and base not in (GameActions, GameConfig)
     }
     assert composed == set(GAME_MODULES)
+
+
+PRESENTATION_MEMBERS = {"to_dict", "to_payload", "client_views", "shared_view", "display_view", "payload_extras", "private_fields"}
+
+
+def test_the_domain_knows_nothing_about_client_views() -> None:
+    from domain.game_night.models.game_config import GameConfig
+
+    for model in (GameConfig, GameSession, *GAME_STATE_TYPES.values()):
+        assert PRESENTATION_MEMBERS.isdisjoint(dir(model)), model.__name__
+
+
+def test_every_game_has_its_presenter_in_the_application_layer() -> None:
+    from application.game_night.game_config_presenter import GAME_PRESENTERS
+
+    assert set(GAME_PRESENTERS) == set(GAME_STATE_TYPES)
+    for game in GAME_MODULES:
+        assert (BACK_DIR / "application" / game / f"{game}_presenter.py").is_file(), game
+        assert type(GAME_PRESENTERS[game]).__module__ == f"application.{game}.{game}_presenter"
