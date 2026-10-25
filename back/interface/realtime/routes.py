@@ -106,4 +106,9 @@ ROUTES: tuple[Route, ...] = (
     Route("flash-calc.buzzer", lambda uc, cmd: uc.flash_calc.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
     Route("flash-calc.pause", lambda uc, _: uc.flash_calc.pause()),
     Route("flash-calc.resume", lambda uc, _: uc.flash_calc.resume()),
+    # Le bon drapeau
+    Route("right-flag.start", lambda uc, _: uc.right_flag.start()),
+    Route("right-flag.buzzer", lambda uc, cmd: uc.right_flag.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
+    Route("right-flag.pause", lambda uc, _: uc.right_flag.pause()),
+    Route("right-flag.resume", lambda uc, _: uc.right_flag.resume()),
 )

@@ -354,6 +354,22 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'flash-calc.resume' });
   }
 
+  startRightFlag(): void {
+    this.sendMessage({ type: 'right-flag.start' });
+  }
+
+  rightFlagBuzzer(team: string): void {
+    this.sendMessage({ type: 'right-flag.buzzer', payload: { team } });
+  }
+
+  pauseRightFlag(): void {
+    this.sendMessage({ type: 'right-flag.pause' });
+  }
+
+  resumeRightFlag(): void {
+    this.sendMessage({ type: 'right-flag.resume' });
+  }
+
   nextManche(): void {
     this.sendMessage({ type: 'game.next-manche' });
   }

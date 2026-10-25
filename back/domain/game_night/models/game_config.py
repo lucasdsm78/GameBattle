@@ -31,6 +31,7 @@ from domain.game_night.services.round_sequence import (
     compute_ranking,
 )
 from domain.memory.models.memory_actions import MemoryActions
+from domain.right_flag.models.right_flag_actions import RightFlagActions
 from domain.seven_differences.models.seven_differences_actions import (
     SevenDifferencesActions,
 )
@@ -59,6 +60,7 @@ class GameConfig(
     ForbiddenWordActions,
     VanishingWordActions,
     FlashCalcActions,
+    RightFlagActions,
 ):
     """Racine d'agrégat : configuration de la soirée et orchestration des manches.
 
@@ -242,6 +244,7 @@ _BUZZER_ACTIONS: dict[str, Callable[[GameConfig, str, int], GameConfig]] = {
     "auction": GameConfig.register_auction_buzzer,
     "vanishing_word": GameConfig.register_vanishing_buzzer,
     "flash_calc": GameConfig.register_flash_calc_buzzer,
+    "right_flag": GameConfig.register_right_flag_buzzer,
 }
 
 

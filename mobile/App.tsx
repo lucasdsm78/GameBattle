@@ -17,6 +17,7 @@ import { AuctionLiveScreen } from './src/screens/AuctionLiveScreen';
 import { ForbiddenWordActionBar, ForbiddenWordLiveScreen } from './src/screens/ForbiddenWordLiveScreen';
 import { VanishingWordLiveScreen } from './src/screens/VanishingWordLiveScreen';
 import { FlashCalcLiveScreen } from './src/screens/FlashCalcLiveScreen';
+import { RightFlagLiveScreen } from './src/screens/RightFlagLiveScreen';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
@@ -128,7 +129,17 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'flash_calc' ? (
+            {activeGameKey === 'right_flag' ? (
+              <RightFlagLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStart={() => socket.startRightFlag()}
+                onBuzz={(team) => socket.rightFlagBuzzer(team)}
+                onPause={() => socket.pauseRightFlag()}
+                onResume={() => socket.resumeRightFlag()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'flash_calc' ? (
               <FlashCalcLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}

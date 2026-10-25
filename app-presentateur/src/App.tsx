@@ -134,6 +134,7 @@ export default function App() {
         onAuctionBuzz={(team) => socket.auctionBuzzer(team)}
         onVanishingBuzz={(team) => socket.vanishingBuzzer(team)}
         onFlashCalcBuzz={(team) => socket.flashCalcBuzzer(team)}
+        onRightFlagBuzz={(team) => socket.rightFlagBuzzer(team)}
       />
     </>
   );

@@ -10,11 +10,6 @@ from application.game_night.game_config_presenter import present_game_config
 from application.shared.commands import TeamCommand
 from application.shared.snapshot import ClientRole
 from domain.flash_calc.events import CalculationShown, FlashCalcLevelReached
-from domain.flash_calc.models.flash_calc_state import (
-    FLASH_CALC_BUZZ_LOCK_MS,
-    FLASH_CALC_FEEDBACK_MS,
-    FLASH_CALC_WINNING_SCORE,
-)
 from domain.flash_calc.services.flash_calc_generator import (
     CALCS_PER_LEVEL,
     FLASH_CALC_LEVELS,
@@ -24,6 +19,11 @@ from domain.flash_calc.services.flash_calc_generator import (
     level_for,
 )
 from domain.shared.events import AnswerJudged, BuzzerPressed
+from domain.shared.models.buzz_stream_state import (
+    BUZZ_STREAM_FEEDBACK_MS,
+    BUZZ_STREAM_LOCK_MS,
+    BUZZ_STREAM_WINNING_SCORE,
+)
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_config_mapper import (
     game_config_from_payload,
@@ -33,7 +33,7 @@ from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 START_MS = 1_000
-BUZZ_MS = START_MS + FLASH_CALC_BUZZ_LOCK_MS
+BUZZ_MS = START_MS + BUZZ_STREAM_LOCK_MS
 
 
 def _running(teams: list[str] | None = None):
@@ -83,15 +83,15 @@ def test_buzzing_a_correct_calculation_scores_one_point() -> None:
     assert game.phase == "feedback"
     assert game.scores == {"Rouges": 0, "Bleus": 1, "Verts": 0}
     assert game.verdict.team == "Bleus" and game.verdict.correct and game.verdict.points == 1
-    assert game.deadline_ms == BUZZ_MS + FLASH_CALC_FEEDBACK_MS
+    assert game.deadline_ms == BUZZ_MS + BUZZ_STREAM_FEEDBACK_MS
 
 
 def test_buzzing_a_wrong_calculation_costs_a_point_but_never_goes_below_zero() -> None:
     scored = _rigged(_running(), correct=True).register_flash_calc_buzzer("Rouges", now_ms=BUZZ_MS)
-    next_calc = scored.expire_due_deadline(BUZZ_MS + FLASH_CALC_FEEDBACK_MS)
+    next_calc = scored.expire_due_deadline(BUZZ_MS + BUZZ_STREAM_FEEDBACK_MS)
     shown_at = next_calc.session.flash_calc.shown_at_ms
 
-    penalised = _rigged(next_calc, correct=False).register_flash_calc_buzzer("Rouges", now_ms=shown_at + FLASH_CALC_BUZZ_LOCK_MS)
+    penalised = _rigged(next_calc, correct=False).register_flash_calc_buzzer("Rouges", now_ms=shown_at + BUZZ_STREAM_LOCK_MS)
     assert penalised.session.flash_calc.scores["Rouges"] == 0
     assert penalised.session.flash_calc.verdict.points == -1
 
@@ -161,16 +161,16 @@ def test_calculations_speed_up_level_after_level() -> None:
 
 def test_the_first_team_to_reach_the_winning_score_wins_the_manche() -> None:
     current = _running()
-    for _ in range(FLASH_CALC_WINNING_SCORE):
+    for _ in range(BUZZ_STREAM_WINNING_SCORE):
         shown_at = current.session.flash_calc.shown_at_ms
-        current = _rigged(current, correct=True).register_flash_calc_buzzer("Verts", now_ms=shown_at + FLASH_CALC_BUZZ_LOCK_MS)
+        current = _rigged(current, correct=True).register_flash_calc_buzzer("Verts", now_ms=shown_at + BUZZ_STREAM_LOCK_MS)
         if current.session.flash_calc.phase == "feedback":
             current = current.expire_due_deadline(current.session.flash_calc.deadline_ms)
 
     game = current.session.flash_calc
     assert game.phase == "finished"
     assert game.winner_team == "Verts"
-    assert game.scores["Verts"] == FLASH_CALC_WINNING_SCORE
+    assert game.scores["Verts"] == BUZZ_STREAM_WINNING_SCORE
     assert current.session.manche_winner == "Verts"
     assert current.expire_due_deadline(10_000_000) is current
 
@@ -183,7 +183,7 @@ def test_nobody_ever_sees_whether_the_current_calculation_is_correct() -> None:
         payload = view["session"]["flash_calc"]
         assert "true_result" not in payload
         assert payload["expression"] == running.session.flash_calc.expression
-        assert payload["level"] == 1 and payload["winning_score"] == FLASH_CALC_WINNING_SCORE
+        assert payload["level"] == 1 and payload["winning_score"] == BUZZ_STREAM_WINNING_SCORE
 
 
 def test_domain_events_follow_the_scrolling() -> None:
@@ -216,7 +216,7 @@ def test_tampered_states_are_rejected() -> None:
 
     for tampered, message in (
         (replace(game, scores={**game.scores, "Rouges": -1}), "scores"),
-        (replace(game, phase="finished", winner_team="Rouges"), f"{FLASH_CALC_WINNING_SCORE} points"),
+        (replace(game, phase="finished", winner_team="Rouges"), f"{BUZZ_STREAM_WINNING_SCORE} points"),
         (replace(game, verdict=None), "dernier buzz"),
         (replace(game, deadline_ms=0), "chrono"),
         (replace(game, phase="joker"), "phase"),

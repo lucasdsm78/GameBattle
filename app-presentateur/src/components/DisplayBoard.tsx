@@ -10,6 +10,7 @@ import { AuctionBoard } from './AuctionBoard';
 import { ForbiddenWordBoard } from './ForbiddenWordBoard';
 import { VanishingWordBoard } from './VanishingWordBoard';
 import { FlashCalcBoard } from './FlashCalcBoard';
+import { RightFlagBoard } from './RightFlagBoard';
 import { GameScreen } from './GameScreen';
 
 type Props = {
@@ -28,6 +29,7 @@ type Props = {
   onAuctionBuzz: (team: string) => void;
   onVanishingBuzz: (team: string) => void;
   onFlashCalcBuzz: (team: string) => void;
+  onRightFlagBuzz: (team: string) => void;
 };
 
 const KEYBOARD_BINDINGS = ['1', '2', '3', '4', '5', '6'];
@@ -112,6 +114,7 @@ export function DisplayBoard({
   onAuctionBuzz,
   onVanishingBuzz,
   onFlashCalcBuzz,
+  onRightFlagBuzz,
 }: Props) {
   const chronoPhase = gameConfig?.session.stopchrono.phase;
   const chronoTeamIndex = gameConfig?.session.stopchrono.current_team_index;
@@ -125,6 +128,7 @@ export function DisplayBoard({
   const vanishingPhase = gameConfig?.session.vanishing_word.phase;
   const vanishingExcludedTeams = gameConfig?.session.vanishing_word.excluded_teams;
   const flashCalcPhase = gameConfig?.session.flash_calc.phase;
+  const rightFlagPhase = gameConfig?.session.right_flag.phase;
   const activeGameKey = gameConfig?.session.active_round?.game_key ?? 'blindtest';
 
   useEffect(() => {
@@ -214,10 +218,13 @@ export function DisplayBoard({
         return;
       }
 
-      if (activeGameKey === 'flash_calc') {
-        if (flashCalcPhase !== 'running') return;
+      // Jeux « buzze seulement si… » : toutes les équipes peuvent buzzer pendant le défilement.
+      const streamBuzz = { flash_calc: [flashCalcPhase, onFlashCalcBuzz], right_flag: [rightFlagPhase, onRightFlagBuzz] } as const;
+      if (activeGameKey === 'flash_calc' || activeGameKey === 'right_flag') {
+        const [phase, buzz] = streamBuzz[activeGameKey];
+        if (phase !== 'running') return;
         const index = teams.findIndex((team, position) => matchesBinding(event, buzzerKeys[position] ?? ''));
-        if (index >= 0) onFlashCalcBuzz(teams[index]);
+        if (index >= 0) buzz(teams[index]);
         return;
       }
 
@@ -244,6 +251,8 @@ export function DisplayBoard({
     vanishingExcludedTeams,
     onFlashCalcBuzz,
     flashCalcPhase,
+    onRightFlagBuzz,
+    rightFlagPhase,
     gameConfig?.settings.buzzer_keys,
     gameConfig?.settings.teams,
     activeGameKey,
@@ -503,6 +512,23 @@ export function DisplayBoard({
         scores={game.scores}
       >
         <FlashCalcBoard game={game} teams={gameConfig.settings.teams} />
+      </GameScreen>
+    );
+  }
+
+  if (activeGameKey === 'right_flag') {
+    const game = gameConfig.session.right_flag;
+    return (
+      <GameScreen
+        gameConfig={gameConfig}
+        connectionState={connectionState}
+        errorMessage={errorMessage}
+        eyebrow={`Le bon drapeau · premier à ${game.winning_score}`}
+        className="rf-screen"
+        winnerTeam={game.winner_team}
+        scores={game.scores}
+      >
+        <RightFlagBoard game={game} teams={gameConfig.settings.teams} />
       </GameScreen>
     );
   }
