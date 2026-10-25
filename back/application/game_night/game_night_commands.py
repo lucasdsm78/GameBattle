@@ -7,6 +7,7 @@ from pydantic import Field, StringConstraints, field_validator
 from application.shared.commands import CultureDifficulty, InputModel, TeamName
 from domain.game_night.models.game_config import GameConfig
 from domain.game_night.models.settings import (
+    SUPPORTED_GAME_KEYS,
     GameDefinition,
     GameRoundPlan,
     GameSettings,
@@ -45,7 +46,7 @@ class GameRoundPlanModel(InputModel):
 
 class GameConfigUpsertModel(InputModel):
     settings: GameSettingsModel
-    games: list[GameDefinitionModel] = Field(min_length=1, max_length=10)
+    games: list[GameDefinitionModel] = Field(min_length=1, max_length=len(SUPPORTED_GAME_KEYS))
     rounds: list[GameRoundPlanModel] = Field(default_factory=list, max_length=30)
     status: GameStatus = "configuring"
 
