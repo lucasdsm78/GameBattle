@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { RaceScoreCard } from '../components/RaceScoreCard';
 import { useCountdown } from '../hooks/useCountdown';
 import { useSendLock } from '../hooks/useSendLock';
 import { useVolumeButtons } from '../hooks/useVolumeButtons';
@@ -151,26 +152,14 @@ export function VanishingWordLiveScreen({ snapshot, errorMessage, onStartRound, 
         </View>
       ) : null}
 
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Scores</Text>
-          <Text style={local.goal}>Objectif {game.winning_score}</Text>
-        </View>
-        {teams.map((team) => {
-          const score = game.scores[team] ?? 0;
-          return (
-            <View key={team} style={[styles.rankRow, team === game.winner_team && styles.rankRowWinner]}>
-              <Text style={styles.rankTeam} numberOfLines={1}>{team}</Text>
-              <View style={local.dots}>
-                {Array.from({ length: game.winning_score }, (_, index) => (
-                  <View key={index} style={[local.dot, index < score && local.dotFilled]} />
-                ))}
-              </View>
-              <Text style={local.score}>{score}</Text>
-            </View>
-          );
-        })}
-      </View>
+      <RaceScoreCard
+        teams={teams}
+        scores={game.scores}
+        goal={game.winning_score}
+        unit="mot"
+        highlight={game.current_buzzer_team ? { team: game.current_buzzer_team, tone: 'good' } : null}
+        winnerTeam={game.winner_team}
+      />
     </>
   );
 }
@@ -240,10 +229,4 @@ const local = StyleSheet.create({
   wordVanished: { color: '#fecaca' },
   vanishedTag: { color: '#fca5a5', fontSize: 11, fontWeight: '800', marginTop: 4, textTransform: 'uppercase' },
   excludedTile: { opacity: 0.4 },
-
-  goal: { color: colors.accent, fontWeight: '900' },
-  dots: { flexDirection: 'row', gap: 5 },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.12)' },
-  dotFilled: { backgroundColor: colors.accent },
-  score: { color: colors.text, fontSize: 20, fontWeight: '900', minWidth: 24, textAlign: 'right', fontVariant: ['tabular-nums'] },
 });

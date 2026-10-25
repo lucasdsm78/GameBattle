@@ -8,6 +8,7 @@ from domain.auction.models.auction_actions import AuctionActions
 from domain.blindtest.models.blindtest_actions import BlindtestActions
 from domain.bombe.models.bombe_actions import BombeActions
 from domain.culture.models.culture_actions import CultureActions
+from domain.flash_calc.models.flash_calc_actions import FlashCalcActions
 from domain.forbidden_word.models.forbidden_word_actions import ForbiddenWordActions
 from domain.game_night.events import (
     GameNightFinished,
@@ -57,6 +58,7 @@ class GameConfig(
     AuctionActions,
     ForbiddenWordActions,
     VanishingWordActions,
+    FlashCalcActions,
 ):
     """Racine d'agrégat : configuration de la soirée et orchestration des manches.
 
@@ -285,6 +287,7 @@ _BUZZER_ACTIONS: dict[str, Callable[[GameConfig, str, int], GameConfig]] = {
     "seven_differences": GameConfig.register_seven_differences_buzzer,
     "auction": GameConfig.register_auction_buzzer,
     "vanishing_word": GameConfig.register_vanishing_buzzer,
+    "flash_calc": GameConfig.register_flash_calc_buzzer,
 }
 
 

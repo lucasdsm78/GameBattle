@@ -105,6 +105,10 @@ export class GameConfigSocket {
     this.sendMessage({ type: 'vanishing-word.buzzer', payload: { team } });
   }
 
+  flashCalcBuzzer(team: string): void {
+    this.sendMessage({ type: 'flash-calc.buzzer', payload: { team } });
+  }
+
   // Pousse le token utilisateur Spotify vers le backend pour autoriser l'import de playlist.
   sendSpotifyToken(accessToken: string): void {
     this.sendMessage({ type: 'spotify.user-token', payload: { access_token: accessToken } });

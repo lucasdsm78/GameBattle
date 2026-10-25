@@ -775,19 +775,15 @@ button {
   }
 }
 
-/* --- Le mot qui disparaît --- */
-.vw-screen {
-  align-content: start;
-}
-
-.vw-layout {
+/* --- Base partagée des jeux « course aux points » (Le mot qui disparaît, Calcul flash) --- */
+.race-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.75fr);
   gap: 24px;
   align-items: stretch;
 }
 
-.vw-stage {
+.race-stage {
   min-height: min(68vh, 720px);
   padding: clamp(24px, 5vw, 56px);
   display: flex;
@@ -799,7 +795,7 @@ button {
   background: radial-gradient(circle at 50% 30%, rgba(34, 197, 94, 0.18), rgba(8, 20, 33, 0.92) 64%);
 }
 
-.vw-kicker {
+.race-kicker {
   margin: 0;
   color: var(--accent);
   font-size: clamp(1.2rem, 2.6vw, 2rem);
@@ -808,11 +804,122 @@ button {
   text-transform: uppercase;
 }
 
-.vw-instruction {
+.race-instruction {
   margin: 0;
   color: var(--muted);
   font-size: clamp(1rem, 2vw, 1.35rem);
   font-weight: 700;
+}
+
+.race-scores {
+  padding: 24px;
+}
+
+.race-score-list {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.race-score {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.25s ease, background 0.25s ease, opacity 0.25s ease;
+}
+
+.race-score.is-current,
+.race-score.is-winner {
+  border-color: rgba(34, 197, 94, 0.6);
+  background: rgba(34, 197, 94, 0.12);
+  box-shadow: 0 0 26px rgba(34, 197, 94, 0.12);
+}
+
+.race-score.is-penalty {
+  border-color: rgba(255, 93, 115, 0.65);
+  background: rgba(255, 93, 115, 0.12);
+  box-shadow: 0 0 26px rgba(255, 93, 115, 0.14);
+}
+
+.race-score.is-excluded {
+  opacity: 0.45;
+}
+
+.race-score-team {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.race-score-team strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.race-score-team small {
+  color: #ffd4db;
+}
+
+.race-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.race-dots i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.race-dots i.is-filled {
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+}
+
+.race-score b {
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+  animation: race-bump 0.4s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+@keyframes race-pop {
+  0% { opacity: 0; transform: scale(0.7); }
+  60% { opacity: 1; transform: scale(1.06); }
+}
+
+@keyframes race-bump {
+  40% { transform: scale(1.35); }
+}
+
+@media (max-width: 1000px) {
+  .race-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .race-stage {
+    min-height: 52vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .race-score b {
+    animation: none;
+  }
+}
+
+/* --- Le mot qui disparaît --- */
+.vw-screen {
+  align-content: start;
 }
 
 .vw-claim {
@@ -823,7 +930,7 @@ button {
   background: var(--accent);
   font-size: clamp(1.1rem, 2.4vw, 1.7rem);
   font-weight: 900;
-  animation: vw-pop 0.45s cubic-bezier(0.2, 0.9, 0.2, 1);
+  animation: race-pop 0.45s cubic-bezier(0.2, 0.9, 0.2, 1);
 }
 
 .vw-timer {
@@ -898,7 +1005,7 @@ button {
   display: grid;
   gap: 8px;
   justify-items: center;
-  animation: vw-pop 0.6s cubic-bezier(0.2, 0.9, 0.2, 1);
+  animation: race-pop 0.6s cubic-bezier(0.2, 0.9, 0.2, 1);
 }
 
 .vw-reveal strong {
@@ -914,79 +1021,6 @@ button {
   font-weight: 900;
 }
 
-.vw-scores {
-  padding: 24px;
-}
-
-.vw-score-list {
-  display: grid;
-  gap: 12px;
-  margin: 20px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.vw-score {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--panel-border);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
-  transition: border-color 0.25s ease, background 0.25s ease, opacity 0.25s ease;
-}
-
-.vw-score.is-current,
-.vw-score.is-winner {
-  border-color: rgba(34, 197, 94, 0.6);
-  background: rgba(34, 197, 94, 0.12);
-  box-shadow: 0 0 26px rgba(34, 197, 94, 0.12);
-}
-
-.vw-score.is-excluded {
-  opacity: 0.45;
-}
-
-.vw-score-team {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.vw-score-team strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vw-score-team small {
-  color: #ffd4db;
-}
-
-.vw-dots {
-  display: flex;
-  gap: 6px;
-}
-
-.vw-dots i {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.vw-dots i.is-filled {
-  background: var(--accent);
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
-}
-
-.vw-score b {
-  font-size: 1.8rem;
-  font-variant-numeric: tabular-nums;
-}
-
 @keyframes vw-shrink {
   from { transform: scaleX(var(--vw-from, 1)); }
   to { transform: scaleX(0); }
@@ -996,23 +1030,8 @@ button {
   from { opacity: 0; transform: translateY(10px) scale(0.94); }
 }
 
-@keyframes vw-pop {
-  0% { opacity: 0; transform: scale(0.7); }
-  60% { opacity: 1; transform: scale(1.06); }
-}
-
 @keyframes vw-pulse {
   50% { box-shadow: 0 0 28px rgba(34, 197, 94, 0.35); }
-}
-
-@media (max-width: 1000px) {
-  .vw-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .vw-stage {
-    min-height: 52vh;
-  }
 }
 
 @media (max-width: 620px) {
@@ -1026,6 +1045,210 @@ button {
   .vw-claim,
   .vw-reveal,
   .vw-word.is-mystery {
+    animation: none;
+  }
+}
+
+/* --- Calcul flash --- */
+.fc-screen {
+  align-content: start;
+}
+
+.fc-stage {
+  position: relative;
+  transition: box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.fc-stage.is-good {
+  background: radial-gradient(circle at 50% 40%, rgba(34, 197, 94, 0.3), rgba(8, 20, 33, 0.92) 66%);
+  box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.55);
+}
+
+.fc-stage.is-bad {
+  background: radial-gradient(circle at 50% 40%, rgba(255, 93, 115, 0.28), rgba(8, 20, 33, 0.92) 66%);
+  box-shadow: inset 0 0 0 2px rgba(255, 93, 115, 0.55);
+  animation: fc-shake 0.4s ease;
+}
+
+.fc-topline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 24px;
+}
+
+.fc-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.fc-level > span:first-child {
+  animation: race-pop 0.5s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.fc-level-pips {
+  display: flex;
+  gap: 4px;
+}
+
+.fc-level-pips i {
+  width: 8px;
+  height: 14px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.fc-level-pips i.is-on {
+  background: var(--warning);
+}
+
+.fc-rules {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2.2vw, 1.6rem);
+  font-weight: 700;
+}
+
+.fc-rules strong {
+  color: var(--text);
+}
+
+.fc-rules .is-good {
+  color: var(--accent);
+}
+
+.fc-rules .is-bad {
+  color: var(--danger);
+}
+
+.fc-paused {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(2.4rem, 7vw, 5rem);
+  font-weight: 900;
+}
+
+.fc-calc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0 0.3em;
+  font-size: clamp(3.2rem, 11vw, 9rem);
+  font-weight: 900;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  animation: fc-calc-in 0.28s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.fc-calc .fc-equals {
+  color: var(--muted);
+}
+
+.fc-calc strong {
+  color: var(--warning);
+  text-shadow: 0 0 40px rgba(245, 158, 11, 0.35);
+}
+
+.fc-calc s {
+  color: var(--danger);
+  text-decoration-thickness: 0.08em;
+}
+
+.fc-correction {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(1.4rem, 3.4vw, 2.6rem);
+  font-weight: 800;
+}
+
+.fc-correction b {
+  color: var(--accent);
+}
+
+.fc-calc.is-verdict {
+  animation: none;
+}
+
+.fc-stage.is-good .fc-calc strong {
+  color: var(--accent);
+  text-shadow: 0 0 40px rgba(34, 197, 94, 0.45);
+}
+
+.fc-stage.is-bad .fc-calc strong {
+  text-shadow: none;
+}
+
+.fc-timer {
+  width: min(640px, 100%);
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fc-timer span {
+  display: block;
+  height: 100%;
+  transform-origin: left;
+  animation-name: fc-drain;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+.fc-verdict {
+  margin: 0;
+  padding: 12px 28px;
+  border-radius: 999px;
+  font-size: clamp(1.3rem, 3vw, 2.2rem);
+  font-weight: 900;
+  animation: race-pop 0.4s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.fc-stage.is-good .fc-verdict {
+  color: #052e16;
+  background: var(--accent);
+}
+
+.fc-stage.is-bad .fc-verdict {
+  color: #fff;
+  background: var(--danger);
+}
+
+@keyframes fc-calc-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.92); }
+}
+
+@keyframes fc-drain {
+  from { transform: scaleX(1); background: var(--accent); }
+  60% { background: var(--warning); }
+  to { transform: scaleX(0); background: var(--danger); }
+}
+
+@keyframes fc-shake {
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-calc,
+  .fc-verdict,
+  .fc-stage.is-bad,
+  .fc-level > span:first-child {
     animation: none;
   }
 }

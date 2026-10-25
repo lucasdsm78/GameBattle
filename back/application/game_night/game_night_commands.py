@@ -13,7 +13,8 @@ from domain.game_night.models.settings import (
 )
 
 GameKey = Literal[
-    "blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction", "forbidden_word", "vanishing_word"
+    "blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction", "forbidden_word",
+    "vanishing_word", "flash_calc",
 ]
 GameStatus = Literal["configuring", "ready", "live", "finished"]
 

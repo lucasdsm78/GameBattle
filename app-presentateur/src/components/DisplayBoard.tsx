@@ -9,6 +9,7 @@ import { SevenDifferencesBoard } from './SevenDifferencesBoard';
 import { AuctionBoard } from './AuctionBoard';
 import { ForbiddenWordBoard } from './ForbiddenWordBoard';
 import { VanishingWordBoard } from './VanishingWordBoard';
+import { FlashCalcBoard } from './FlashCalcBoard';
 import { GameScreen } from './GameScreen';
 
 type Props = {
@@ -26,6 +27,7 @@ type Props = {
   onSevenDifferencesBuzz: (team: string) => void;
   onAuctionBuzz: (team: string) => void;
   onVanishingBuzz: (team: string) => void;
+  onFlashCalcBuzz: (team: string) => void;
 };
 
 const KEYBOARD_BINDINGS = ['1', '2', '3', '4', '5', '6'];
@@ -109,6 +111,7 @@ export function DisplayBoard({
   onSevenDifferencesBuzz,
   onAuctionBuzz,
   onVanishingBuzz,
+  onFlashCalcBuzz,
 }: Props) {
   const chronoPhase = gameConfig?.session.stopchrono.phase;
   const chronoTeamIndex = gameConfig?.session.stopchrono.current_team_index;
@@ -121,6 +124,7 @@ export function DisplayBoard({
   const auctionActiveTeam = gameConfig?.session.auction.active_team;
   const vanishingPhase = gameConfig?.session.vanishing_word.phase;
   const vanishingExcludedTeams = gameConfig?.session.vanishing_word.excluded_teams;
+  const flashCalcPhase = gameConfig?.session.flash_calc.phase;
   const activeGameKey = gameConfig?.session.active_round?.game_key ?? 'blindtest';
 
   useEffect(() => {
@@ -210,6 +214,13 @@ export function DisplayBoard({
         return;
       }
 
+      if (activeGameKey === 'flash_calc') {
+        if (flashCalcPhase !== 'running') return;
+        const index = teams.findIndex((team, position) => matchesBinding(event, buzzerKeys[position] ?? ''));
+        if (index >= 0) onFlashCalcBuzz(teams[index]);
+        return;
+      }
+
       for (let index = 0; index < teams.length; index += 1) {
         if (matchesBinding(event, buzzerKeys[index] ?? '')) {
           onBuzz(teams[index]);
@@ -231,6 +242,8 @@ export function DisplayBoard({
     onVanishingBuzz,
     vanishingPhase,
     vanishingExcludedTeams,
+    onFlashCalcBuzz,
+    flashCalcPhase,
     gameConfig?.settings.buzzer_keys,
     gameConfig?.settings.teams,
     activeGameKey,
@@ -473,6 +486,23 @@ export function DisplayBoard({
         scores={game.scores}
       >
         <VanishingWordBoard game={game} teams={gameConfig.settings.teams} />
+      </GameScreen>
+    );
+  }
+
+  if (activeGameKey === 'flash_calc') {
+    const game = gameConfig.session.flash_calc;
+    return (
+      <GameScreen
+        gameConfig={gameConfig}
+        connectionState={connectionState}
+        errorMessage={errorMessage}
+        eyebrow={`Calcul flash · premier à ${game.winning_score}`}
+        className="fc-screen"
+        winnerTeam={game.winner_team}
+        scores={game.scores}
+      >
+        <FlashCalcBoard game={game} teams={gameConfig.settings.teams} />
       </GameScreen>
     );
   }

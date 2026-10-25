@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class GameDeadlineWorker:
-    """Clôt les chronos serveur échus (L’Enchère, Le mot interdit) sans dépendre d'un client connecté.
+    """Fait avancer les chronos serveur échus (L’Enchère, Le mot interdit, Le mot qui disparaît, Calcul flash) sans dépendre d'un client connecté.
 
     Un tick sans chrono échu ne touche ni la base (dépôt en cache) ni le réseau.
     """

@@ -7,6 +7,7 @@ from domain.auction.models.auction_state import AuctionState
 from domain.blindtest.models.blindtest_state import BlindtestState
 from domain.bombe.models.bombe_state import BombeState
 from domain.culture.models.culture_state import CultureState
+from domain.flash_calc.models.flash_calc_state import FlashCalcState
 from domain.forbidden_word.models.forbidden_word_state import ForbiddenWordState
 from domain.game_night.models.active_round import ActiveRound
 from domain.game_night.models.game_registry import GAME_STATE_TYPES
@@ -35,6 +36,7 @@ class GameSession:
     auction: AuctionState = field(default_factory=AuctionState)
     forbidden_word: ForbiddenWordState = field(default_factory=ForbiddenWordState)
     vanishing_word: VanishingWordState = field(default_factory=VanishingWordState)
+    flash_calc: FlashCalcState = field(default_factory=FlashCalcState)
     # Persistée mais jamais exposée aux clients : les apps ne voient que la manche courante.
     round_sequence: list[str] = field(default_factory=list)
     round_index: int = 0

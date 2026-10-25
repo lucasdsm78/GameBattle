@@ -1,6 +1,7 @@
 import { CSSProperties, useMemo } from 'react';
 import { useCountdown } from '../hooks/useCountdown';
 import { VanishingWordState } from '../types/gameConfig';
+import { RaceScoreboard } from './RaceScoreboard';
 
 type Props = {
   game: VanishingWordState;
@@ -19,14 +20,15 @@ const KICKERS: Record<VanishingWordState['phase'], string> = {
 export function VanishingWordBoard({ game, teams }: Props) {
   const hunting = game.phase === 'vanished' || game.phase === 'claimed';
   const revealed = game.phase === 'revealed' || game.phase === 'finished';
+  const highlightedTeam = game.current_buzzer_team ?? (revealed ? game.round_winner : null);
 
   return (
-    <section className="vw-layout">
-      <article className="glass-card vw-stage">
-        <p className="vw-kicker">{KICKERS[game.phase]}</p>
+    <section className="race-layout">
+      <article className="glass-card race-stage">
+        <p className="race-kicker">{KICKERS[game.phase]}</p>
 
         {game.phase === 'idle' ? (
-          <p className="vw-instruction">8 mots vont s’afficher. Mémorisez-les : l’un d’eux va disparaître !</p>
+          <p className="race-instruction">8 mots vont s’afficher. Mémorisez-les : l’un d’eux va disparaître !</p>
         ) : null}
 
         {game.phase === 'memorizing' ? (
@@ -41,7 +43,7 @@ export function VanishingWordBoard({ game, teams }: Props) {
             {game.current_buzzer_team ? (
               <p className="vw-claim" aria-live="assertive">🔔 {game.current_buzzer_team} a la main</p>
             ) : (
-              <p className="vw-instruction">Buzzez dès que vous avez trouvé le mot manquant.</p>
+              <p className="race-instruction">Buzzez dès que vous avez trouvé le mot manquant.</p>
             )}
             <WordGrid words={game.remaining_words} mysterySlot />
           </>
@@ -58,39 +60,16 @@ export function VanishingWordBoard({ game, teams }: Props) {
         ) : null}
       </article>
 
-      <aside className="glass-card vw-scores">
-        <div className="section-row">
-          <span className="section-chip">Scores</span>
-          <strong className="progress-pill">Objectif {game.winning_score}</strong>
-        </div>
-        <ol className="vw-score-list">
-          {teams.map((team, index) => {
-            const score = game.scores[team] ?? 0;
-            const excluded = hunting && game.excluded_teams.includes(team);
-            const classes = [
-              'vw-score',
-              team === game.current_buzzer_team ? 'is-current' : '',
-              team === game.winner_team || (revealed && team === game.round_winner) ? 'is-winner' : '',
-              excluded ? 'is-excluded' : '',
-            ].join(' ');
-            return (
-              <li key={team} className={classes}>
-                <span className="score-index">{index + 1}</span>
-                <span className="vw-score-team">
-                  <strong>{team}</strong>
-                  <span className="vw-dots" aria-label={`${score} mot${score > 1 ? 's' : ''} sur ${game.winning_score}`}>
-                    {Array.from({ length: game.winning_score }, (_, dot) => (
-                      <i key={dot} className={dot < score ? 'is-filled' : ''} />
-                    ))}
-                  </span>
-                  {excluded ? <small>S’est trompée</small> : null}
-                </span>
-                <b>{score}</b>
-              </li>
-            );
-          })}
-        </ol>
-      </aside>
+      <RaceScoreboard
+        teams={teams}
+        scores={game.scores}
+        goal={game.winning_score}
+        unit="mot"
+        highlight={highlightedTeam ? { team: highlightedTeam, tone: 'good' } : null}
+        winnerTeam={game.winner_team}
+        excludedTeams={hunting ? game.excluded_teams : []}
+        excludedLabel="S’est trompée"
+      />
     </section>
   );
 }
