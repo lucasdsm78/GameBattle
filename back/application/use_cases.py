@@ -8,6 +8,7 @@ from application.blindtest.blindtest_command_usecase import BlindtestCommandUseC
 from application.blindtest.playlist_service import BlindtestPlaylistService
 from application.bombe.bombe_command_usecase import BombeCommandUseCase
 from application.culture.culture_command_usecase import CultureCommandUseCase
+from application.flash_calc.flash_calc_command_usecase import FlashCalcCommandUseCase
 from application.forbidden_word.forbidden_word_command_usecase import (
     ForbiddenWordCommandUseCase,
 )
@@ -42,6 +43,7 @@ class GameUseCases:
     auction: AuctionCommandUseCase
     forbidden_word: ForbiddenWordCommandUseCase
     vanishing_word: VanishingWordCommandUseCase
+    flash_calc: FlashCalcCommandUseCase
 
     @classmethod
     def build(
@@ -63,6 +65,7 @@ class GameUseCases:
             auction=AuctionCommandUseCase(*dependencies),
             forbidden_word=ForbiddenWordCommandUseCase(*dependencies),
             vanishing_word=VanishingWordCommandUseCase(*dependencies),
+            flash_calc=FlashCalcCommandUseCase(*dependencies),
         )
 
 __all__ = ["CommandUseCase", "GameUseCases", "SnapshotPublisher"]

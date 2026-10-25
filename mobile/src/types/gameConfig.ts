@@ -7,7 +7,8 @@ export type GameKey =
   | 'seven_differences'
   | 'auction'
   | 'forbidden_word'
-  | 'vanishing_word';
+  | 'vanishing_word'
+  | 'flash_calc';
 export type CultureDifficulty = 'toutes' | 'facile' | 'moyen' | 'difficile';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
@@ -152,6 +153,34 @@ export type VanishingWordState = {
   words_per_list: number;
 };
 
+export type FlashCalcVerdict = {
+  team: string;
+  correct: boolean;
+  expression: string;
+  shown_result: number;
+  true_result: number;
+  points: number;
+};
+
+// Le serveur ne dit jamais si le calcul affiché est juste : seul `verdict` le révèle, après un buzz.
+export type FlashCalcState = {
+  phase: 'idle' | 'running' | 'feedback' | 'paused' | 'finished';
+  calc_number: number;
+  expression: string;
+  shown_result: number;
+  shown_at_ms: number;
+  deadline_ms: number;
+  verdict: FlashCalcVerdict | null;
+  scores: Record<string, number>;
+  winner_team: string | null;
+  level: number;
+  max_level: number;
+  calcs_per_level: number;
+  calc_duration_ms: number;
+  feedback_ms: number;
+  winning_score: number;
+};
+
 export type RankingEntry = {
   team: string;
   manches_won: number;
@@ -233,6 +262,7 @@ export type GameSession = {
   auction: AuctionState;
   forbidden_word: ForbiddenWordState;
   vanishing_word: VanishingWordState;
+  flash_calc: FlashCalcState;
   round_index: number;
   total_rounds: number;
   manche_number: number;

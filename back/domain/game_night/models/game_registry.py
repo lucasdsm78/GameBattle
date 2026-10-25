@@ -2,6 +2,7 @@ from domain.auction.models.auction_state import AuctionState
 from domain.blindtest.models.blindtest_state import BlindtestState
 from domain.bombe.models.bombe_state import BombeState
 from domain.culture.models.culture_state import CultureState
+from domain.flash_calc.models.flash_calc_state import FlashCalcState
 from domain.forbidden_word.models.forbidden_word_state import ForbiddenWordState
 from domain.memory.models.memory_state import MemoryState
 from domain.seven_differences.models.seven_differences_state import (
@@ -23,6 +24,7 @@ GAME_STATE_TYPES: dict[str, type[GameState]] = {
         AuctionState,
         ForbiddenWordState,
         VanishingWordState,
+        FlashCalcState,
     )
 }
 
@@ -32,6 +34,7 @@ __all__ = [
     "BlindtestState",
     "BombeState",
     "CultureState",
+    "FlashCalcState",
     "ForbiddenWordState",
     "MemoryState",
     "SevenDifferencesState",

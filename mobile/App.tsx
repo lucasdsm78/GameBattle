@@ -16,6 +16,7 @@ import { SevenDifferencesLiveScreen } from './src/screens/SevenDifferencesLiveSc
 import { AuctionLiveScreen } from './src/screens/AuctionLiveScreen';
 import { ForbiddenWordActionBar, ForbiddenWordLiveScreen } from './src/screens/ForbiddenWordLiveScreen';
 import { VanishingWordLiveScreen } from './src/screens/VanishingWordLiveScreen';
+import { FlashCalcLiveScreen } from './src/screens/FlashCalcLiveScreen';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
@@ -127,7 +128,17 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'vanishing_word' ? (
+            {activeGameKey === 'flash_calc' ? (
+              <FlashCalcLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStart={() => socket.startFlashCalc()}
+                onBuzz={(team) => socket.flashCalcBuzzer(team)}
+                onPause={() => socket.pauseFlashCalc()}
+                onResume={() => socket.resumeFlashCalc()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'vanishing_word' ? (
               <VanishingWordLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}

@@ -338,6 +338,22 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'vanishing-word.reveal' });
   }
 
+  startFlashCalc(): void {
+    this.sendMessage({ type: 'flash-calc.start' });
+  }
+
+  flashCalcBuzzer(team: string): void {
+    this.sendMessage({ type: 'flash-calc.buzzer', payload: { team } });
+  }
+
+  pauseFlashCalc(): void {
+    this.sendMessage({ type: 'flash-calc.pause' });
+  }
+
+  resumeFlashCalc(): void {
+    this.sendMessage({ type: 'flash-calc.resume' });
+  }
+
   nextManche(): void {
     this.sendMessage({ type: 'game.next-manche' });
   }

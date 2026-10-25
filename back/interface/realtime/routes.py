@@ -101,4 +101,9 @@ ROUTES: tuple[Route, ...] = (
     Route("vanishing-word.buzzer", lambda uc, cmd: uc.vanishing_word.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
     Route("vanishing-word.answer", lambda uc, cmd: uc.vanishing_word.answer(cmd), AnswerCommand),
     Route("vanishing-word.reveal", lambda uc, _: uc.vanishing_word.reveal()),
+    # Calcul flash
+    Route("flash-calc.start", lambda uc, _: uc.flash_calc.start()),
+    Route("flash-calc.buzzer", lambda uc, cmd: uc.flash_calc.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
+    Route("flash-calc.pause", lambda uc, _: uc.flash_calc.pause()),
+    Route("flash-calc.resume", lambda uc, _: uc.flash_calc.resume()),
 )

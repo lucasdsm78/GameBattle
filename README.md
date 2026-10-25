@@ -13,8 +13,8 @@ Le backend suit une architecture DDD inspirée de `BetLeague`.
 ## État actuel du projet
 
 Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop Chrono**,
-**Culture générale**, **La Bombe**, **Mémoire en chaîne**, **Les 7 différences**, **L’Enchère** et
-**Le mot interdit** et **Le mot qui disparaît**.
+**Culture générale**, **La Bombe**, **Mémoire en chaîne**, **Les 7 différences**, **L’Enchère**,
+**Le mot interdit**, **Le mot qui disparaît** et **Calcul flash**.
 
 ### Déjà implémenté
 
@@ -79,6 +79,8 @@ back/
 │   ├── forbidden_word/      # models/ (état, carte), services/ (catalogue), events/ (un fichier par événement)
 │   ├── seven_differences/   # models/, services/ (catalogue + JSON), events/
 │   ├── auction/             # models/, services/ (catalogue), events/
+│   ├── vanishing_word/      # models/, services/ (catalogue), events/
+│   ├── flash_calc/          # models/ (état, calcul, verdict), services/ (générateur par niveau), events/
 │   ├── bombe/  memory/  stopchrono/   # models/, events/
 │   └── blindtest/  culture/           # models/ (leurs événements sont ceux du noyau partagé)
 ├── application/             # Un dossier par domaine
@@ -86,6 +88,7 @@ back/
 │   ├── game_night/          # Soirée : configuration, lancement, manches, classement (+ lecture de l'état)
 │   ├── blindtest/           # Use case, schémas, service de playlist et port Spotify
 │   ├── stopchrono/ culture/ bombe/ memory/ seven_differences/ auction/ forbidden_word/
+│   │   vanishing_word/ flash_calc/
 │   │                        # <jeu>_command_usecase.py (+ <jeu>_commands.py pour ses schémas)
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
@@ -301,6 +304,18 @@ qui buzze prend la main, le présentateur valide **TROUVÉ** (+1, ou Volume +) o
 une équipe qui se trompe ne peut plus buzzer sur cette liste. Le mot est ensuite révélé et le
 présentateur lance la liste suivante. La première équipe à 5 mots trouvés remporte la manche. Le
 catalogue se trouve dans `back/domain/vanishing_word/services/vanishing_word_catalog.py`.
+
+Pour **Calcul flash**, aucun présentateur n’est nécessaire : la régie lance le défilement et le serveur
+arbitre tout. Des calculs (« 7 × 8 = 54 ») défilent sur l’écran public ; les équipes buzzent uniquement
+quand le résultat affiché est juste. Buzz juste : +1 ; buzz faux : −1, sans jamais descendre sous 0.
+Chaque buzz affiche un retour d’1,5 s (avec la correction si c’était faux), puis le défilement reprend
+sur un nouveau calcul ; un calcul sans buzz passe tout seul. Tous les 6 calculs, le niveau monte (5
+niveaux, de 4,5 s à 2,6 s par calcul) : additions et tables simples, puis soustractions, tables
+complètes, divisions et 2 chiffres × 1 chiffre. Les faux résultats sont crédibles (±1, ±2, ligne de
+table voisine, chiffres inversés). Le résultat exact n’est jamais envoyé aux clients avant un buzz, et un
+buzz reçu dans les 250 ms qui suivent l’apparition d’un calcul (réflexe sur le précédent) est ignoré. La
+régie peut mettre en pause. La première équipe à 10 points remporte la manche. Le générateur se trouve
+dans `back/domain/flash_calc/services/flash_calc_generator.py`.
 
 ### Générer automatiquement un puzzle
 
