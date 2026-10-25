@@ -144,3 +144,14 @@ def test_every_game_has_its_presenter_in_the_application_layer() -> None:
     for game in GAME_MODULES:
         assert (BACK_DIR / "application" / game / f"{game}_presenter.py").is_file(), game
         assert type(GAME_PRESENTERS[game]).__module__ == f"application.{game}.{game}_presenter"
+
+
+def test_the_configuration_accepts_every_supported_game_at_once() -> None:
+    from application.game_night.game_night_commands import GameConfigUpsertModel
+
+    payload = {
+        "settings": {"game_title": "Soirée", "teams": ["Rouges", "Bleus"]},
+        "games": [{"game_key": key, "label": state.label, "round_count": 0} for key, state in GAME_STATE_TYPES.items()],
+    }
+
+    assert len(GameConfigUpsertModel.model_validate(payload).to_domain().games) == len(SUPPORTED_GAME_KEYS)

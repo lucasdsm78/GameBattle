@@ -45,13 +45,23 @@ type State = {
   setErrorMessage: (message: string | null) => void;
 };
 
-export const useGameConfigStore = create<State>((set) => ({
+// Ce que la régie édite : seuls ces champs justifient de recaler le brouillon sur le serveur.
+const configurationOf = ({ settings, games, status }: GameConfigSnapshot): string => JSON.stringify([settings, games, status]);
+
+export const useGameConfigStore = create<State>((set, get) => ({
   draft: defaultDraft,
   remoteSnapshot: null,
   connectionState: 'connecting',
   errorMessage: null,
   setDraft: (draft) => set({ draft }),
-  setRemoteSnapshot: (remoteSnapshot) =>
+  setRemoteSnapshot: (remoteSnapshot) => {
+    const previous = get().remoteSnapshot;
+    // Pendant une manche, le serveur diffuse un état à chaque élément qui défile : sans ce garde-fou,
+    // le brouillon en cours d'édition serait écrasé toutes les deux secondes.
+    if (previous && configurationOf(previous) === configurationOf(remoteSnapshot)) {
+      set({ remoteSnapshot, errorMessage: null });
+      return;
+    }
     set({
       remoteSnapshot,
       draft: {
@@ -63,7 +73,8 @@ export const useGameConfigStore = create<State>((set) => ({
         status: remoteSnapshot.status,
       },
       errorMessage: null,
-    }),
+    });
+  },
   setConnectionState: (connectionState) => set({ connectionState }),
   setErrorMessage: (errorMessage) => set({ errorMessage }),
 }));
