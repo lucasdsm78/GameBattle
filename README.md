@@ -14,7 +14,7 @@ Le backend suit une architecture DDD inspirée de `BetLeague`.
 
 Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop Chrono**,
 **Culture générale**, **La Bombe**, **Mémoire en chaîne**, **Les 7 différences**, **L’Enchère**,
-**Le mot interdit**, **Le mot qui disparaît**, **Calcul flash** et **Le bon drapeau**.
+**Le mot interdit**, **Le mot qui disparaît**, **Calcul flash**, **Le bon drapeau** et **Une famille en or**.
 
 ### Déjà implémenté
 
@@ -82,6 +82,7 @@ back/
 │   ├── vanishing_word/      # models/, services/ (catalogue), events/
 │   ├── flash_calc/          # models/ (état, calcul, verdict), services/ (générateur par niveau), events/
 │   ├── right_flag/          # models/ (état, pays, verdict), services/ (catalogue de drapeaux), events/
+│   ├── golden_family/       # models/ (état, question, tableau), services/ (catalogue), events/
 │   ├── bombe/  memory/  stopchrono/   # models/, events/
 │   └── blindtest/  culture/           # models/ (leurs événements sont ceux du noyau partagé)
 ├── application/             # Un dossier par domaine
@@ -90,7 +91,7 @@ back/
 │   │                        # et presenter de la soirée (vues régie / écran public)
 │   ├── blindtest/           # Use case, schémas, service de playlist et port Spotify
 │   ├── stopchrono/ culture/ bombe/ memory/ seven_differences/ auction/ forbidden_word/
-│   │   vanishing_word/ flash_calc/ right_flag/
+│   │   vanishing_word/ flash_calc/ right_flag/ golden_family/
 │   │                        # <jeu>_command_usecase.py, <jeu>_presenter.py (+ <jeu>_commands.py pour ses schémas)
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
@@ -335,6 +336,19 @@ public ne le reçoit qu’une fois trouvé ou révélé, et la série à venir n
 première équipe à 5 points remporte la manche. Le catalogue (environ 130 pays) se trouve dans
 `back/domain/right_flag/services/flag_catalog.py` ; l’écran affiche des drapeaux SVG livrés avec l’app
 (`country-flag-icons`), le mobile des drapeaux emoji natifs.
+
+Pour **Une famille en or**, la question s’affiche sur l’écran et sur le mobile, qui liste toutes les
+réponses et leurs points. Face-à-face : la première équipe à buzzer répond ; si c’est la réponse la plus
+citée, elle prend la main, sinon chaque équipe donne une réponse et la mieux classée prend la main. Le
+présentateur touche la réponse donnée si elle figure au tableau (elle se retourne et rapporte ses points à
+l’équipe qui l’a trouvée), sinon il appuie sur **FAUTE** (ou Volume −). Après 3 fautes, les autres équipes
+donnent une réponse chacune et la meilleure reprend la main ; si toutes échouent, la main revient à
+l’équipe fautive pour une réponse, et ainsi de suite jusqu’à une bonne réponse. La question se termine
+quand le tableau est complet (ou quand le présentateur révèle les réponses restantes, sans points). La
+première équipe à 300 points remporte la manche. L’écran public ne reçoit ni le texte ni les points d’une
+réponse avant qu’elle soit retournée ; chaque décision du présentateur porte le numéro du tour, si bien
+qu’un double appui n’est compté qu’une fois. Le catalogue (68 questions grand public, scores **estimés**,
+pas issus d’un vrai sondage) se trouve dans `back/domain/golden_family/services/golden_family_catalog.py`.
 
 Calcul flash et Le bon drapeau partagent la même mécanique « buzze seulement si… » :
 `back/domain/shared/models/buzz_stream_state.py` (défilement, fenêtre de buzz, +1 / −1, retour, pause,

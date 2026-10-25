@@ -16,6 +16,7 @@ const GAME_LABELS: Record<GameKey, string> = {
   vanishing_word: 'Le mot qui disparaît',
   flash_calc: 'Calcul flash',
   right_flag: 'Le bon drapeau',
+  golden_family: 'Une famille en or',
 };
 const GAME_KEYS = Object.keys(GAME_LABELS) as GameKey[];
 

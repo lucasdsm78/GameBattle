@@ -44,6 +44,7 @@ def test_display_can_only_trigger_buzzers_timers_and_spotify_token() -> None:
         "vanishing-word.buzzer",
         "flash-calc.buzzer",
         "right-flag.buzzer",
+        "golden-family.buzzer",
     }
 
 
@@ -80,7 +81,7 @@ def test_layers_only_depend_inwards(layer: str) -> None:
 
 GAME_MODULES = (
     "blindtest", "culture", "stopchrono", "bombe", "memory", "seven_differences", "auction", "forbidden_word", "vanishing_word",
-    "flash_calc", "right_flag",
+    "flash_calc", "right_flag", "golden_family",
 )
 
 

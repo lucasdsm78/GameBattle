@@ -135,6 +135,7 @@ export default function App() {
         onVanishingBuzz={(team) => socket.vanishingBuzzer(team)}
         onFlashCalcBuzz={(team) => socket.flashCalcBuzzer(team)}
         onRightFlagBuzz={(team) => socket.rightFlagBuzzer(team)}
+        onGoldenFamilyBuzz={(team) => socket.goldenFamilyBuzzer(team)}
       />
     </>
   );

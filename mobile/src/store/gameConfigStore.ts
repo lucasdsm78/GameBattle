@@ -15,6 +15,7 @@ const GAME_CATALOG: GameDefinition[] = [
   { game_key: 'vanishing_word', label: 'Le mot qui disparaît', enabled: false, round_count: 0 },
   { game_key: 'flash_calc', label: 'Calcul flash', enabled: false, round_count: 0 },
   { game_key: 'right_flag', label: 'Le bon drapeau', enabled: false, round_count: 0 },
+  { game_key: 'golden_family', label: 'Une famille en or', enabled: false, round_count: 0 },
 ];
 
 const withCompleteGameCatalog = (games: GameDefinition[]): GameDefinition[] =>

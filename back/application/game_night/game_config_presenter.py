@@ -9,6 +9,7 @@ from application.bombe.bombe_presenter import BombePresenter
 from application.culture.culture_presenter import CulturePresenter
 from application.flash_calc.flash_calc_presenter import FlashCalcPresenter
 from application.forbidden_word.forbidden_word_presenter import ForbiddenWordPresenter
+from application.golden_family.golden_family_presenter import GoldenFamilyPresenter
 from application.memory.memory_presenter import MemoryPresenter
 from application.right_flag.right_flag_presenter import RightFlagPresenter
 from application.seven_differences.seven_differences_presenter import (
@@ -31,6 +32,7 @@ GAME_PRESENTERS: dict[str, GamePresenter[Any]] = {
     "vanishing_word": VanishingWordPresenter(),
     "flash_calc": FlashCalcPresenter(),
     "right_flag": RightFlagPresenter(),
+    "golden_family": GoldenFamilyPresenter(),
 }
 
 ClientViews = tuple[dict[str, Any], dict[str, Any]]

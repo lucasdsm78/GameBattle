@@ -10,6 +10,7 @@ from domain.bombe.models.bombe_actions import BombeActions
 from domain.culture.models.culture_actions import CultureActions
 from domain.flash_calc.models.flash_calc_actions import FlashCalcActions
 from domain.forbidden_word.models.forbidden_word_actions import ForbiddenWordActions
+from domain.golden_family.models.golden_family_actions import GoldenFamilyActions
 from domain.game_night.events import (
     GameNightFinished,
     GameNightStarted,
@@ -61,6 +62,7 @@ class GameConfig(
     VanishingWordActions,
     FlashCalcActions,
     RightFlagActions,
+    GoldenFamilyActions,
 ):
     """Racine d'agrégat : configuration de la soirée et orchestration des manches.
 
@@ -245,6 +247,7 @@ _BUZZER_ACTIONS: dict[str, Callable[[GameConfig, str, int], GameConfig]] = {
     "vanishing_word": GameConfig.register_vanishing_buzzer,
     "flash_calc": GameConfig.register_flash_calc_buzzer,
     "right_flag": GameConfig.register_right_flag_buzzer,
+    "golden_family": GameConfig.register_golden_family_buzzer,
 }
 
 

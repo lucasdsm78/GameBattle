@@ -18,6 +18,7 @@ import { ForbiddenWordActionBar, ForbiddenWordLiveScreen } from './src/screens/F
 import { VanishingWordLiveScreen } from './src/screens/VanishingWordLiveScreen';
 import { FlashCalcLiveScreen } from './src/screens/FlashCalcLiveScreen';
 import { RightFlagLiveScreen } from './src/screens/RightFlagLiveScreen';
+import { GoldenFamilyLiveScreen } from './src/screens/GoldenFamilyLiveScreen';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
@@ -129,7 +130,18 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'right_flag' ? (
+            {activeGameKey === 'golden_family' ? (
+              <GoldenFamilyLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onNextQuestion={() => socket.nextFamilyQuestion()}
+                onBuzz={(team) => socket.goldenFamilyBuzzer(team)}
+                onAnswer={(answerIndex, turn) => socket.giveFamilyAnswer(answerIndex, turn)}
+                onStrike={(turn) => socket.strikeFamilyAnswer(turn)}
+                onRevealBoard={() => socket.revealFamilyBoard()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'right_flag' ? (
               <RightFlagLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}
