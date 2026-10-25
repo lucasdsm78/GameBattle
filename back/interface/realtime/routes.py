@@ -17,6 +17,10 @@ from application.blindtest.blindtest_commands import (
 from application.culture.culture_commands import CultureDifficultyCommand
 from application.forbidden_word.forbidden_word_commands import ForbiddenWordCardCommand
 from application.game_night.game_night_commands import GameConfigUpsertModel
+from application.golden_family.golden_family_commands import (
+    FamilyAnswerCommand,
+    FamilyTurnCommand,
+)
 from application.seven_differences.seven_differences_commands import (
     SevenDifferenceFoundCommand,
 )
@@ -111,4 +115,10 @@ ROUTES: tuple[Route, ...] = (
     Route("right-flag.buzzer", lambda uc, cmd: uc.right_flag.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
     Route("right-flag.pause", lambda uc, _: uc.right_flag.pause()),
     Route("right-flag.resume", lambda uc, _: uc.right_flag.resume()),
+    # Une famille en or
+    Route("golden-family.next-question", lambda uc, _: uc.golden_family.next_question()),
+    Route("golden-family.buzzer", lambda uc, cmd: uc.golden_family.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
+    Route("golden-family.answer", lambda uc, cmd: uc.golden_family.give_answer(cmd), FamilyAnswerCommand),
+    Route("golden-family.strike", lambda uc, cmd: uc.golden_family.strike(cmd), FamilyTurnCommand),
+    Route("golden-family.reveal-board", lambda uc, _: uc.golden_family.reveal_board()),
 )

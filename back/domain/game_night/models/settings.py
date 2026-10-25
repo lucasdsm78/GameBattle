@@ -8,7 +8,7 @@ from exceptions import InvalidGameConfigError
 SUPPORTED_GAME_KEYS = frozenset(
     {
         "blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction", "forbidden_word",
-        "vanishing_word", "flash_calc", "right_flag",
+        "vanishing_word", "flash_calc", "right_flag", "golden_family",
     }
 )
 DEFAULT_BUZZER_KEYS = ("1", "2", "3", "4", "5", "6")

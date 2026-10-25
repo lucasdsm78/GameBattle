@@ -11,6 +11,7 @@ import { ForbiddenWordBoard } from './ForbiddenWordBoard';
 import { VanishingWordBoard } from './VanishingWordBoard';
 import { FlashCalcBoard } from './FlashCalcBoard';
 import { RightFlagBoard } from './RightFlagBoard';
+import { GoldenFamilyBoard } from './GoldenFamilyBoard';
 import { GameScreen } from './GameScreen';
 
 type Props = {
@@ -30,6 +31,7 @@ type Props = {
   onVanishingBuzz: (team: string) => void;
   onFlashCalcBuzz: (team: string) => void;
   onRightFlagBuzz: (team: string) => void;
+  onGoldenFamilyBuzz: (team: string) => void;
 };
 
 const KEYBOARD_BINDINGS = ['1', '2', '3', '4', '5', '6'];
@@ -115,6 +117,7 @@ export function DisplayBoard({
   onVanishingBuzz,
   onFlashCalcBuzz,
   onRightFlagBuzz,
+  onGoldenFamilyBuzz,
 }: Props) {
   const chronoPhase = gameConfig?.session.stopchrono.phase;
   const chronoTeamIndex = gameConfig?.session.stopchrono.current_team_index;
@@ -129,6 +132,7 @@ export function DisplayBoard({
   const vanishingExcludedTeams = gameConfig?.session.vanishing_word.excluded_teams;
   const flashCalcPhase = gameConfig?.session.flash_calc.phase;
   const rightFlagPhase = gameConfig?.session.right_flag.phase;
+  const goldenFamilyPhase = gameConfig?.session.golden_family.phase;
   const activeGameKey = gameConfig?.session.active_round?.game_key ?? 'blindtest';
 
   useEffect(() => {
@@ -218,6 +222,14 @@ export function DisplayBoard({
         return;
       }
 
+      // Une famille en or : les buzzers ne servent qu'au face-à-face.
+      if (activeGameKey === 'golden_family') {
+        if (goldenFamilyPhase !== 'faceoff') return;
+        const index = teams.findIndex((team, position) => matchesBinding(event, buzzerKeys[position] ?? ''));
+        if (index >= 0) onGoldenFamilyBuzz(teams[index]);
+        return;
+      }
+
       // Jeux « buzze seulement si… » : toutes les équipes peuvent buzzer pendant le défilement.
       const streamBuzz = { flash_calc: [flashCalcPhase, onFlashCalcBuzz], right_flag: [rightFlagPhase, onRightFlagBuzz] } as const;
       if (activeGameKey === 'flash_calc' || activeGameKey === 'right_flag') {
@@ -253,6 +265,8 @@ export function DisplayBoard({
     flashCalcPhase,
     onRightFlagBuzz,
     rightFlagPhase,
+    onGoldenFamilyBuzz,
+    goldenFamilyPhase,
     gameConfig?.settings.buzzer_keys,
     gameConfig?.settings.teams,
     activeGameKey,
@@ -529,6 +543,23 @@ export function DisplayBoard({
         scores={game.scores}
       >
         <RightFlagBoard game={game} teams={gameConfig.settings.teams} />
+      </GameScreen>
+    );
+  }
+
+  if (activeGameKey === 'golden_family') {
+    const game = gameConfig.session.golden_family;
+    return (
+      <GameScreen
+        gameConfig={gameConfig}
+        connectionState={connectionState}
+        errorMessage={errorMessage}
+        eyebrow={`Une famille en or · premier à ${game.winning_score}`}
+        className="gf-screen"
+        winnerTeam={game.winner_team}
+        scores={game.scores}
+      >
+        <GoldenFamilyBoard game={game} teams={gameConfig.settings.teams} />
       </GameScreen>
     );
   }

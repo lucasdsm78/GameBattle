@@ -886,6 +886,22 @@ button {
   box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
 }
 
+.race-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.race-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+  transform-origin: left;
+  transition: transform 0.6s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
 .race-score b {
   font-size: 1.8rem;
   font-variant-numeric: tabular-nums;
@@ -1343,6 +1359,222 @@ button {
   .rf-country strong,
   .rf-flag {
     animation: none;
+  }
+}
+
+/* --- Une famille en or --- */
+.gf-screen {
+  --gold: #fbbf24;
+  --gold-soft: rgba(251, 191, 36, 0.16);
+  align-content: start;
+}
+
+.gf-stage {
+  position: relative;
+  overflow: hidden;
+  justify-content: flex-start;
+  background: radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.2), rgba(8, 20, 33, 0.94) 62%);
+}
+
+.gf-kicker {
+  color: var(--gold);
+}
+
+.gf-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gf-question {
+  margin: 0;
+  max-width: 28ch;
+  font-size: clamp(1.6rem, 3.6vw, 2.8rem);
+  line-height: 1.15;
+  animation: race-pop 0.45s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.gf-turn {
+  margin: 0;
+  padding: 8px 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: clamp(1rem, 2.2vw, 1.5rem);
+  font-weight: 900;
+  animation: race-pop 0.4s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.gf-turn.is-faceoff {
+  color: #1c1300;
+  background: var(--gold);
+  animation: gf-pulse 1.2s ease-in-out infinite;
+}
+
+.gf-turn.is-control {
+  color: #052e16;
+  background: var(--accent);
+}
+
+.gf-turn.is-steal {
+  color: #fff;
+  background: var(--danger);
+}
+
+.gf-board {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--gf-rows, 4), auto);
+  grid-auto-flow: column;
+  gap: clamp(8px, 1.2vw, 14px);
+  perspective: 900px;
+}
+
+.gf-slot {
+  min-width: 0;
+  min-height: clamp(52px, 7vh, 72px);
+  display: grid;
+  border-radius: 14px;
+  border: 2px solid rgba(251, 191, 36, 0.55);
+  background: linear-gradient(180deg, #13315c, #0b1d3a);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.gf-slot-number {
+  place-self: center;
+  width: 2.2em;
+  height: 2.2em;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #1c1300;
+  background: radial-gradient(circle at 35% 30%, #fde68a, var(--gold) 70%);
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-weight: 900;
+}
+
+.gf-slot-face {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 0 0 18px;
+  transform-origin: center;
+  animation: gf-flip 0.55s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.gf-answer {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+  font-size: clamp(1rem, 2.1vw, 1.6rem);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.gf-points {
+  align-self: stretch;
+  min-width: 2.6em;
+  display: grid;
+  place-items: center;
+  border-radius: 0 11px 11px 0;
+  color: #1c1300;
+  background: var(--gold);
+  font-size: clamp(1.1rem, 2.3vw, 1.7rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.gf-slot.is-missed {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  opacity: 0.75;
+}
+
+.gf-slot.is-missed .gf-points {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gf-strikes {
+  display: flex;
+  gap: 12px;
+}
+
+.gf-strikes span {
+  width: clamp(42px, 5vw, 60px);
+  height: clamp(42px, 5vw, 60px);
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 93, 115, 0.35);
+  color: rgba(255, 93, 115, 0.25);
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 900;
+}
+
+.gf-strikes span.is-on {
+  border-color: var(--danger);
+  background: rgba(255, 93, 115, 0.2);
+  color: var(--danger);
+  text-shadow: 0 0 18px rgba(255, 93, 115, 0.8);
+}
+
+.gf-strike-flash {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  color: var(--danger);
+  font-size: min(60vh, 40vw);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 60px rgba(255, 93, 115, 0.9);
+  animation: gf-strike 0.9s ease-out forwards;
+}
+
+@keyframes gf-flip {
+  from { opacity: 0; transform: rotateX(-90deg); }
+}
+
+@keyframes gf-strike {
+  0% { opacity: 0; transform: scale(1.6); }
+  20% { opacity: 1; transform: scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+
+@keyframes gf-pulse {
+  50% { box-shadow: 0 0 28px rgba(251, 191, 36, 0.55); }
+}
+
+@media (max-width: 620px) {
+  .gf-board {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-auto-flow: row;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gf-question,
+  .gf-turn,
+  .gf-turn.is-faceoff,
+  .gf-slot-face {
+    animation: none;
+  }
+
+  .gf-strike-flash {
+    animation-duration: 0.01s;
   }
 }
 

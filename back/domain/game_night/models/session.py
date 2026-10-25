@@ -9,6 +9,7 @@ from domain.bombe.models.bombe_state import BombeState
 from domain.culture.models.culture_state import CultureState
 from domain.flash_calc.models.flash_calc_state import FlashCalcState
 from domain.forbidden_word.models.forbidden_word_state import ForbiddenWordState
+from domain.golden_family.models.golden_family_state import GoldenFamilyState
 from domain.game_night.models.active_round import ActiveRound
 from domain.game_night.models.game_registry import GAME_STATE_TYPES
 from domain.game_night.models.settings import SUPPORTED_GAME_KEYS
@@ -39,6 +40,7 @@ class GameSession:
     vanishing_word: VanishingWordState = field(default_factory=VanishingWordState)
     flash_calc: FlashCalcState = field(default_factory=FlashCalcState)
     right_flag: RightFlagState = field(default_factory=RightFlagState)
+    golden_family: GoldenFamilyState = field(default_factory=GoldenFamilyState)
     # Persistée mais jamais exposée aux clients : les apps ne voient que la manche courante.
     round_sequence: list[str] = field(default_factory=list)
     round_index: int = 0

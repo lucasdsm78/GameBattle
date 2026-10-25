@@ -9,7 +9,8 @@ export type GameKey =
   | 'forbidden_word'
   | 'vanishing_word'
   | 'flash_calc'
-  | 'right_flag';
+  | 'right_flag'
+  | 'golden_family';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
 
@@ -259,6 +260,29 @@ export type RightFlagState = BuzzStreamGame<RightFlagVerdict> & {
   flags_per_round: number;
 };
 
+export type FamilyAnswer = { text: string; points: number };
+
+export type FamilyBoardSlot = { revealed: boolean; found_by: string | null };
+
+// Côté écran public, une réponse non retournée arrive vide : { text: "", points: 0 }.
+export type GoldenFamilyState = {
+  phase: 'idle' | 'faceoff' | 'duel' | 'control' | 'steal' | 'revealed' | 'finished';
+  question_number: number;
+  question: { id: string; text: string; answers: FamilyAnswer[] } | null;
+  board: FamilyBoardSlot[];
+  current_team: string | null;
+  control_team: string | null;
+  steal_from: string | null;
+  strikes: number;
+  pending_teams: string[];
+  turn: number;
+  misses: number;
+  scores: Record<string, number>;
+  winner_team: string | null;
+  winning_score: number;
+  max_strikes: number;
+};
+
 // `current_card` est toujours null côté écran public : le mot reste secret sur la régie.
 export type ForbiddenWordState = {
   phase: 'idle' | 'ready' | 'running' | 'finished';
@@ -286,6 +310,7 @@ export type GameSession = {
   vanishing_word: VanishingWordState;
   flash_calc: FlashCalcState;
   right_flag: RightFlagState;
+  golden_family: GoldenFamilyState;
   round_index: number;
   total_rounds: number;
   manche_number: number;

@@ -13,6 +13,9 @@ from application.forbidden_word.forbidden_word_command_usecase import (
     ForbiddenWordCommandUseCase,
 )
 from application.game_night.game_night_command_usecase import GameNightCommandUseCase
+from application.golden_family.golden_family_command_usecase import (
+    GoldenFamilyCommandUseCase,
+)
 from application.memory.memory_command_usecase import MemoryCommandUseCase
 from application.right_flag.right_flag_command_usecase import RightFlagCommandUseCase
 from application.seven_differences.seven_differences_command_usecase import (
@@ -46,6 +49,7 @@ class GameUseCases:
     vanishing_word: VanishingWordCommandUseCase
     flash_calc: FlashCalcCommandUseCase
     right_flag: RightFlagCommandUseCase
+    golden_family: GoldenFamilyCommandUseCase
 
     @classmethod
     def build(
@@ -69,6 +73,7 @@ class GameUseCases:
             vanishing_word=VanishingWordCommandUseCase(*dependencies),
             flash_calc=FlashCalcCommandUseCase(*dependencies),
             right_flag=RightFlagCommandUseCase(*dependencies),
+            golden_family=GoldenFamilyCommandUseCase(*dependencies),
         )
 
 __all__ = ["CommandUseCase", "GameUseCases", "SnapshotPublisher"]

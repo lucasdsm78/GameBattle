@@ -370,6 +370,27 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'right-flag.resume' });
   }
 
+  nextFamilyQuestion(): void {
+    this.sendMessage({ type: 'golden-family.next-question' });
+  }
+
+  goldenFamilyBuzzer(team: string): void {
+    this.sendMessage({ type: 'golden-family.buzzer', payload: { team } });
+  }
+
+  // `turn` : le tour vu par le présentateur, pour qu'un double appui ne compte qu'une fois.
+  giveFamilyAnswer(answerIndex: number, turn: number): void {
+    this.sendMessage({ type: 'golden-family.answer', payload: { answer_index: answerIndex, turn } });
+  }
+
+  strikeFamilyAnswer(turn: number): void {
+    this.sendMessage({ type: 'golden-family.strike', payload: { turn } });
+  }
+
+  revealFamilyBoard(): void {
+    this.sendMessage({ type: 'golden-family.reveal-board' });
+  }
+
   nextManche(): void {
     this.sendMessage({ type: 'game.next-manche' });
   }

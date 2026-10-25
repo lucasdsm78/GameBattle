@@ -12,6 +12,9 @@ type Props = {
   winnerTeam?: string | null;
 };
 
+// Au-delà, une barre de progression remplace les pastilles (ex. 300 points).
+const MAX_DOTS = 12;
+
 // Scores des jeux « premier à N » : une pastille par point sous le nom de l'équipe.
 export function RaceScoreCard({ teams, scores, goal, unit, highlight = null, winnerTeam = null }: Props) {
   return (
@@ -32,11 +35,17 @@ export function RaceScoreCard({ teams, scores, goal, unit, highlight = null, win
           >
             <View style={local.team}>
               <Text style={styles.rankTeam} numberOfLines={1}>{team}</Text>
-              <View style={local.dots}>
-                {Array.from({ length: goal }, (_, index) => (
-                  <View key={index} style={[local.dot, index < score && local.dotFilled]} />
-                ))}
-              </View>
+              {goal <= MAX_DOTS ? (
+                <View style={local.dots}>
+                  {Array.from({ length: goal }, (_, index) => (
+                    <View key={index} style={[local.dot, index < score && local.dotFilled]} />
+                  ))}
+                </View>
+              ) : (
+                <View style={local.bar}>
+                  <View style={[local.barFill, { width: `${Math.min(100, (score / goal) * 100)}%` }]} />
+                </View>
+              )}
             </View>
             <Text style={local.score}>{score}</Text>
           </View>
@@ -53,5 +62,7 @@ const local = StyleSheet.create({
   dots: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.12)' },
   dotFilled: { backgroundColor: colors.accent },
+  bar: { height: 8, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.12)' },
+  barFill: { height: '100%', borderRadius: 999, backgroundColor: colors.accent },
   score: { color: colors.text, fontSize: 24, fontWeight: '900', minWidth: 28, textAlign: 'right', fontVariant: ['tabular-nums'] },
 });
