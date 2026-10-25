@@ -2147,6 +2147,17 @@ button {
   font-size: clamp(1rem, 2.2vw, 1.45rem);
 }
 
+.bombe-word-rule {
+  margin: 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 93, 115, 0.4);
+  background: rgba(255, 93, 115, 0.1);
+  color: #ffd4db;
+  font-weight: 800;
+  font-size: clamp(0.95rem, 1.8vw, 1.2rem);
+}
+
 .bombe-letter {
   font-size: clamp(7rem, 24vw, 17rem);
   line-height: 0.85;

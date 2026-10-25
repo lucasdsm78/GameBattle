@@ -7,6 +7,8 @@ type Props = {
   onExplode: () => void;
 };
 
+const WORD_RULE = 'Les noms propres et les marques sont refusés.';
+
 const dieInstruction = (result: string, sound: string): string => {
   if (result === 'TIC') return `Le mot doit commencer par le son « ${sound} »`;
   if (result === 'TAC') return `Le mot doit finir par le son « ${sound} »`;
@@ -122,6 +124,7 @@ export function BombeBoard({ gameConfig, onBeginAfterRoll, onExplode }: Props) {
           <div className="bombe-die">?</div>
           <h2 className="bombe-current-team">{rollerTeam}, buzzez pour lancer le dé</h2>
           <p className="bombe-instruction">Le dé choisira TIC, TAC ou BOUM.</p>
+          <p className="bombe-word-rule">🚫 {WORD_RULE}</p>
         </>
       ) : null}
 
@@ -143,6 +146,7 @@ export function BombeBoard({ gameConfig, onBeginAfterRoll, onExplode }: Props) {
           <div className="bombe-letter bombe-sound">{bombe.sound}</div>
           <p className="bombe-current-team">À {currentTeam} de jouer</p>
           <p className="bombe-instruction">Dites un mot, puis buzzez pour passer la bombe.</p>
+          <p className="bombe-word-rule">🚫 {WORD_RULE}</p>
           <div className="bombe-scoreboard" aria-label="Points de pénalité">
             {teams.map((team, index) => (
               <div

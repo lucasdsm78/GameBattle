@@ -6,8 +6,10 @@ import pytest
 
 from domain.bombe.models.bombe_state import (
     BOMBE_DIE_ROLL_MS,
+    BOMBE_HARD_SOUNDS,
     BOMBE_MAX_DURATION_MS,
     BOMBE_MIN_DURATION_MS,
+    BOMBE_SOUND_PATTERN,
     generate_bombe_sound,
 )
 from domain.game_night.models.game_config import build_default_game_config
@@ -41,6 +43,7 @@ def test_bombe_prepares_random_sound_and_starts_timer_only_after_die_roll() -> N
     with (
         patch("domain.bombe.models.bombe_state.random.randrange", return_value=2),
         patch("domain.bombe.models.bombe_state.random.randint", return_value=BOMBE_MIN_DURATION_MS),
+        patch("domain.bombe.models.bombe_state.random.random", return_value=0.99),
         patch("domain.bombe.models.bombe_state.random.choice", side_effect=["S", "O", "L", "BOUM"]),
     ):
         prepared = config.start_bombe(now_ms=1_000_000)
@@ -81,8 +84,26 @@ def test_bombe_prepares_random_sound_and_starts_timer_only_after_die_roll() -> N
     ],
 )
 def test_bombe_sound_is_composed_dynamically(parts: tuple[str, str, str], expected: str) -> None:
-    with patch("domain.bombe.models.bombe_state.random.choice", side_effect=parts):
+    with (
+        patch("domain.bombe.models.bombe_state.random.random", return_value=0.99),
+        patch("domain.bombe.models.bombe_state.random.choice", side_effect=parts),
+    ):
         assert generate_bombe_sound() == expected
+
+
+def test_bombe_sometimes_draws_a_harder_sound() -> None:
+    with patch("domain.bombe.models.bombe_state.random.random", return_value=0.0):
+        sounds = {generate_bombe_sound() for _ in range(500)}
+
+    assert sounds <= set(BOMBE_HARD_SOUNDS) and len(sounds) > 20
+
+
+def test_every_sound_is_valid_and_harder_ones_appear_regularly() -> None:
+    sounds = [generate_bombe_sound() for _ in range(2_000)]
+
+    assert len(set(BOMBE_HARD_SOUNDS)) == len(BOMBE_HARD_SOUNDS)
+    assert all(BOMBE_SOUND_PATTERN.fullmatch(sound) for sound in (*sounds, *BOMBE_HARD_SOUNDS))
+    assert 0.25 < sum(sound in BOMBE_HARD_SOUNDS for sound in sounds) / len(sounds) < 0.55
 
 
 def test_bombe_only_current_team_can_pass_then_presenter_can_go_back() -> None:

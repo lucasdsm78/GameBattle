@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { styles } from '../theme';
 import { GameConfigSnapshot } from '../types/gameConfig';
 
@@ -12,6 +12,8 @@ type Props = {
   onPreviousTeam: () => void;
   onBack: () => void;
 };
+
+const WORD_RULE = 'Les noms propres et les marques sont refusés.';
 
 const dieInstruction = (result: string, sound: string): string => {
   if (result === 'TIC') return `Le mot doit commencer par « ${sound} ».`;
@@ -77,6 +79,7 @@ export function BombeLiveScreen({
           <Text style={styles.bombeLetter}>{bombe.sound}</Text>
           <Text style={styles.bombeTeam}>{rollerTeam} doit lancer le dé</Text>
           <Text style={styles.bombeInstruction}>Utilise le buzzer de cette équipe pour choisir TIC, TAC ou BOUM.</Text>
+          <Text style={local.wordRule}>🚫 {WORD_RULE}</Text>
           <Pressable style={styles.primaryButton} onPress={() => onBuzz(rollerTeam)}>
             <Text style={styles.primaryButtonText}>🎲 Tester le buzzer de {rollerTeam}</Text>
           </Pressable>
@@ -102,6 +105,7 @@ export function BombeLiveScreen({
             <Text style={styles.nowPlayingLabel}>À toi de jouer</Text>
             <Text style={styles.bombeTeam}>{currentTeam}</Text>
             <Text style={styles.bombeInstruction}>Respecte la règle du dé, puis buzze pour passer la bombe.</Text>
+            <Text style={local.wordRule}>🚫 {WORD_RULE}</Text>
           </View>
 
           <View style={styles.sectionCard}>
@@ -171,3 +175,7 @@ export function BombeLiveScreen({
     </>
   );
 }
+
+const local = StyleSheet.create({
+  wordRule: { color: '#fca5a5', fontSize: 14, fontWeight: '800', textAlign: 'center' },
+});
