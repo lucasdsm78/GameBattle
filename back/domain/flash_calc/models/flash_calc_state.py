@@ -17,7 +17,7 @@ from domain.shared.services.scoring import zero_scores
 from exceptions import InvalidGameConfigError
 
 FLASH_CALC_PHASES = frozenset({"idle", "running", "feedback", "paused", "finished"})
-FLASH_CALC_WINNING_SCORE = 10
+FLASH_CALC_WINNING_SCORE = 5
 FLASH_CALC_FEEDBACK_MS = 1_500
 # Un buzz reçu juste après l'apparition d'un calcul est un réflexe sur le précédent : on l'ignore.
 FLASH_CALC_BUZZ_LOCK_MS = 250

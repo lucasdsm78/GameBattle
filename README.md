@@ -322,7 +322,7 @@ niveaux, de 4,5 s à 2,6 s par calcul) : additions et tables simples, puis soust
 complètes, divisions et 2 chiffres × 1 chiffre. Les faux résultats sont crédibles (±1, ±2, ligne de
 table voisine, chiffres inversés). Le résultat exact n’est jamais envoyé aux clients avant un buzz, et un
 buzz reçu dans les 250 ms qui suivent l’apparition d’un calcul (réflexe sur le précédent) est ignoré. La
-régie peut mettre en pause. La première équipe à 10 points remporte la manche. Le générateur se trouve
+régie peut mettre en pause. La première équipe à 5 points remporte la manche. Le générateur se trouve
 dans `back/domain/flash_calc/services/flash_calc_generator.py`.
 
 ### Générer automatiquement un puzzle
