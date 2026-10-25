@@ -1132,10 +1132,22 @@ button {
 }
 
 .stream-paused {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.stream-paused p {
   margin: 0;
   color: var(--muted);
-  font-size: clamp(2.4rem, 7vw, 5rem);
+  font-size: clamp(2rem, 6vw, 4.5rem);
   font-weight: 900;
+}
+
+.stream-paused span {
+  color: var(--muted);
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 700;
 }
 
 .stream-correction {

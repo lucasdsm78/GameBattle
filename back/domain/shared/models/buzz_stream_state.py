@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional, Self
 
-from domain.shared.events import AnswerJudged, BuzzerPressed
+from domain.shared.events import AnswerJudged, BuzzerPressed, BuzzStreamAutoPaused
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.buzz_verdict import BuzzVerdict
 from domain.shared.models.game_state import GameState
@@ -16,6 +16,9 @@ BUZZ_STREAM_WINNING_SCORE = 5
 BUZZ_STREAM_FEEDBACK_MS = 1_500
 # Un buzz reçu juste après l'apparition d'un élément est un réflexe sur le précédent : on l'ignore.
 BUZZ_STREAM_LOCK_MS = 250
+# Après autant d'éléments d'affilée sans aucun buzz, personne ne joue : le défilement se met en pause seul,
+# et le serveur cesse d'écrire et de diffuser.
+BUZZ_STREAM_AUTO_PAUSE_AFTER = 15
 
 
 @dataclass(slots=True)
@@ -37,6 +40,8 @@ class BuzzStreamState(GameState):
     verdict: Optional[BuzzVerdict] = None
     scores: dict[str, int] = field(default_factory=dict)
     winner_team: Optional[str] = None
+    unanswered_streak: int = 0  # éléments passés d'affilée sans aucun buzz
+    auto_paused: bool = False
 
     @classmethod
     def for_new_manche(cls, teams: list[str], round_id: str) -> Self:
@@ -83,6 +88,8 @@ class BuzzStreamState(GameState):
             raise InvalidGameConfigError(f"Le vainqueur de « {self.label} » est incohérent.")
         if self.winner_team and self.scores.get(self.winner_team) != self.winning_score:
             raise InvalidGameConfigError(f"Le vainqueur de « {self.label} » doit avoir {self.winning_score} points.")
+        if not 0 <= self.unanswered_streak < BUZZ_STREAM_AUTO_PAUSE_AFTER or (self.auto_paused and self.phase != "paused"):
+            raise InvalidGameConfigError(f"La pause automatique de « {self.label} » est incohérente.")
         if self.phase == "idle":
             return
         self._validate_item(teams)
@@ -105,7 +112,12 @@ class BuzzStreamState(GameState):
     def expire_due(self, teams: list[str], now_ms: int) -> Self:
         if self.phase not in TIMED_PHASES or now_ms < self.deadline_ms:
             return self
-        return self._on_timeout(now_ms) if self.phase == "running" else self._show_next(now_ms)
+        if self.phase == "feedback":
+            return self._show_next(now_ms)
+        streak = self.unanswered_streak + 1
+        if streak >= BUZZ_STREAM_AUTO_PAUSE_AFTER:
+            return replace(self.pause(), auto_paused=True)
+        return replace(self._on_timeout(now_ms), unanswered_streak=streak)
 
     def register_buzzer(self, teams: list[str], team: str, now_ms: int) -> Self:
         if team not in teams:
@@ -115,24 +127,29 @@ class BuzzStreamState(GameState):
         if self.phase == "feedback" or now_ms < self.shown_at_ms + BUZZ_STREAM_LOCK_MS:
             return self
         if now_ms >= self.deadline_ms:
-            return self._on_timeout(now_ms)  # trop tard : l'élément est déjà passé
+            # Trop tard : l'élément est déjà passé, mais quelqu'un joue bien.
+            return replace(self._on_timeout(now_ms), unanswered_streak=0)
         correct = self._is_buzz_correct()
         scores, points = award_buzz(self.scores, team, correct)
         winner = team if scores[team] >= self.winning_score else None
-        judged = replace(self._feedback(now_ms, self._verdict_for(team, correct, points)), scores=scores, winner_team=winner)
+        judged = replace(
+            self._feedback(now_ms, self._verdict_for(team, correct, points)), scores=scores, winner_team=winner, unanswered_streak=0
+        )
         return replace(judged, phase="finished") if winner else judged
 
     def pause(self) -> Self:
         if self.phase not in TIMED_PHASES:
             raise InvalidGameConfigError("Le défilement n’est pas en cours.")
-        return replace(self, phase="paused", deadline_ms=0, verdict=None)
+        return replace(self, phase="paused", deadline_ms=0, verdict=None, unanswered_streak=0)
 
     def resume(self, now_ms: int) -> Self:
         if self.phase != "paused":
             raise InvalidGameConfigError("Le défilement n’est pas en pause.")
-        return self._show_next(now_ms)
+        return replace(self, auto_paused=False)._show_next(now_ms)
 
     def events_since(self, previous: Self, teams: list[str]) -> list[DomainEvent]:
+        if self.auto_paused and not previous.auto_paused:
+            return [BuzzStreamAutoPaused(self.game_key, unanswered_items=BUZZ_STREAM_AUTO_PAUSE_AFTER)]
         if self.verdict is None or previous.phase != "running":
             return []
         return [
