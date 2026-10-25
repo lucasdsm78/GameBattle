@@ -12,7 +12,10 @@ from domain.bombe.models.bombe_state import (
 )
 from domain.game_night.models.game_config import build_default_game_config
 from exceptions import InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from infrastructure.repositories.game_config_mapper import (
+    game_config_from_payload,
+    game_config_to_payload,
+)
 
 
 def _bombe_config(*, teams: list[str] | None = None, total_rounds: int = 1):
@@ -181,7 +184,7 @@ def test_explosion_on_roller_keeps_a_valid_tiebreak_state() -> None:
     assert tied.session.bombe.eligible_team_indices == [1, 2]
     assert tied.session.bombe.winner_team is None
     tied.validate()
-    assert game_config_from_payload(tied.to_dict()).session.bombe == tied.session.bombe
+    assert game_config_from_payload(game_config_to_payload(tied)).session.bombe == tied.session.bombe
 
 
 def test_late_buzz_explodes_instead_of_passing_the_bombe() -> None:
@@ -200,16 +203,16 @@ def test_bombe_payload_round_trip_preserves_running_state() -> None:
     current_team = started.settings.teams[started.session.bombe.current_team_index]
     passed = started.register_bombe_buzzer(current_team, now_ms=40_001)
 
-    restored = game_config_from_payload(passed.to_dict())
+    restored = game_config_from_payload(game_config_to_payload(passed))
 
     assert restored.session.bombe == passed.session.bombe
     assert restored.session.round_sequence == passed.session.round_sequence
-    assert restored.to_dict()["session"]["bombe"] == passed.to_dict()["session"]["bombe"]
+    assert game_config_to_payload(restored)["session"]["bombe"] == game_config_to_payload(passed)["session"]["bombe"]
 
 
 def test_legacy_running_bombe_payload_initializes_scores_and_eligible_teams() -> None:
     started = _running_bombe(_bombe_config(teams=["Rouges", "Bleus", "Verts"]), now_ms=45_000)
-    payload = started.to_dict()
+    payload = game_config_to_payload(started)
     payload["session"]["bombe"].pop("scores")
     payload["session"]["bombe"].pop("eligible_team_indices")
     payload["session"]["bombe"].pop("tiebreak_round")

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from domain.flash_calc.events import CalculationShown, FlashCalcLevelReached
 from domain.flash_calc.models.flash_calc_verdict import FlashCalcVerdict
 from domain.flash_calc.services.flash_calc_generator import (
-    CALCS_PER_LEVEL,
-    MAX_LEVEL,
     display_ms_for,
     generate_calculation,
     level_for,
@@ -32,7 +30,6 @@ class FlashCalcState(GameState):
 
     game_key: ClassVar[str] = "flash_calc"
     label: ClassVar[str] = "Calcul flash"
-    private_fields: ClassVar[frozenset[str]] = frozenset({"true_result"})
 
     phase: str = "idle"
     calc_number: int = 0
@@ -76,16 +73,6 @@ class FlashCalcState(GameState):
         has_verdict = self.phase in {"feedback", "finished"}
         if has_verdict != (self.verdict is not None) or (self.verdict and self.verdict.team not in allowed):
             raise InvalidGameConfigError("Le dernier buzz du Calcul flash est invalide.")
-
-    def payload_extras(self, teams: list[str]) -> dict[str, Any]:
-        return {
-            "level": self.level,
-            "max_level": MAX_LEVEL,
-            "calcs_per_level": CALCS_PER_LEVEL,
-            "calc_duration_ms": display_ms_for(self.level),
-            "feedback_ms": FLASH_CALC_FEEDBACK_MS,
-            "winning_score": FLASH_CALC_WINNING_SCORE,
-        }
 
     def _next_calculation(self, now_ms: int) -> FlashCalcState:
         number = self.calc_number + 1

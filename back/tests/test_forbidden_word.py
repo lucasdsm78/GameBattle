@@ -9,6 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from application.forbidden_word.forbidden_word_commands import ForbiddenWordCardCommand
+from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
 from domain.forbidden_word.models.forbidden_word_card import ForbiddenWordTurn
 from domain.forbidden_word.models.forbidden_word_state import FORBIDDEN_WORD_TURN_MS
@@ -16,7 +17,10 @@ from domain.forbidden_word.services.forbidden_word_catalog import FORBIDDEN_WORD
 from domain.game_night.models.game_config import GameConfig, build_default_game_config
 from domain.shared.services.scoring import TIE_LABEL
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from infrastructure.repositories.game_config_mapper import (
+    game_config_from_payload,
+    game_config_to_payload,
+)
 from support import GameHarness
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
@@ -186,12 +190,12 @@ def test_tampered_states_are_rejected() -> None:
 def test_persistence_round_trip() -> None:
     running = _running()
     running = running.resolve_forbidden_word_card(_card_id(running), found=True, now_ms=2_000)
-    restored = game_config_from_payload(running.to_dict())
+    restored = game_config_from_payload(game_config_to_payload(running))
     assert restored.session.forbidden_word == running.session.forbidden_word
 
 
 def test_display_never_receives_the_secret_card() -> None:
-    controller_view, display_view = _running().client_views()
+    controller_view, display_view = present_game_config(_running())
     controller = controller_view["session"]["forbidden_word"]
     display = display_view["session"]["forbidden_word"]
 

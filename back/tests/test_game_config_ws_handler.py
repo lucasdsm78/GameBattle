@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
 from domain.blindtest.models.blindtest_track import build_blindtest_track
 from interface.realtime.message_handler import (
@@ -51,7 +52,7 @@ def _rolling_bombe_config(*, revealed: bool):
 
 
 def test_display_view_masks_blindtest_answer_before_reveal() -> None:
-    controller, display = _blindtest_config(revealed=False).client_views()
+    controller, display = present_game_config(_blindtest_config(revealed=False))
     blindtest = display["session"]["blindtest"]
 
     assert blindtest["current_track"]["track_id"]
@@ -65,7 +66,7 @@ def test_display_view_masks_blindtest_answer_before_reveal() -> None:
 
 
 def test_display_view_reveals_blindtest_answer_after_correct_answer() -> None:
-    _, display = _blindtest_config(revealed=True).client_views()
+    _, display = present_game_config(_blindtest_config(revealed=True))
     blindtest = display["session"]["blindtest"]
 
     assert blindtest["current_track"]["title"].startswith("Title ")
@@ -75,7 +76,7 @@ def test_display_view_reveals_blindtest_answer_after_correct_answer() -> None:
 
 
 def test_display_view_masks_culture_answer_before_validation() -> None:
-    _, display = _culture_config(answered=False).client_views()
+    _, display = present_game_config(_culture_config(answered=False))
     question = display["session"]["culture"]["current_question"]
 
     assert question["question"]
@@ -84,7 +85,7 @@ def test_display_view_masks_culture_answer_before_validation() -> None:
 
 
 def test_display_view_reveals_culture_answer_without_explanation() -> None:
-    _, display = _culture_config(answered=True).client_views()
+    _, display = present_game_config(_culture_config(answered=True))
     question = display["session"]["culture"]["current_question"]
 
     assert question["answer"] != "Réponse masquée"
@@ -92,8 +93,8 @@ def test_display_view_reveals_culture_answer_without_explanation() -> None:
 
 
 def test_die_result_is_hidden_from_everyone_while_rolling_then_revealed() -> None:
-    rolling_controller, rolling_display = _rolling_bombe_config(revealed=False).client_views()
-    _, running_display = _rolling_bombe_config(revealed=True).client_views()
+    rolling_controller, rolling_display = present_game_config(_rolling_bombe_config(revealed=False))
+    _, running_display = present_game_config(_rolling_bombe_config(revealed=True))
 
     assert rolling_display["session"]["bombe"]["phase"] == "rolling"
     assert rolling_display["session"]["bombe"]["die_result"] == ""

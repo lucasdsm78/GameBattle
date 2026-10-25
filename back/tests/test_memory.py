@@ -4,12 +4,16 @@ from unittest.mock import patch
 
 import pytest
 
+from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
 from domain.game_night.models.game_config import build_default_game_config
 from domain.memory.models.memory_state import MEMORY_CHAIN_LENGTH
 from domain.shared.models.culture_question import CultureQuestion
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from infrastructure.repositories.game_config_mapper import (
+    game_config_from_payload,
+    game_config_to_payload,
+)
 from support import GameHarness
 
 
@@ -159,13 +163,13 @@ def test_memory_rejects_sequence_validation_before_recitation() -> None:
 
 def test_memory_payload_round_trip_and_legacy_active_state_migration() -> None:
     _, recitation, _ = _play_chain(_memory_config(), start_index=0)
-    restored = game_config_from_payload(recitation.to_dict())
+    restored = game_config_from_payload(game_config_to_payload(recitation))
 
     assert restored.session.memory == recitation.session.memory
-    assert restored.to_dict()["session"]["memory"]["sequence_length"] == MEMORY_CHAIN_LENGTH
-    assert restored.to_dict()["session"]["memory"]["chain_length"] == MEMORY_CHAIN_LENGTH
+    assert present_game_config(restored)[0]["session"]["memory"]["sequence_length"] == MEMORY_CHAIN_LENGTH
+    assert present_game_config(restored)[0]["session"]["memory"]["chain_length"] == MEMORY_CHAIN_LENGTH
 
-    legacy_payload = recitation.to_dict()
+    legacy_payload = game_config_to_payload(recitation)
     legacy_payload["session"]["memory"].pop("rules_version")
     legacy_payload["session"]["memory"]["phase"] = "question"
     migrated = game_config_from_payload(legacy_payload)
@@ -176,7 +180,7 @@ def test_memory_payload_round_trip_and_legacy_active_state_migration() -> None:
 def test_legacy_finished_state_keeps_its_winner() -> None:
     _, recitation, _ = _play_chain(_memory_config(team_count=2), start_index=0)
     finished = recitation.disqualify_memory_team()
-    payload = finished.to_dict()
+    payload = game_config_to_payload(finished)
     payload["session"]["memory"].pop("rules_version")
 
     restored = game_config_from_payload(payload)
@@ -194,7 +198,7 @@ def test_display_snapshot_never_contains_current_chain_answers() -> None:
         patch("domain.memory.models.memory_state.pick_memory_question", side_effect=questions),
     ):
         progressed = config.start_memory().next_memory_question()
-    controller, display = progressed.client_views()
+    controller, display = present_game_config(progressed)
     controller_memory = controller["session"]["memory"]
     display_memory = display["session"]["memory"]
 

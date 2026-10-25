@@ -6,6 +6,7 @@ from enum import StrEnum
 from itertools import count
 from typing import Any
 
+from application.game_night.game_config_presenter import present_game_config
 from domain.game_night.models.game_config import GameConfig
 from domain.shared.events.domain_event import DomainEvent
 
@@ -32,7 +33,7 @@ class GameConfigSnapshot:
 
     @classmethod
     def from_domain(cls, config: GameConfig, events: Iterable[DomainEvent] = ()) -> GameConfigSnapshot:
-        controller, display = config.client_views()
+        controller, display = present_game_config(config)
         return cls(revision=next(_revisions), controller=controller, display=display, events=tuple(map(serialize_event, events)))
 
     def for_role(self, role: ClientRole) -> dict[str, Any]:

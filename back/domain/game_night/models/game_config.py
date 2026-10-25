@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import dataclass, field, replace
 from typing import Any, Optional
 
 from domain.auction.models.auction_actions import AuctionActions
@@ -232,52 +232,6 @@ class GameConfig(
             return revealed
         entry = ranking[count - 1]
         return revealed._record(RankingRevealed(team=entry["team"], rank=entry["rank"], manches_won=entry["manches_won"]))
-
-    # --- Sérialisation ---
-
-    def to_dict(self) -> dict[str, Any]:
-        session = self.session
-        return {
-            "settings": asdict(self.settings),
-            "games": [asdict(game) for game in self.games],
-            "rounds": [asdict(round_config) for round_config in self.rounds],
-            "session": {
-                "active_round": asdict(session.active_round) if session.active_round else None,
-                **{game_key: session.game(game_key).to_payload(self.teams) for game_key in GAME_STATE_TYPES},
-                "round_sequence": list(session.round_sequence),
-                "round_index": session.round_index,
-                "total_rounds": session.total_rounds,
-                "manche_number": min(session.round_index + 1, session.total_rounds) if session.total_rounds else 0,
-                "manches_won": dict(session.manches_won),
-                "manche_finished": session.manche_finished,
-                "manche_winner": session.manche_winner,
-                "final_ranking": [dict(entry) for entry in session.final_ranking],
-                "final_ranking_total": len(session.final_ranking),
-                "ranking_reveal_count": session.ranking_reveal_count,
-                "last_bombe_roller_index": session.last_bombe_roller_index,
-                "updated_at": session.updated_at,
-            },
-            "status": self.status,
-            "updated_at": self.updated_at,
-            "summary": {
-                "round_count": session.total_rounds or self.settings.total_rounds,
-                "enabled_game_count": len(self.enabled_game_keys()),
-                "teams": len(self.teams),
-            },
-        }
-
-    def client_views(self) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Vues (régie, écran public) : sans données internes, et sans aucun secret pour l'écran public."""
-        controller = self.to_dict()
-        session = controller["session"]
-        del session["round_sequence"]
-        for game_key, state_type in GAME_STATE_TYPES.items():
-            session[game_key] = state_type.shared_view(session[game_key])
-        display_session = {
-            **session,
-            **{game_key: state_type.display_view(session[game_key]) for game_key, state_type in GAME_STATE_TYPES.items()},
-        }
-        return controller, {**controller, "session": display_session}
 
 
 _BUZZER_ACTIONS: dict[str, Callable[[GameConfig, str, int], GameConfig]] = {

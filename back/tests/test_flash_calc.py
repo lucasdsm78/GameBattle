@@ -6,6 +6,7 @@ from dataclasses import replace
 
 import pytest
 
+from application.game_night.game_config_presenter import present_game_config
 from application.shared.commands import TeamCommand
 from application.shared.snapshot import ClientRole
 from domain.flash_calc.events import CalculationShown, FlashCalcLevelReached
@@ -24,7 +25,10 @@ from domain.flash_calc.services.flash_calc_generator import (
 )
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from infrastructure.repositories.game_config_mapper import (
+    game_config_from_payload,
+    game_config_to_payload,
+)
 from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
@@ -173,7 +177,7 @@ def test_the_first_team_to_reach_the_winning_score_wins_the_manche() -> None:
 
 def test_nobody_ever_sees_whether_the_current_calculation_is_correct() -> None:
     running = _running()
-    controller, display = running.client_views()
+    controller, display = present_game_config(running)
 
     for view in (controller, display):
         payload = view["session"]["flash_calc"]
@@ -203,7 +207,7 @@ def test_domain_events_follow_the_scrolling() -> None:
 def test_persistence_round_trip() -> None:
     buzzed = _rigged(_running(), correct=True).register_flash_calc_buzzer("Rouges", now_ms=BUZZ_MS)
 
-    assert game_config_from_payload(buzzed.to_dict()).session.flash_calc == buzzed.session.flash_calc
+    assert game_config_from_payload(game_config_to_payload(buzzed)).session.flash_calc == buzzed.session.flash_calc
 
 
 def test_tampered_states_are_rejected() -> None:

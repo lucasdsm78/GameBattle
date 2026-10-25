@@ -84,12 +84,13 @@ back/
 │   ├── bombe/  memory/  stopchrono/   # models/, events/
 │   └── blindtest/  culture/           # models/ (leurs événements sont ceux du noyau partagé)
 ├── application/             # Un dossier par domaine
-│   ├── shared/              # CommandUseCase (base), Unit of Work, instantanés diffusés, schémas communs
-│   ├── game_night/          # Soirée : configuration, lancement, manches, classement (+ lecture de l'état)
+│   ├── shared/              # CommandUseCase et GamePresenter (bases), Unit of Work, instantanés diffusés, schémas communs
+│   ├── game_night/          # Soirée : configuration, lancement, manches, classement, lecture de l'état
+│   │                        # et presenter de la soirée (vues régie / écran public)
 │   ├── blindtest/           # Use case, schémas, service de playlist et port Spotify
 │   ├── stopchrono/ culture/ bombe/ memory/ seven_differences/ auction/ forbidden_word/
 │   │   vanishing_word/ flash_calc/
-│   │                        # <jeu>_command_usecase.py (+ <jeu>_commands.py pour ses schémas)
+│   │                        # <jeu>_command_usecase.py, <jeu>_presenter.py (+ <jeu>_commands.py pour ses schémas)
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
 │   ├── database/            # Moteur SQLAlchemy et tables
@@ -107,8 +108,15 @@ back/
 - Les dépendances entre modules du domaine sont vérifiées par les tests : un jeu n'importe que `shared/`,
   `shared/` n'importe aucun autre module, seule `game_night/` orchestre les jeux.
 - Un jeu = un dossier `domain/<jeu>/`. Ses actions (`models/<jeu>_actions.py`) sont composées dans la racine
-  d'agrégat `GameConfig`, qui ne garde que l'orchestration ; son état (`models/<jeu>_state.py`) porte ses règles, ses invariants et ce que l'écran
-  public n'a pas le droit de voir (`display_view`).
+  d'agrégat `GameConfig`, qui ne garde que l'orchestration ; son état (`models/<jeu>_state.py`) porte ses
+  règles et ses invariants. Le domaine ignore tout des clients : ni sérialisation, ni vues.
+- Ce que voit chaque client est une règle de diffusion, rangée dans la couche application : chaque jeu a son
+  presenter (`application/<jeu>/<jeu>_presenter.py`) qui retire les données internes de la vue régie
+  (`internal_fields`), ajoute les valeurs calculées (`extras`) et masque les secrets de l'écran public
+  (`display_view`). `application/game_night/game_config_presenter.py` assemble la soirée complète.
+- La forme persistée est produite par l'infrastructure (`game_config_to_payload` /
+  `game_config_from_payload` dans `infrastructure/repositories/game_config_mapper.py`) : l'état brut de
+  l'agrégat, sans vue client ni événement.
 - Chaque jeu a son use case d'écriture (`application/<jeu>/<jeu>_command_usecase.py`), avec une méthode typée par
   action (`await auction.select_bid(command)`). La classe de base `CommandUseCase` applique la
   transition sous verrou, persiste puis diffuse ; une action sans effet n'écrit ni ne diffuse rien.

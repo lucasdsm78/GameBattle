@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import serialize_event
 from domain.auction.events import AuctionResolved, BidAccepted
 from domain.blindtest.models.blindtest_track import build_blindtest_track
@@ -25,7 +26,10 @@ from domain.seven_differences.models.seven_differences_state import (
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
 from domain.stopchrono.events import ChronoStarted, ChronoStopped
-from infrastructure.repositories.game_config_mapper import game_config_from_payload
+from infrastructure.repositories.game_config_mapper import (
+    game_config_from_payload,
+    game_config_to_payload,
+)
 from support import started_config
 
 TWO_TEAMS = ["Rouges", "Bleus"]
@@ -245,8 +249,17 @@ def test_events_are_neither_persisted_nor_compared() -> None:
 
     assert events and cleared.pending_events == ()
     assert cleared == config
-    assert "pending_events" not in json.dumps(config.to_dict())
-    assert game_config_from_payload(config.to_dict()).pending_events == ()
+    assert "pending_events" not in json.dumps(game_config_to_payload(config))
+    assert game_config_from_payload(game_config_to_payload(config)).pending_events == ()
+
+
+def test_rows_saved_with_client_view_fields_are_still_readable() -> None:
+    # Les lignes enregistrées avant le déplacement des vues dans application/ contiennent les champs calculés.
+    config = started_config("forbidden_word").pull_events()[0]
+    controller, _ = present_game_config(config)
+    legacy_row = {**controller, "session": {**controller["session"], "round_sequence": config.session.round_sequence}}
+
+    assert game_config_from_payload(legacy_row) == config
 
 
 def test_serialized_events_carry_their_type_and_fields() -> None:

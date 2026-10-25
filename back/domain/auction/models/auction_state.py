@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from domain.auction.events import AuctionResolved, BidAccepted
 from domain.auction.services.auction_catalog import pick_auction_theme
@@ -22,7 +22,6 @@ AUCTION_FAILURE_POINTS = 2
 class AuctionState(GameState):
     game_key: ClassVar[str] = "auction"
     label: ClassVar[str] = "L’Enchère"
-    private_fields: ClassVar[frozenset[str]] = frozenset({"asked_theme_ids"})
 
     phase: str = "idle"
     theme_id: str = ""
@@ -70,10 +69,6 @@ class AuctionState(GameState):
             raise InvalidGameConfigError("Le chrono de L’Enchère est invalide.")
         if self.phase in {"resolved", "finished"} and self.attempt_succeeded is None:
             raise InvalidGameConfigError("Le résultat de L’Enchère est manquant.")
-
-    @staticmethod
-    def display_view(payload: dict[str, Any]) -> dict[str, Any]:
-        return {**payload, "answers": []}
 
     def _draw_theme(self, scores: dict[str, int]) -> AuctionState:
         theme = pick_auction_theme(self.asked_theme_ids)
