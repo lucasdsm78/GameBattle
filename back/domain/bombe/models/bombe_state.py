@@ -16,7 +16,20 @@ BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
 BOMBE_SOUND_ONSETS = tuple("BDFGKLMNPRSTV")
 BOMBE_SOUND_VOWELS = ("A", "E", "I", "O", "OU")
 BOMBE_SOUND_CODAS = ("", "", "L", "M", "N", "R", "S")
-BOMBE_SOUND_PATTERN = re.compile(r"^[BDFGKLMNPRSTV]?(?:OU|[AEIO])[LMNRS]?$")
+# Sons plus durs (groupes de consonnes, voyelles composées), choisis pour rester jouables à l'oral.
+BOMBE_HARD_SOUND_RATIO = 0.4
+BOMBE_HARD_SOUNDS = (
+    "GRAN", "TRAN", "PLAN", "BLAN", "FRAN", "CHAN", "CRAN", "CLAN", "PRIN", "TRIN", "BRIN",
+    "TROU", "GROU", "CLOU", "FLOU", "CHOU", "JOU", "BROU",
+    "TROI", "CROI", "DROI", "FROI", "CHOI", "JOI", "PROI",
+    "BLEU", "FLEU", "CHEU", "JEU", "PLEU", "PREU",
+    "CRI", "PRI", "TRI", "BRI", "GRI", "PLI", "CLI",
+    "TRO", "CRO", "GRO", "FLO", "GLO", "BRO", "PRO",
+    "CHA", "CHI", "TRA", "GRA", "PLA", "BLA", "CLA", "DRA",
+)
+BOMBE_SOUND_PATTERN = re.compile(
+    r"^(?:[BDFGKLMNPRSTV]|[BCDFGPT]R|[BCFGP]L|CH|J)(?:(?:OU|OI|EU|[AEIO])[LMNRS]?|AN|ON|IN)$"
+)
 BOMBE_DIE_RESULTS = ("TIC", "TAC", "BOUM")
 BOMBE_DIE_ROLL_MS = 2_500
 BOMBE_MIN_DURATION_MS = 30_000
@@ -24,7 +37,9 @@ BOMBE_MAX_DURATION_MS = 75_000
 
 
 def generate_bombe_sound() -> str:
-    """Compose un son court et prononçable sans catalogue de résultats prédéfini."""
+    """Compose un son court et prononçable ; quatre fois sur dix, tire un son plus dur."""
+    if random.random() < BOMBE_HARD_SOUND_RATIO:
+        return random.choice(BOMBE_HARD_SOUNDS)
     return f"{random.choice(BOMBE_SOUND_ONSETS)}{random.choice(BOMBE_SOUND_VOWELS)}{random.choice(BOMBE_SOUND_CODAS)}"
 
 
