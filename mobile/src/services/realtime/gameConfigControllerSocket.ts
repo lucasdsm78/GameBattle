@@ -322,6 +322,22 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'forbidden-word.skip', payload: { card_id: cardId } });
   }
 
+  startVanishingRound(): void {
+    this.sendMessage({ type: 'vanishing-word.start-round' });
+  }
+
+  vanishingBuzzer(team: string): void {
+    this.sendMessage({ type: 'vanishing-word.buzzer', payload: { team } });
+  }
+
+  vanishingAnswer(isCorrect: boolean): void {
+    this.sendMessage({ type: 'vanishing-word.answer', payload: { is_correct: isCorrect } });
+  }
+
+  revealVanishingWord(): void {
+    this.sendMessage({ type: 'vanishing-word.reveal' });
+  }
+
   nextManche(): void {
     this.sendMessage({ type: 'game.next-manche' });
   }

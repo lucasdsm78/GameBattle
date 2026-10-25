@@ -19,6 +19,7 @@ from domain.shared.models.game_state import GameState
 from domain.shared.services.clock import utc_now_iso
 from domain.shared.services.scoring import TIE_LABEL
 from domain.stopchrono.models.stopchrono_state import StopChronoState
+from domain.vanishing_word.models.vanishing_word_state import VanishingWordState
 from exceptions import InvalidGameConfigError
 
 
@@ -33,6 +34,7 @@ class GameSession:
     seven_differences: SevenDifferencesState = field(default_factory=SevenDifferencesState)
     auction: AuctionState = field(default_factory=AuctionState)
     forbidden_word: ForbiddenWordState = field(default_factory=ForbiddenWordState)
+    vanishing_word: VanishingWordState = field(default_factory=VanishingWordState)
     # Persistée mais jamais exposée aux clients : les apps ne voient que la manche courante.
     round_sequence: list[str] = field(default_factory=list)
     round_index: int = 0

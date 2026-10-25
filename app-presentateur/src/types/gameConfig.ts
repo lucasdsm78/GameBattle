@@ -6,7 +6,8 @@ export type GameKey =
   | 'memory'
   | 'seven_differences'
   | 'auction'
-  | 'forbidden_word';
+  | 'forbidden_word'
+  | 'vanishing_word';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
 
@@ -186,6 +187,24 @@ export type ForbiddenWordTurn = {
   skipped_words: string[];
 };
 
+// Tant que le mot n'est pas révélé, `words` est vide et `vanished_word` vaut "" côté écran public.
+export type VanishingWordState = {
+  phase: 'idle' | 'memorizing' | 'vanished' | 'claimed' | 'revealed' | 'finished';
+  round_number: number;
+  words: string[];
+  remaining_words: string[];
+  vanished_word: string;
+  reveal_at_ms: number;
+  current_buzzer_team: string | null;
+  excluded_teams: string[];
+  round_winner: string | null;
+  scores: Record<string, number>;
+  winner_team: string | null;
+  memorization_ms: number;
+  winning_score: number;
+  words_per_list: number;
+};
+
 // `current_card` est toujours null côté écran public : le mot reste secret sur la régie.
 export type ForbiddenWordState = {
   phase: 'idle' | 'ready' | 'running' | 'finished';
@@ -210,6 +229,7 @@ export type GameSession = {
   seven_differences: SevenDifferencesState;
   auction: AuctionState;
   forbidden_word: ForbiddenWordState;
+  vanishing_word: VanishingWordState;
   round_index: number;
   total_rounds: number;
   manche_number: number;

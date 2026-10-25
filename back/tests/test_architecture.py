@@ -41,6 +41,7 @@ def test_display_can_only_trigger_buzzers_timers_and_spotify_token() -> None:
         "seven-differences.open",
         "seven-differences.buzzer",
         "auction.buzzer",
+        "vanishing-word.buzzer",
     }
 
 
@@ -75,7 +76,9 @@ def test_layers_only_depend_inwards(layer: str) -> None:
     assert violations == []
 
 
-GAME_MODULES = ("blindtest", "culture", "stopchrono", "bombe", "memory", "seven_differences", "auction", "forbidden_word")
+GAME_MODULES = (
+    "blindtest", "culture", "stopchrono", "bombe", "memory", "seven_differences", "auction", "forbidden_word", "vanishing_word"
+)
 
 
 def _domain_dependencies(module: str) -> set[str]:
@@ -102,3 +105,20 @@ def test_every_domain_module_follows_the_same_layout() -> None:
 
     assert modules == expected
     assert all((BACK_DIR / "domain" / module / "models").is_dir() for module in expected)
+
+
+def test_every_game_has_its_state_and_actions_composed_into_the_aggregate() -> None:
+    from domain.game_night.models.game_config import GameConfig
+    from domain.shared.models.game_actions import GameActions
+
+    for game in GAME_MODULES:
+        models = BACK_DIR / "domain" / game / "models"
+        assert (models / f"{game}_state.py").is_file(), game
+        assert (models / f"{game}_actions.py").is_file(), game
+
+    composed = {
+        base.__module__.split(".")[1]
+        for base in GameConfig.__mro__
+        if issubclass(base, GameActions) and base not in (GameActions, GameConfig)
+    }
+    assert composed == set(GAME_MODULES)

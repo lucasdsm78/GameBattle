@@ -96,4 +96,9 @@ ROUTES: tuple[Route, ...] = (
     Route("forbidden-word.start-turn", lambda uc, _: uc.forbidden_word.start_turn()),
     Route("forbidden-word.found", lambda uc, cmd: uc.forbidden_word.mark_found(cmd), ForbiddenWordCardCommand),
     Route("forbidden-word.skip", lambda uc, cmd: uc.forbidden_word.skip(cmd), ForbiddenWordCardCommand),
+    # Le mot qui disparaît
+    Route("vanishing-word.start-round", lambda uc, _: uc.vanishing_word.start_round()),
+    Route("vanishing-word.buzzer", lambda uc, cmd: uc.vanishing_word.register_buzzer(cmd), TeamCommand, CONTROLLER_AND_DISPLAY),
+    Route("vanishing-word.answer", lambda uc, cmd: uc.vanishing_word.answer(cmd), AnswerCommand),
+    Route("vanishing-word.reveal", lambda uc, _: uc.vanishing_word.reveal()),
 )

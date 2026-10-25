@@ -132,6 +132,7 @@ export default function App() {
         onSevenDifferencesOpen={() => socket.openSevenDifferences()}
         onSevenDifferencesBuzz={(team) => socket.sevenDifferencesBuzzer(team)}
         onAuctionBuzz={(team) => socket.auctionBuzzer(team)}
+        onVanishingBuzz={(team) => socket.vanishingBuzzer(team)}
       />
     </>
   );

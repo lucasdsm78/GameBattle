@@ -15,6 +15,7 @@ import { FinalRankingScreen } from './src/screens/FinalRankingScreen';
 import { SevenDifferencesLiveScreen } from './src/screens/SevenDifferencesLiveScreen';
 import { AuctionLiveScreen } from './src/screens/AuctionLiveScreen';
 import { ForbiddenWordActionBar, ForbiddenWordLiveScreen } from './src/screens/ForbiddenWordLiveScreen';
+import { VanishingWordLiveScreen } from './src/screens/VanishingWordLiveScreen';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
@@ -126,7 +127,17 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'forbidden_word' ? (
+            {activeGameKey === 'vanishing_word' ? (
+              <VanishingWordLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStartRound={() => socket.startVanishingRound()}
+                onBuzz={(team) => socket.vanishingBuzzer(team)}
+                onAnswer={(isCorrect) => socket.vanishingAnswer(isCorrect)}
+                onReveal={() => socket.revealVanishingWord()}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'forbidden_word' ? (
               <ForbiddenWordLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}
