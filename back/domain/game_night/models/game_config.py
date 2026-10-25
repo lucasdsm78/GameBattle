@@ -4,7 +4,11 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any, Optional
 
-from domain.blindtest.models.blindtest_track import BlindtestTrack
+from domain.auction.models.auction_actions import AuctionActions
+from domain.blindtest.models.blindtest_actions import BlindtestActions
+from domain.bombe.models.bombe_actions import BombeActions
+from domain.culture.models.culture_actions import CultureActions
+from domain.forbidden_word.models.forbidden_word_actions import ForbiddenWordActions
 from domain.game_night.events import (
     GameNightFinished,
     GameNightStarted,
@@ -25,10 +29,16 @@ from domain.game_night.services.round_sequence import (
     build_round_sequence,
     compute_ranking,
 )
+from domain.memory.models.memory_actions import MemoryActions
+from domain.seven_differences.models.seven_differences_actions import (
+    SevenDifferencesActions,
+)
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
 from domain.shared.services.clock import utc_now_iso
 from domain.shared.services.scoring import TIE_LABEL
+from domain.stopchrono.models.stopchrono_actions import StopChronoActions
+from domain.vanishing_word.models.vanishing_word_actions import VanishingWordActions
 from exceptions import GameConfigurationNotReadyError, InvalidGameConfigError
 
 ALLOWED_STATUSES = frozenset({"configuring", "ready", "live", "finished"})
@@ -37,11 +47,23 @@ GameTransition = Callable[[Any], GameState]
 
 
 @dataclass(slots=True)
-class GameConfig:
+class GameConfig(
+    BlindtestActions,
+    StopChronoActions,
+    CultureActions,
+    BombeActions,
+    MemoryActions,
+    SevenDifferencesActions,
+    AuctionActions,
+    ForbiddenWordActions,
+    VanishingWordActions,
+):
     """Racine d'agrégat : configuration de la soirée et orchestration des manches.
 
-    Les règles de chaque jeu vivent dans `games/`. L'agrégat vérifie que le jeu ciblé est la manche en
-    cours, applique la transition et clôt la manche dès qu'un vainqueur est désigné.
+    Chaque jeu range ses règles (`domain/<jeu>/models/<jeu>_state.py`) et ses actions
+    (`domain/<jeu>/models/<jeu>_actions.py`, composées ici) dans son propre dossier. L'agrégat ne garde que
+    l'orchestration : `_play` vérifie que le jeu ciblé est la manche en cours, applique la transition et clôt
+    la manche dès qu'un vainqueur est désigné.
 
     Les événements de domaine produits par une commande s'accumulent dans `pending_events` (jamais
     persistés) jusqu'à ce que l'unité de travail les récupère avec `pull_events()`.
@@ -128,146 +150,6 @@ class GameConfig:
             )
             events.append(MancheFinished(self.session.round_index + 1, game_key, updated.winner_team))
         return self._replace_session(**changes)._record(*events)
-
-    # --- Blindtest ---
-
-    def with_blindtest_tracks(
-        self,
-        tracks: list[BlindtestTrack],
-        playlist_name: str = "",
-        playlist_source_url: str = "",
-        playlist_provider: str = "manual",
-    ) -> GameConfig:
-        return self._play(
-            "blindtest",
-            lambda game: game.with_tracks(
-                tracks, playlist_name=playlist_name, playlist_source_url=playlist_source_url, playlist_provider=playlist_provider
-            ),
-        )
-
-    def register_buzzer(self, team: str) -> GameConfig:
-        return self._play("blindtest", lambda game: game.register_buzzer(team))
-
-    def mark_answer(self, is_correct: bool) -> GameConfig:
-        return self._play("blindtest", lambda game: game.mark_answer(is_correct))
-
-    def control_playback(self, action: str, position_ms: Optional[int] = None) -> GameConfig:
-        return self._play("blindtest", lambda game: game.control_playback(action, position_ms))
-
-    def sync_playback(self, track_id: str, playback_state: str, position_ms: int, duration_ms: int = 0) -> GameConfig:
-        return self._play("blindtest", lambda game: game.sync_playback(track_id, playback_state, position_ms, duration_ms))
-
-    def advance_track(self) -> GameConfig:
-        return self._play("blindtest", lambda game: game.advance_track())
-
-    # --- Stop Chrono ---
-
-    def start_chrono(self, now_ms: int) -> GameConfig:
-        return self._play("stopchrono", lambda game: game.start(now_ms))
-
-    def stop_chrono(self, now_ms: int) -> GameConfig:
-        return self._play("stopchrono", lambda game: game.stop(self.teams, now_ms))
-
-    def next_chrono_team(self) -> GameConfig:
-        return self._play("stopchrono", lambda game: game.next_team(self.teams))
-
-    # --- Culture générale ---
-
-    def start_culture(self) -> GameConfig:
-        return self._play("culture", lambda game: game.start())
-
-    def select_culture_difficulty(self, difficulty: str) -> GameConfig:
-        round_id = self.session.active_round.round_id if self.session.active_round else ""
-        return self._play("culture", lambda game: game.select_difficulty(difficulty, round_id))
-
-    def register_culture_buzzer(self, team: str) -> GameConfig:
-        return self._play("culture", lambda game: game.register_buzzer(team))
-
-    def answer_culture(self, is_correct: bool) -> GameConfig:
-        return self._play("culture", lambda game: game.answer(is_correct))
-
-    def next_culture_question(self) -> GameConfig:
-        return self._play("culture", lambda game: game.next_question())
-
-    # --- La Bombe ---
-
-    def start_bombe(self, now_ms: int) -> GameConfig:
-        started = self._play("bombe", lambda game: game.start(self.teams, self.session.last_bombe_roller_index))
-        return started._replace_session(last_bombe_roller_index=started.session.bombe.roller_team_index)
-
-    def register_bombe_buzzer(self, team: str, now_ms: int) -> GameConfig:
-        return self._play("bombe", lambda game: game.register_buzzer(self.teams, team, now_ms))
-
-    def begin_bombe_after_roll(self, now_ms: int) -> GameConfig:
-        return self._play("bombe", lambda game: game.begin_after_roll(now_ms))
-
-    def previous_bombe_team(self, now_ms: int) -> GameConfig:
-        return self._play("bombe", lambda game: game.previous_team(self.teams, now_ms))
-
-    def explode_bombe(self, now_ms: int) -> GameConfig:
-        return self._play("bombe", lambda game: game.explode(self.teams, now_ms))
-
-    # --- Mémoire en chaîne ---
-
-    def start_memory(self) -> GameConfig:
-        return self._play("memory", lambda game: game.start(self.teams))
-
-    def next_memory_question(self) -> GameConfig:
-        return self._play("memory", lambda game: game.next_question())
-
-    def validate_memory_sequence(self) -> GameConfig:
-        return self._play("memory", lambda game: game.validate_sequence())
-
-    def disqualify_memory_team(self) -> GameConfig:
-        return self._play("memory", lambda game: game.disqualify_team(self.teams))
-
-    # --- Les 7 différences ---
-
-    def start_seven_differences(self, now_ms: int) -> GameConfig:
-        return self._play("seven_differences", lambda game: game.start(self.teams, now_ms))
-
-    def open_seven_differences(self, now_ms: int) -> GameConfig:
-        return self._play("seven_differences", lambda game: game.open(now_ms))
-
-    def register_seven_differences_buzzer(self, team: str, now_ms: int) -> GameConfig:
-        return self._play("seven_differences", lambda game: game.register_buzzer(self.teams, team, now_ms))
-
-    def find_seven_difference(self, difference_id: str) -> GameConfig:
-        return self._play("seven_differences", lambda game: game.find(self.teams, difference_id))
-
-    def reject_seven_differences_answer(self) -> GameConfig:
-        return self._play("seven_differences", lambda game: game.reject())
-
-    # --- L’Enchère ---
-
-    def start_auction(self) -> GameConfig:
-        return self._play("auction", lambda game: game.start(self.teams))
-
-    def register_auction_buzzer(self, team: str, now_ms: int) -> GameConfig:
-        return self._play("auction", lambda game: game.register_buzzer(self.teams, team))
-
-    def select_auction_bid(self, team: str, target_count: int) -> GameConfig:
-        return self._play("auction", lambda game: game.select_bid(self.teams, team, target_count))
-
-    def launch_auction_attempt(self, now_ms: int) -> GameConfig:
-        return self._play("auction", lambda game: game.launch(now_ms))
-
-    def change_auction_count(self, delta: int, now_ms: int) -> GameConfig:
-        return self._play("auction", lambda game: game.change_count(self.teams, delta, now_ms))
-
-    def expire_auction_attempt(self, now_ms: int) -> GameConfig:
-        return self._play("auction", lambda game: game.expire(self.teams, now_ms))
-
-    def next_auction_theme(self) -> GameConfig:
-        return self._play("auction", lambda game: game.next_theme())
-
-    # --- Le mot interdit ---
-
-    def start_forbidden_word_turn(self, now_ms: int) -> GameConfig:
-        return self._play("forbidden_word", lambda game: game.start_turn(now_ms))
-
-    def resolve_forbidden_word_card(self, card_id: str, *, found: bool, now_ms: int) -> GameConfig:
-        return self._play("forbidden_word", lambda game: game.resolve_card(self.teams, card_id, found=found, now_ms=now_ms))
 
     # --- Événements transverses ---
 
@@ -402,6 +284,7 @@ _BUZZER_ACTIONS: dict[str, Callable[[GameConfig, str, int], GameConfig]] = {
     "bombe": GameConfig.register_bombe_buzzer,
     "seven_differences": GameConfig.register_seven_differences_buzzer,
     "auction": GameConfig.register_auction_buzzer,
+    "vanishing_word": GameConfig.register_vanishing_buzzer,
 }
 
 

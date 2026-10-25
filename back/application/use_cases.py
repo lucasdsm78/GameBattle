@@ -23,6 +23,9 @@ from application.shared.command_usecase import (
 )
 from application.shared.unit_of_work import UnitOfWork
 from application.stopchrono.stopchrono_command_usecase import StopChronoCommandUseCase
+from application.vanishing_word.vanishing_word_command_usecase import (
+    VanishingWordCommandUseCase,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +41,7 @@ class GameUseCases:
     seven_differences: SevenDifferencesCommandUseCase
     auction: AuctionCommandUseCase
     forbidden_word: ForbiddenWordCommandUseCase
+    vanishing_word: VanishingWordCommandUseCase
 
     @classmethod
     def build(
@@ -58,6 +62,7 @@ class GameUseCases:
             seven_differences=SevenDifferencesCommandUseCase(*dependencies),
             auction=AuctionCommandUseCase(*dependencies),
             forbidden_word=ForbiddenWordCommandUseCase(*dependencies),
+            vanishing_word=VanishingWordCommandUseCase(*dependencies),
         )
 
 __all__ = ["CommandUseCase", "GameUseCases", "SnapshotPublisher"]

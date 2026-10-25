@@ -138,7 +138,8 @@ def test_each_command_publishes_only_its_own_events() -> None:
 def test_queries_do_not_carry_events() -> None:
     harness = GameHarness(started_config("auction"))
 
-    snapshot = asyncio.run(harness.use_cases.auction.start())
+    harness.run("auction.start")
+    snapshot = harness.run("auction.buzzer", {"team": "Rouges"})
     current = asyncio.run(GameNightQueryUseCase(harness.uow).get_current())
 
     assert snapshot is not None and snapshot.events

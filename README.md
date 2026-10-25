@@ -14,7 +14,7 @@ Le backend suit une architecture DDD inspirée de `BetLeague`.
 
 Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop Chrono**,
 **Culture générale**, **La Bombe**, **Mémoire en chaîne**, **Les 7 différences**, **L’Enchère** et
-**Le mot interdit**.
+**Le mot interdit** et **Le mot qui disparaît**.
 
 ### Déjà implémenté
 
@@ -103,7 +103,8 @@ back/
 
 - Les dépendances entre modules du domaine sont vérifiées par les tests : un jeu n'importe que `shared/`,
   `shared/` n'importe aucun autre module, seule `game_night/` orchestre les jeux.
-- Un jeu = un dossier `domain/<jeu>/` : son état (`models/<jeu>_state.py`) porte ses règles, ses invariants et ce que l'écran
+- Un jeu = un dossier `domain/<jeu>/`. Ses actions (`models/<jeu>_actions.py`) sont composées dans la racine
+  d'agrégat `GameConfig`, qui ne garde que l'orchestration ; son état (`models/<jeu>_state.py`) porte ses règles, ses invariants et ce que l'écran
   public n'a pas le droit de voir (`display_view`).
 - Chaque jeu a son use case d'écriture (`application/<jeu>/<jeu>_command_usecase.py`), avec une méthode typée par
   action (`await auction.select_bid(command)`). La classe de base `CommandUseCase` applique la
@@ -292,6 +293,14 @@ arbitré par le serveur, l’écran public n’affiche jamais le mot en cours (s
 et les mots déjà trouvés) et l’équipe qui a fait deviner le plus de mots remporte la manche. L’écran
 du téléphone reste allumé pendant le tour. Le catalogue de cartes se trouve dans
 `back/domain/forbidden_word/services/forbidden_word_catalog.py`.
+
+Pour **Le mot qui disparaît**, une liste de 8 mots s’affiche sur l’écran et sur le mobile pendant
+7 secondes, puis le serveur fait disparaître un mot. L’écran public montre les 7 mots restants,
+remélangés, sans jamais recevoir le mot disparu ; la régie le voit mis en évidence. La première équipe
+qui buzze prend la main, le présentateur valide **TROUVÉ** (+1, ou Volume +) ou **FAUX** (Volume −) :
+une équipe qui se trompe ne peut plus buzzer sur cette liste. Le mot est ensuite révélé et le
+présentateur lance la liste suivante. La première équipe à 5 mots trouvés remporte la manche. Le
+catalogue se trouve dans `back/domain/vanishing_word/services/vanishing_word_catalog.py`.
 
 ### Générer automatiquement un puzzle
 

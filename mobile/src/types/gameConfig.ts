@@ -6,7 +6,8 @@ export type GameKey =
   | 'memory'
   | 'seven_differences'
   | 'auction'
-  | 'forbidden_word';
+  | 'forbidden_word'
+  | 'vanishing_word';
 export type CultureDifficulty = 'toutes' | 'facile' | 'moyen' | 'difficile';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
@@ -134,6 +135,23 @@ export type ForbiddenWordState = {
   winner_team: string | null;
 };
 
+export type VanishingWordState = {
+  phase: 'idle' | 'memorizing' | 'vanished' | 'claimed' | 'revealed' | 'finished';
+  round_number: number;
+  words: string[];
+  remaining_words: string[];
+  vanished_word: string;
+  reveal_at_ms: number;
+  current_buzzer_team: string | null;
+  excluded_teams: string[];
+  round_winner: string | null;
+  scores: Record<string, number>;
+  winner_team: string | null;
+  memorization_ms: number;
+  winning_score: number;
+  words_per_list: number;
+};
+
 export type RankingEntry = {
   team: string;
   manches_won: number;
@@ -214,6 +232,7 @@ export type GameSession = {
   seven_differences: SevenDifferencesState;
   auction: AuctionState;
   forbidden_word: ForbiddenWordState;
+  vanishing_word: VanishingWordState;
   round_index: number;
   total_rounds: number;
   manche_number: number;

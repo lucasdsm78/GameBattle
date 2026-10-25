@@ -63,7 +63,8 @@ class GameHarness:
     """Use cases réels sur un dépôt en mémoire, pilotables directement ou via le protocole WebSocket."""
 
     def __init__(self, config: GameConfig, *, now_ms: int | Callable[[], int] = 1_000, delay_seconds: float = 0.0) -> None:
-        self.repository = InMemoryRepository(config, delay_seconds=delay_seconds)
+        # Un état enregistré n'a jamais d'événement en attente : on part de la même situation.
+        self.repository = InMemoryRepository(config.pull_events()[0], delay_seconds=delay_seconds)
         self.publisher = RecordingPublisher()
         self.playlists = StubPlaylists()
         clock = now_ms if callable(now_ms) else (lambda: now_ms)

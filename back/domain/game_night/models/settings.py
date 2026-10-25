@@ -6,7 +6,7 @@ from domain.shared.services.question_catalog import CULTURE_DIFFICULTIES
 from exceptions import InvalidGameConfigError
 
 SUPPORTED_GAME_KEYS = frozenset(
-    {"blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction", "forbidden_word"}
+    {"blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction", "forbidden_word", "vanishing_word"}
 )
 DEFAULT_BUZZER_KEYS = ("1", "2", "3", "4", "5", "6")
 ALLOWED_CULTURE_DIFFICULTIES = frozenset({"toutes", *CULTURE_DIFFICULTIES})

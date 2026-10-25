@@ -9,6 +9,7 @@ from domain.seven_differences.models.seven_differences_state import (
 )
 from domain.shared.models.game_state import GameState
 from domain.stopchrono.models.stopchrono_state import StopChronoState
+from domain.vanishing_word.models.vanishing_word_state import VanishingWordState
 
 GAME_STATE_TYPES: dict[str, type[GameState]] = {
     state_type.game_key: state_type
@@ -21,6 +22,7 @@ GAME_STATE_TYPES: dict[str, type[GameState]] = {
         SevenDifferencesState,
         AuctionState,
         ForbiddenWordState,
+        VanishingWordState,
     )
 }
 
@@ -34,4 +36,5 @@ __all__ = [
     "MemoryState",
     "SevenDifferencesState",
     "StopChronoState",
+    "VanishingWordState",
 ]

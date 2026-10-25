@@ -12,6 +12,7 @@ const GAME_CATALOG: GameDefinition[] = [
   { game_key: 'seven_differences', label: 'Les 7 différences', enabled: false, round_count: 0 },
   { game_key: 'auction', label: 'L’Enchère', enabled: false, round_count: 0 },
   { game_key: 'forbidden_word', label: 'Le mot interdit', enabled: false, round_count: 0 },
+  { game_key: 'vanishing_word', label: 'Le mot qui disparaît', enabled: false, round_count: 0 },
 ];
 
 const withCompleteGameCatalog = (games: GameDefinition[]): GameDefinition[] =>
