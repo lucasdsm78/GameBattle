@@ -19,5 +19,8 @@ class CultureCommandUseCase(CommandUseCase):
     async def answer(self, command: AnswerCommand) -> GameConfigSnapshot | None:
         return await self._execute(lambda config, ctx: config.answer_culture(command.is_correct))
 
+    async def reveal_answer(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.reveal_culture_answer())
+
     async def next_question(self) -> GameConfigSnapshot | None:
         return await self._execute(lambda config, ctx: config.next_culture_question())

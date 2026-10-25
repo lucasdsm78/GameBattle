@@ -41,6 +41,8 @@ export type CultureState = {
   current_buzzer_team: string | null;
   answered: boolean;
   scores: Record<string, number>;
+  // Non vide pendant la question de départage : seules ces équipes peuvent buzzer.
+  tiebreak_teams: string[];
   winner_team: string | null;
   current_question: CultureQuestion | null;
 };

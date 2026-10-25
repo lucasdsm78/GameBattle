@@ -23,5 +23,8 @@ class CultureActions(GameActions):
     def answer_culture(self, is_correct: bool) -> Self:
         return self._play("culture", lambda game: game.answer(is_correct))
 
+    def reveal_culture_answer(self) -> Self:
+        return self._play("culture", lambda game: game.reveal_answer())
+
     def next_culture_question(self) -> Self:
         return self._play("culture", lambda game: game.next_question())

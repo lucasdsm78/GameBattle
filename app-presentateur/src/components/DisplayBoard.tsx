@@ -122,6 +122,7 @@ export function DisplayBoard({
   const chronoPhase = gameConfig?.session.stopchrono.phase;
   const chronoTeamIndex = gameConfig?.session.stopchrono.current_team_index;
   const culturePhase = gameConfig?.session.culture.phase;
+  const cultureTiebreakTeams = gameConfig?.session.culture.tiebreak_teams;
   const bombePhase = gameConfig?.session.bombe.phase;
   const bombeTeamIndex = gameConfig?.session.bombe.current_team_index;
   const sevenDifferencesPhase = gameConfig?.session.seven_differences.phase;
@@ -171,7 +172,8 @@ export function DisplayBoard({
         }
         for (let index = 0; index < teams.length; index += 1) {
           if (matchesBinding(event, buzzerKeys[index] ?? '')) {
-            onCultureBuzz(teams[index]);
+            // Pendant le départage, seules les équipes à égalité peuvent buzzer.
+            if (!cultureTiebreakTeams?.length || cultureTiebreakTeams.includes(teams[index])) onCultureBuzz(teams[index]);
             return;
           }
         }
@@ -252,6 +254,7 @@ export function DisplayBoard({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     culturePhase,
+    cultureTiebreakTeams,
     bombePhase,
     bombeTeamIndex,
     onCultureBuzz,

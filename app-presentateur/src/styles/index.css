@@ -775,6 +775,24 @@ button {
   }
 }
 
+/* --- Culture générale : départage et réponse révélée --- */
+.culture-tiebreak-teams {
+  margin: 0;
+  color: var(--warning);
+  font-size: clamp(1.4rem, 3.4vw, 2.4rem);
+  font-weight: 900;
+}
+
+.culture-answer-by {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.chrono-score-item.is-out {
+  opacity: 0.4;
+}
+
 /* --- Base partagée des jeux « course aux points » (Le mot qui disparaît, Calcul flash) --- */
 .race-layout {
   display: grid;
