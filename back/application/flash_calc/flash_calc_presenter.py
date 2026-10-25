@@ -13,7 +13,7 @@ from domain.flash_calc.services.flash_calc_generator import (
 
 class FlashCalcPresenter(BuzzStreamPresenter[FlashCalcState]):
     # Personne, régie comprise, ne doit savoir si le calcul affiché est juste avant un buzz.
-    internal_fields = frozenset({"true_result"})
+    internal_fields = BuzzStreamPresenter.internal_fields | {"true_result"}
 
     def extras(self, state: FlashCalcState, teams: list[str]) -> dict[str, Any]:
         return {

@@ -40,7 +40,12 @@ export function BuzzStreamBoard({ title, badge, game, teams, rules, children }: 
           </ul>
         ) : null}
 
-        {game.phase === 'paused' ? <p className="stream-paused">⏸ Pause</p> : null}
+        {game.phase === 'paused' ? (
+          <div className="stream-paused" role="status">
+            <p>{game.auto_paused ? '⏸ Pause : personne ne joue ?' : '⏸ Pause'}</p>
+            {game.auto_paused ? <span>La régie relance le défilement d’un appui.</span> : null}
+          </div>
+        ) : null}
 
         {children}
 

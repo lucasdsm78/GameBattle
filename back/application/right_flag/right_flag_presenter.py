@@ -9,7 +9,7 @@ from domain.right_flag.services.flag_catalog import FLAGS_PER_ROUND
 
 class RightFlagPresenter(BuzzStreamPresenter[RightFlagState]):
     # La série à venir ne quitte jamais le serveur : sinon on connaîtrait la position du bon drapeau.
-    internal_fields = frozenset({"flags", "used_countries"})
+    internal_fields = BuzzStreamPresenter.internal_fields | {"flags", "used_countries"}
 
     def extras(self, state: RightFlagState, teams: list[str]) -> dict[str, Any]:
         return {

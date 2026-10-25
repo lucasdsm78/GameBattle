@@ -40,7 +40,7 @@ const headline = (game: BuzzStreamGame, headlines: Props['headlines']): string =
     case 'feedback':
       return game.verdict ? verdictLabel(game.verdict) : headlines.revealed;
     case 'paused':
-      return 'Défilement en pause';
+      return game.auto_paused ? 'Pause automatique : personne ne joue ?' : 'Défilement en pause';
     case 'finished':
       return `${game.winner_team} remporte la manche`;
     default:
@@ -111,14 +111,21 @@ export function BuzzStreamScreen({
       ) : null}
 
       {game.phase === 'paused' ? (
-        <Pressable
-          style={[styles.primaryButton, controlling && styles.primaryButtonDisabled]}
-          onPress={() => controlOnce(onResume)}
-          disabled={controlling}
-          accessibilityRole="button"
-        >
-          <Text style={styles.primaryButtonText}>▶ Reprendre</Text>
-        </Pressable>
+        <View style={styles.sectionCard}>
+          {game.auto_paused ? (
+            <Text style={styles.helperText}>
+              Aucun buzz sur les {game.auto_pause_after} derniers éléments : le défilement s’est mis en pause tout seul.
+            </Text>
+          ) : null}
+          <Pressable
+            style={[styles.primaryButton, controlling && styles.primaryButtonDisabled]}
+            onPress={() => controlOnce(onResume)}
+            disabled={controlling}
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryButtonText}>▶ Reprendre</Text>
+          </Pressable>
+        </View>
       ) : null}
 
       {scrolling ? (

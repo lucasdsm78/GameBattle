@@ -352,7 +352,9 @@ pas issus d’un vrai sondage) se trouve dans `back/domain/golden_family/service
 
 Calcul flash et Le bon drapeau partagent la même mécanique « buzze seulement si… » :
 `back/domain/shared/models/buzz_stream_state.py` (défilement, fenêtre de buzz, +1 / −1, retour, pause,
-victoire). Un nouveau jeu de ce type n’a qu’à décrire ce qui défile.
+victoire). Un nouveau jeu de ce type n’a qu’à décrire ce qui défile. Après 15 éléments d’affilée sans
+aucun buzz, le défilement se met en pause tout seul (« ⏸ Pause : personne ne joue ? ») : le serveur cesse
+alors d’écrire en base et de diffuser, et la régie relance d’un appui.
 
 ### Générer automatiquement un puzzle
 

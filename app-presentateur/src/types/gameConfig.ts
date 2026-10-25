@@ -226,6 +226,9 @@ export type BuzzStreamGame<Verdict extends BuzzVerdict = BuzzVerdict> = {
   winner_team: string | null;
   feedback_ms: number;
   winning_score: number;
+  // Pause déclenchée par le serveur après `auto_pause_after` éléments d'affilée sans buzz.
+  auto_paused: boolean;
+  auto_pause_after: number;
 };
 
 export type FlashCalcVerdict = BuzzVerdict & {
