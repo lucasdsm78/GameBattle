@@ -4,7 +4,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { useCountdown } from '../hooks/useCountdown';
 import { useSendLock } from '../hooks/useSendLock';
 import { useVolumeButtons } from '../hooks/useVolumeButtons';
-import { colors, styles } from '../theme';
+import { colors, styles, fonts } from '../theme';
 import { ForbiddenWordCard, ForbiddenWordState, ForbiddenWordTurn, GameConfigSnapshot } from '../types/gameConfig';
 
 const DANGER_SECONDS = 10;
@@ -39,7 +39,7 @@ export function ForbiddenWordLiveScreen({ snapshot, errorMessage, onStartTurn, o
 
       <View style={styles.heroCard}>
         <Text style={[styles.eyebrow, suddenDeath && !finished && local.suddenDeath]}>
-          {suddenDeath && !finished ? `⚔️ Mort subite · ${seconds} s par équipe` : 'Le mot interdit · 60 s par équipe'}
+          {suddenDeath && !finished ? `Mort subite · ${seconds} s par équipe` : 'Le mot interdit · 60 s par équipe'}
         </Text>
         <Text style={styles.title}>
           {finished
@@ -60,7 +60,7 @@ export function ForbiddenWordLiveScreen({ snapshot, errorMessage, onStartTurn, o
 
       {game.phase === 'ready' ? (
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>🎙 Passez le téléphone à l’orateur</Text>
+          <Text style={styles.sectionTitle}>Passez le téléphone à l’orateur</Text>
           <Text style={styles.helperText}>
             Seul l’orateur voit le mot et ses mots interdits. Son équipe devine en regardant le grand écran.
           </Text>
@@ -72,7 +72,7 @@ export function ForbiddenWordLiveScreen({ snapshot, errorMessage, onStartTurn, o
           >
             <Text style={styles.primaryButtonText}>▶ C’est parti — {seconds} secondes</Text>
           </Pressable>
-          <Text style={styles.helperText}>Pendant le tour : TROUVÉ ou 🔊 Volume + · PASSER ou 🔉 Volume −</Text>
+          <Text style={styles.helperText}>Pendant le tour : TROUVÉ ou Volume + · PASSER ou Volume −</Text>
         </View>
       ) : null}
 
@@ -94,7 +94,7 @@ function RunningTurn({ game, card, errorMessage }: RunningTurnProps) {
     <>
       <View style={local.turnHeader}>
         <View style={local.teamPill}>
-          <Text style={local.teamPillText} numberOfLines={1}>🎙 {game.current_team}</Text>
+          <Text style={local.teamPillText} numberOfLines={1}>{game.current_team}</Text>
         </View>
         <Text style={local.tally}>✓ {words(foundCount)}</Text>
       </View>
@@ -109,7 +109,7 @@ function RunningTurn({ game, card, errorMessage }: RunningTurnProps) {
       </View>
 
       <View style={local.forbiddenCard}>
-        <Text style={[local.cardLabel, local.forbiddenLabel]}>🚫 Mots interdits</Text>
+        <Text style={[local.cardLabel, local.forbiddenLabel]}>Mots interdits</Text>
         {card.forbidden_words.map((forbidden) => (
           <View key={forbidden} style={local.forbiddenRow}>
             <Text style={local.forbiddenWord} numberOfLines={1} adjustsFontSizeToFit>
@@ -163,7 +163,7 @@ function TurnRecap({ turn }: { turn: ForbiddenWordTurn }) {
   return (
     <View style={styles.sectionCard}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, local.shrink]} numberOfLines={1}>⏱ {turn.team}</Text>
+        <Text style={[styles.sectionTitle, local.shrink]} numberOfLines={1}>{turn.team}</Text>
         <Text style={local.recapCount}>{words(turn.found_words.length)}</Text>
       </View>
       {hasWords ? (
@@ -253,20 +253,20 @@ const local = StyleSheet.create({
   suddenDeath: { color: colors.danger },
   outRow: { opacity: 0.4 },
   turnHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  teamPill: { flexShrink: 1, backgroundColor: colors.accent, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  teamPillText: { color: '#041019', fontWeight: '900', fontSize: 15 },
-  tally: { color: colors.text, fontWeight: '900', fontSize: 18 },
+  teamPill: { flexShrink: 1, backgroundColor: colors.gold, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  teamPillText: { color: colors.ink, fontFamily: fonts.black, fontSize: 15 },
+  tally: { color: colors.text, fontFamily: fonts.black, fontSize: 18 },
 
   timer: { gap: 8 },
   timerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  timerLabel: { color: colors.muted, fontWeight: '700', fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' },
-  timerValue: { color: colors.accent, fontSize: 34, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  timerLabel: { color: colors.muted, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' },
+  timerValue: { color: colors.gold, fontSize: 34, fontFamily: fonts.black, fontVariant: ['tabular-nums'] },
   dangerText: { color: colors.danger },
   timerTrack: { height: 8, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)' },
-  timerFill: { flex: 1, backgroundColor: colors.accent, transformOrigin: 'left' },
+  timerFill: { flex: 1, backgroundColor: colors.gold, transformOrigin: 'left' },
   timerFillDanger: { backgroundColor: colors.danger },
 
-  cardLabel: { color: colors.accent, fontWeight: '800', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase' },
+  cardLabel: { color: colors.gold, fontFamily: fonts.black, fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase' },
   wordCard: {
     alignItems: 'center',
     gap: 10,
@@ -274,16 +274,16 @@ const local = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.45)',
+    borderColor: 'rgba(255,198,41,0.45)',
     backgroundColor: colors.hero,
   },
-  word: { color: colors.text, fontSize: 44, lineHeight: 52, fontWeight: '900', textAlign: 'center' },
+  word: { color: colors.text, fontSize: 44, lineHeight: 52, fontFamily: fonts.black, textAlign: 'center' },
   forbiddenCard: {
     gap: 10,
     padding: 16,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.4)',
+    borderColor: 'rgba(255,61,94,0.4)',
     backgroundColor: '#1d1016',
   },
   forbiddenLabel: { color: '#fca5a5' },
@@ -293,17 +293,17 @@ const local = StyleSheet.create({
     borderRadius: 14,
     borderLeftWidth: 4,
     borderLeftColor: colors.danger,
-    backgroundColor: 'rgba(239,68,68,0.12)',
+    backgroundColor: 'rgba(255,61,94,0.12)',
   },
-  forbiddenWord: { color: '#fecaca', fontSize: 21, fontWeight: '800' },
+  forbiddenWord: { color: '#fecaca', fontSize: 21, fontFamily: fonts.black },
 
-  recapCount: { color: colors.accent, fontSize: 20, fontWeight: '900' },
+  recapCount: { color: colors.gold, fontSize: 20, fontFamily: fonts.black },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, fontWeight: '800' },
-  chipFound: { color: '#bbf7d0', backgroundColor: 'rgba(34,197,94,0.16)' },
+  chip: { overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, fontFamily: fonts.black },
+  chipFound: { color: '#b6ffd2', backgroundColor: 'rgba(34,221,107,0.16)' },
   chipSkipped: { color: colors.muted, backgroundColor: 'rgba(255,255,255,0.06)', textDecorationLine: 'line-through' },
-  mutedLabel: { color: colors.muted, fontWeight: '700', fontSize: 12 },
-  score: { color: colors.text, fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  mutedLabel: { color: colors.muted, fontFamily: fonts.bold, fontSize: 12 },
+  score: { color: colors.text, fontSize: 22, fontFamily: fonts.black, fontVariant: ['tabular-nums'] },
 
   actionBar: {
     flexShrink: 0,
@@ -313,12 +313,12 @@ const local = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(34,197,94,0.35)',
+    borderTopColor: 'rgba(255,198,41,0.35)',
     backgroundColor: colors.card,
   },
   foundButton: { flex: 2, minHeight: 92, alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 22, backgroundColor: colors.accent },
-  foundText: { color: '#041019', fontSize: 26, fontWeight: '900', letterSpacing: 1 },
-  foundHint: { color: 'rgba(4,16,25,0.7)', fontSize: 12, fontWeight: '800' },
+  foundText: { color: colors.ink, fontSize: 26, fontFamily: fonts.black, letterSpacing: 1 },
+  foundHint: { color: 'rgba(4,16,25,0.7)', fontSize: 12, fontFamily: fonts.black },
   skipButton: {
     flex: 1,
     minHeight: 92,
@@ -330,7 +330,7 @@ const local = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.cardAlt,
   },
-  skipText: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  skipHint: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+  skipText: { color: colors.text, fontSize: 18, fontFamily: fonts.black },
+  skipHint: { color: colors.muted, fontSize: 12, fontFamily: fonts.bold },
   pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
 });

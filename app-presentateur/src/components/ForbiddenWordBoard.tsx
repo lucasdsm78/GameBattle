@@ -18,15 +18,15 @@ export function ForbiddenWordBoard({ game }: Props) {
   const suddenDeath = game.sudden_death_round > 0;
   const seconds = Math.round(game.turn_duration_ms / 1000);
   const playedThisRound = new Set(game.turns.filter((turn) => turn.round === game.sudden_death_round).map((turn) => turn.team));
-  const suddenDeathLabel = `⚔️ Mort subite${game.sudden_death_round > 1 ? ` n°${game.sudden_death_round}` : ''}`;
+  const suddenDeathLabel = `Mort subite${game.sudden_death_round > 1 ? ` n°${game.sudden_death_round}` : ''}`;
 
   return (
     <section className="fw-layout">
-      <article className="glass-card fw-stage">
+      <article className="panel fw-stage">
         {game.phase === 'running' && currentTurn ? (
           <>
             <div className="fw-stage-header">
-              <span className="fw-live"><i aria-hidden="true" />{suddenDeath ? suddenDeathLabel : 'Live'}</span>
+              <span className="fw-live"><i aria-hidden="true" />{suddenDeath ? suddenDeathLabel : 'Chrono lancé'}</span>
               <span className="fw-team-badge">{currentTurn.team}</span>
             </div>
             <div className="fw-scoreline">
@@ -54,7 +54,7 @@ export function ForbiddenWordBoard({ game }: Props) {
             {lastTurn ? (
               <div className="fw-recap">
                 <p className="fw-recap-title">
-                  ⏱ Temps écoulé · <strong>{lastTurn.team}</strong> · {words(lastTurn.found_words.length)}
+                  Temps écoulé · <strong>{lastTurn.team}</strong> · {words(lastTurn.found_words.length)}
                 </p>
                 <WordFeed turn={lastTurn} />
               </div>
@@ -63,7 +63,7 @@ export function ForbiddenWordBoard({ game }: Props) {
         )}
       </article>
 
-      <aside className="glass-card fw-scores">
+      <aside className="panel fw-scores">
         <div className="section-row">
           <span className="section-chip">Tableau des scores</span>
           <strong className="progress-pill">{suddenDeath ? 'Mort subite' : `${game.turns.length}/${game.turn_order.length}`}</strong>

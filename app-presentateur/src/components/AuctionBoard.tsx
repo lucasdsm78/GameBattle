@@ -24,7 +24,7 @@ export function AuctionBoard({ gameConfig }: Props) {
 
   return (
     <section className="auction-layout">
-      <article className="glass-card auction-stage">
+      <article className="panel auction-stage">
         <p className="auction-kicker">
           {game.phase === 'bidding' ? 'Phase d’enchères' : game.phase === 'running' ? '30 secondes' : 'L’Enchère'}
         </p>
@@ -57,7 +57,7 @@ export function AuctionBoard({ gameConfig }: Props) {
         <p className="auction-instruction">{status}</p>
       </article>
 
-      <aside className="glass-card auction-scores">
+      <aside className="panel auction-scores">
         <div className="section-row">
           <span className="section-chip">Scores</span>
           <strong className="progress-pill">Objectif 20</strong>
@@ -72,7 +72,7 @@ export function AuctionBoard({ gameConfig }: Props) {
                 <span className="score-index">{index + 1}</span>
                 <span className="auction-score-team">
                   <strong>{team}</strong>
-                  <small>{hasBuzzed && game.phase === 'bidding' ? '⚡ A buzzé' : isActive ? 'Équipe en jeu' : ''}</small>
+                  <small>{hasBuzzed && game.phase === 'bidding' ? 'A buzzé' : isActive ? 'Équipe en jeu' : ''}</small>
                 </span>
                 <strong>{game.scores[team] ?? 0}</strong>
                 {points > 0 ? <span className="auction-points">+{points}</span> : null}

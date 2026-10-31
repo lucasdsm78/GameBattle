@@ -101,7 +101,7 @@ export function LiveScreen({
         <View style={styles.actionRowWrap}>
           {isPlaying ? (
             <Pressable style={[styles.primaryButtonCompact, styles.falseButton]} onPress={onPause}>
-              <Text style={styles.primaryButtonText}>⏸ Pause</Text>
+              <Text style={styles.primaryButtonText}>Pause</Text>
             </Pressable>
           ) : (
             <Pressable style={styles.primaryButtonCompact} onPress={onPlay}>
@@ -159,11 +159,11 @@ export function LiveScreen({
         </View>
         <Text style={styles.helperText}>
           {volumeButtonsActive
-            ? '🔊 Volume haut = Vrai puis Suivant après révélation · 🔉 Volume bas = Faux'
+            ? 'Volume + : Vrai, puis Suivant après révélation · Volume − : Faux'
             : 'Boutons volume inactifs (uniquement en APK / dev build). Utilise les boutons ci-dessus.'}
         </Text>
         {blindtest.winner_team ? (
-          <Text style={styles.winnerText}>🏆 Gagnant de la manche : {blindtest.winner_team}</Text>
+          <Text style={styles.winnerText}>Gagnant de la manche : {blindtest.winner_team}</Text>
         ) : null}
       </View>
     </>

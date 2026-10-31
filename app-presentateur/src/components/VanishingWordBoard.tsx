@@ -24,7 +24,7 @@ export function VanishingWordBoard({ game, teams }: Props) {
 
   return (
     <section className="race-layout">
-      <article className="glass-card race-stage">
+      <article className="panel race-stage">
         <p className="race-kicker">{KICKERS[game.phase]}</p>
 
         {game.phase === 'idle' ? (
@@ -41,7 +41,7 @@ export function VanishingWordBoard({ game, teams }: Props) {
         {hunting ? (
           <>
             {game.current_buzzer_team ? (
-              <p className="vw-claim" aria-live="assertive">🔔 {game.current_buzzer_team} a la main</p>
+              <p className="claim-banner" aria-live="assertive">{game.current_buzzer_team} a la main</p>
             ) : (
               <p className="race-instruction">Buzzez dès que vous avez trouvé le mot manquant.</p>
             )}

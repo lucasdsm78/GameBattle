@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, styles } from '../theme';
+import { colors, styles, fonts } from '../theme';
 
 export type ScoreHighlight = { team: string; tone: 'good' | 'bad' } | null;
 
@@ -56,13 +56,13 @@ export function RaceScoreCard({ teams, scores, goal, unit, highlight = null, win
 }
 
 const local = StyleSheet.create({
-  goal: { color: colors.accent, fontWeight: '900' },
-  rowBad: { backgroundColor: 'rgba(239,68,68,0.16)', borderColor: colors.danger },
+  goal: { color: colors.gold, fontFamily: fonts.black },
+  rowBad: { backgroundColor: 'rgba(255,61,94,0.16)', borderColor: colors.danger },
   team: { flex: 1, gap: 8 },
   dots: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.12)' },
-  dotFilled: { backgroundColor: colors.accent },
+  dotFilled: { backgroundColor: colors.gold },
   bar: { height: 8, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.12)' },
-  barFill: { height: '100%', borderRadius: 999, backgroundColor: colors.accent },
-  score: { color: colors.text, fontSize: 24, fontWeight: '900', minWidth: 28, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  barFill: { height: '100%', borderRadius: 999, backgroundColor: colors.gold },
+  score: { color: colors.text, fontSize: 24, fontFamily: fonts.black, minWidth: 28, textAlign: 'right', fontVariant: ['tabular-nums'] },
 });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, styles } from '../theme';
+import { colors, styles, fonts } from '../theme';
 import { GameConfigSnapshot } from '../types/gameConfig';
 
 type Props = {
@@ -73,7 +73,7 @@ export function SevenDifferencesLiveScreen({
           <Text style={styles.sectionTitle}>Prêt pour l’observation ?</Text>
           <Text style={styles.helperText}>L’image originale sera affichée pendant exactement 25 secondes.</Text>
           <Pressable style={styles.primaryButton} onPress={onStart}>
-            <Text style={styles.primaryButtonText}>👁️ Afficher l’image originale</Text>
+            <Text style={styles.primaryButtonText}>Afficher l’image originale</Text>
           </Pressable>
         </View>
       ) : null}
@@ -139,17 +139,17 @@ export function SevenDifferencesLiveScreen({
 }
 
 const localStyles = StyleSheet.create({
-  counter: { color: colors.accent, fontSize: 24, fontWeight: '900' },
+  counter: { color: colors.gold, fontSize: 24, fontFamily: fonts.black },
   teamGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   teamCard: { flexGrow: 1, flexBasis: '45%', padding: 14, borderRadius: 16, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
-  teamCardActive: { borderColor: colors.accent, backgroundColor: 'rgba(34,197,94,0.18)' },
+  teamCardActive: { borderColor: colors.gold, backgroundColor: 'rgba(255,198,41,0.18)' },
   teamCardBlocked: { borderColor: colors.danger, opacity: 0.55 },
-  teamName: { color: colors.text, fontWeight: '800' },
-  teamScore: { color: colors.accent, fontSize: 30, fontWeight: '900', marginVertical: 4 },
+  teamName: { color: colors.text, fontFamily: fonts.black },
+  teamScore: { color: colors.gold, fontSize: 30, fontFamily: fonts.black, marginVertical: 4 },
   teamHint: { color: colors.muted, fontSize: 12 },
   answer: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
-  answerFound: { backgroundColor: 'rgba(34,197,94,0.14)', borderColor: colors.accent },
-  answerNumber: { color: colors.accent, fontSize: 18, fontWeight: '900', width: 24, textAlign: 'center' },
-  answerText: { color: colors.text, flex: 1, fontWeight: '700', lineHeight: 20 },
+  answerFound: { backgroundColor: 'rgba(34,221,107,0.14)', borderColor: colors.accent },
+  answerNumber: { color: colors.accent, fontSize: 18, fontFamily: fonts.black, width: 24, textAlign: 'center' },
+  answerText: { color: colors.text, flex: 1, fontFamily: fonts.bold, lineHeight: 20 },
   answerTextFound: { color: colors.muted, textDecorationLine: 'line-through' },
 });

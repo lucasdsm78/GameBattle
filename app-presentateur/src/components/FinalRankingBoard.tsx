@@ -1,9 +1,12 @@
 import { GameConfigSnapshot } from '../types/gameConfig';
+import { ConnectionState, ShowHeader } from './ShowHeader';
 
 type Props = {
   gameConfig: GameConfigSnapshot;
-  connectionState: 'connecting' | 'connected' | 'disconnected';
+  connectionState: ConnectionState;
 };
+
+const rankLabel = (rank: number): string => (rank === 1 ? '1er' : `${rank}e`);
 
 export function FinalRankingBoard({ gameConfig, connectionState }: Props) {
   const session = gameConfig.session;
@@ -12,32 +15,22 @@ export function FinalRankingBoard({ gameConfig, connectionState }: Props) {
   const revealed = session.final_ranking.slice(0, session.ranking_reveal_count).reverse();
 
   return (
-    <main className="screen blindtest-screen">
-      <section className="hero glass-card">
-        <div>
-          <p className="eyebrow">Résultats</p>
-          <h1>Classement final</h1>
-          <p className="meta">
-            <span>{gameConfig.settings.game_title}</span>
-            <span>•</span>
-            <span>{session.total_rounds} manches</span>
-          </p>
-        </div>
-        <div className="hero-aside">
-          <div className={`badge badge-${connectionState}`}>{connectionState}</div>
-        </div>
-      </section>
+    <main className="screen ranking-screen">
+      <ShowHeader
+        gameConfig={gameConfig}
+        connectionState={connectionState}
+        gameLabel="Classement final"
+        detail={`${session.total_rounds} manche${session.total_rounds > 1 ? 's' : ''}`}
+      />
 
-      <section className="ranking-board glass-card">
-        {revealed.length === 0 ? (
-          <p className="chrono-state">Révélation en attente… (le présentateur appuie sur « Suivant »)</p>
-        ) : null}
+      <section className="panel ranking-board">
+        {revealed.length === 0 ? <p className="race-instruction">Roulement de tambour… le classement arrive.</p> : null}
         {revealed.map((entry) => (
           <div key={entry.team} className={`ranking-row ${entry.rank === 1 ? 'ranking-row-winner' : ''}`}>
-            <span className="ranking-rank">{entry.rank === 1 ? '🏆' : `${entry.rank}e`}</span>
+            <span className="ranking-rank">{rankLabel(entry.rank)}</span>
             <span className="ranking-team">{entry.team}</span>
             <span className="ranking-score">
-              {entry.manches_won} manche{entry.manches_won > 1 ? 's' : ''}
+              {entry.manches_won} manche{entry.manches_won > 1 ? 's' : ''} gagnée{entry.manches_won > 1 ? 's' : ''}
             </span>
           </div>
         ))}

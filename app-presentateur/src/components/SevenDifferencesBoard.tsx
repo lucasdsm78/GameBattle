@@ -34,8 +34,8 @@ export function SevenDifferencesBoard({ gameConfig, onOpen }: Props) {
 
   if (game.phase === 'idle') {
     return (
-      <section className="seven-waiting glass-card">
-        <span className="seven-eye" aria-hidden="true">👁️</span>
+      <section className="seven-waiting panel">
+        <span className="big-badge" aria-hidden="true">7</span>
         <h2>Préparez-vous à observer</h2>
         <p>L’image originale apparaîtra pendant 25 secondes.</p>
       </section>
@@ -44,7 +44,7 @@ export function SevenDifferencesBoard({ gameConfig, onOpen }: Props) {
 
   return (
     <section className="seven-layout">
-      <article className="seven-image-card glass-card">
+      <article className="seven-image-card panel">
         <div className="seven-image-heading">
           <div>
             <p className="section-chip">{isMemorizing ? 'Image originale' : 'Image modifiée'}</p>
@@ -81,7 +81,7 @@ export function SevenDifferencesBoard({ gameConfig, onOpen }: Props) {
         </div>
       </article>
 
-      <aside className="seven-scoreboard glass-card">
+      <aside className="seven-scoreboard panel">
         <div className="section-row">
           <span className="section-chip">Classement</span>
           <strong className="progress-pill">{foundCount}/7</strong>

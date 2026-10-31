@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { Anton_400Regular } from '@expo-google-fonts/anton';
+import {
+  BarlowSemiCondensed_600SemiBold,
+  BarlowSemiCondensed_700Bold,
+  BarlowSemiCondensed_800ExtraBold,
+} from '@expo-google-fonts/barlow-semi-condensed';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { GameConfigControllerSocket } from './src/services/realtime/gameConfigControllerSocket';
 import { useGameConfigStore } from './src/store/gameConfigStore';
@@ -28,6 +35,13 @@ type Step = 'config' | 'launching' | 'playlist' | 'live';
 export default function App() {
   const { draft, remoteSnapshot, connectionState, errorMessage, setDraft, setRemoteSnapshot, setConnectionState, setErrorMessage } =
     useGameConfigStore();
+  // Polices embarquées dans l'app (aucun téléchargement) : l'affichage attend leur chargement, quasi instantané.
+  const [fontsLoaded] = useFonts({
+    Anton_400Regular,
+    BarlowSemiCondensed_600SemiBold,
+    BarlowSemiCondensed_700Bold,
+    BarlowSemiCondensed_800ExtraBold,
+  });
   // On démarre toujours sur l'écran de configuration.
   const [step, setStep] = useState<Step>('config');
 
@@ -63,6 +77,10 @@ export default function App() {
   const memory = activeGameKey === 'memory' ? session?.memory : undefined;
   const forbiddenWordCard =
     activeGameKey === 'forbidden_word' && session?.forbidden_word.phase === 'running' ? session.forbidden_word.current_card : null;
+
+  if (!fontsLoaded) {
+    return <View style={styles.safeArea} />;
+  }
 
   return (
     <SafeAreaProvider>
@@ -269,7 +287,7 @@ export default function App() {
                 disabled={!memory.current_question}
               >
                 <Text style={styles.primaryButtonText}>
-                  {memory.turn_number === memory.chain_length ? '🎙 Passer à la récitation' : 'Question suivante →'}
+                  {memory.turn_number === memory.chain_length ? 'Passer à la récitation' : 'Question suivante →'}
                 </Text>
               </Pressable>
             </>

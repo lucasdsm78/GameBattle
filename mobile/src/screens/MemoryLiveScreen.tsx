@@ -37,7 +37,7 @@ export function MemoryLiveScreen({
         <View style={styles.memoryCard}>
           <Text style={styles.memoryInstruction}>Une équipe de départ sera tirée au hasard.</Text>
           <Pressable style={styles.primaryButton} onPress={onStart}>
-            <Text style={styles.primaryButtonText}>🧠 Commencer</Text>
+            <Text style={styles.primaryButtonText}>Commencer</Text>
           </Pressable>
         </View>
       ) : null}
@@ -69,7 +69,7 @@ export function MemoryLiveScreen({
 
           {memory.phase === 'recitation' ? (
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>🎙 {currentTeam} récite maintenant les 8 réponses</Text>
+              <Text style={styles.sectionTitle}>{currentTeam} récite maintenant les 8 réponses</Text>
               <Text style={styles.helperText}>Vérifiez que toutes les réponses sont données dans l’ordre exact.</Text>
             </View>
           ) : null}
@@ -92,7 +92,7 @@ export function MemoryLiveScreen({
 
       {memory.phase === 'finished' ? (
         <View style={styles.memoryCard}>
-          <Text style={styles.memoryWinner}>🏆 {memory.winner_team}</Text>
+          <Text style={styles.memoryWinner}>{memory.winner_team}</Text>
           <Text style={styles.memoryInstruction}>Dernière équipe encore qualifiée</Text>
         </View>
       ) : null}

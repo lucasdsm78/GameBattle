@@ -10,7 +10,7 @@ type Props = {
 const turnBanner = (game: GoldenFamilyState): string => {
   switch (game.phase) {
     case 'faceoff':
-      return '🔔 Face-à-face : buzzez !';
+      return 'Face-à-face : buzzez !';
     case 'duel':
       return `Face-à-face · ${game.current_team} répond`;
     case 'control':
@@ -33,11 +33,12 @@ export function GoldenFamilyBoard({ game, teams }: Props) {
 
   return (
     <section className="race-layout">
-      <article className="glass-card race-stage gf-stage">
-        <div className="stream-topline">
-          <p className="race-kicker gf-kicker">Une famille en or</p>
-          {game.question_number > 0 ? <span className="gf-pill">Question {game.question_number}</span> : null}
-        </div>
+      <article className="panel race-stage gf-stage">
+        {game.question_number > 0 ? (
+          <div className="stream-topline">
+            <span className="tag-dark">Question {game.question_number}</span>
+          </div>
+        ) : null}
 
         {game.phase === 'idle' || !question ? (
           <ul className="stream-rules">

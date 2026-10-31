@@ -24,7 +24,7 @@ export function MemoryBoard({ memory, teams }: Props) {
 
       {memory.phase === 'idle' ? (
         <div className="memory-question-card memory-waiting">
-          <span className="memory-brain">🧠</span>
+          <span className="big-badge" aria-hidden="true">{memory.chain_length}</span>
           <h3>Préparez votre mémoire</h3>
           <p>L’équipe de départ sera tirée au hasard.</p>
         </div>
@@ -34,13 +34,13 @@ export function MemoryBoard({ memory, teams }: Props) {
         <div className="memory-question-card">
           <span className="memory-turn">Question {memory.turn_number} sur {memory.chain_length}</span>
           <p>{memory.current_question.question}</p>
-          <div className="memory-secret">🔒 Réponse visible uniquement par le présentateur</div>
+          <div className="memory-secret">Réponse visible uniquement par le présentateur</div>
         </div>
       ) : null}
 
       {memory.phase === 'recitation' ? (
         <div className="memory-question-card memory-recitation-card">
-          <span className="memory-brain">🎙</span>
+          <span className="big-badge" aria-hidden="true">{memory.chain_length}</span>
           <h3>À vous de réciter</h3>
           <p>{currentTeam} doit donner les 8 réponses dans l’ordre exact.</p>
         </div>
@@ -48,7 +48,7 @@ export function MemoryBoard({ memory, teams }: Props) {
 
       {memory.phase === 'finished' ? (
         <div className="memory-question-card memory-winner-card">
-          <span>🏆 Vainqueur</span>
+          <span>Vainqueur</span>
           <p>{memory.winner_team}</p>
         </div>
       ) : null}

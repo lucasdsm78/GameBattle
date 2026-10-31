@@ -13,6 +13,7 @@ import { FlashCalcBoard } from './FlashCalcBoard';
 import { RightFlagBoard } from './RightFlagBoard';
 import { GoldenFamilyBoard } from './GoldenFamilyBoard';
 import { GameScreen } from './GameScreen';
+import { BlindtestBoard } from './BlindtestBoard';
 
 type Props = {
   gameConfig: GameConfigSnapshot | null;
@@ -287,11 +288,13 @@ export function DisplayBoard({
   if (!gameConfig) {
     return (
       <main className="screen empty-state">
-        <div className="glass-card waiting-card">
-          <p className="eyebrow">GameBattle Live Sync</p>
-          <h1>Connexion à la partie…</h1>
-          <p>Le présentateur prépare la soirée. L’écran se synchronisera automatiquement.</p>
-          <div className={`badge badge-${connectionState}`}>{connectionState}</div>
+        <div className="panel waiting-card">
+          <div className="show-logo show-logo-large" aria-label="GameBattle">
+            <span>Game</span>
+            <b>Battle</b>
+          </div>
+          <h1>{connectionState === 'disconnected' ? 'Connexion perdue' : 'Le plateau se prépare…'}</h1>
+          <p>Le présentateur prépare la soirée : l’écran se synchronisera automatiquement.</p>
           {errorMessage ? <p className="inline-error">{errorMessage}</p> : null}
         </div>
       </main>
@@ -302,166 +305,54 @@ export function DisplayBoard({
     return <FinalRankingBoard gameConfig={gameConfig} connectionState={connectionState} />;
   }
 
+  const screen = { gameConfig, connectionState, errorMessage };
+  const teamsOfGame = gameConfig.settings.teams;
+
   if (activeGameKey === 'stopchrono') {
     const chrono = gameConfig.session.stopchrono;
-    const recap = gameConfig.settings.teams
-      .map((team) => `${team} : ${((chrono.results[team] ?? 0) / 1000).toFixed(2)}s`)
-      .join('   •   ');
     return (
-      <>
-        <main className="screen blindtest-screen">
-          <section className="hero glass-card">
-            <div>
-              <p className="eyebrow">Stop Chrono live</p>
-              <h1>{gameConfig.settings.game_title}</h1>
-              <p className="meta">
-                <span>Cible {chrono.target_seconds}s</span>
-                <span>•</span>
-                <span>{gameConfig.settings.teams.length} équipes</span>
-                <span>•</span>
-                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
-              </p>
-            </div>
-            <div className="hero-aside">
-              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
-              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
-            </div>
-          </section>
-
-          <StopChronoBoard gameConfig={gameConfig} />
-
-          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
-        </main>
-
-        {chrono.winner_team ? (
-          <div className="winner-overlay">
-            {chrono.winner_team === 'Égalité' ? (
-              <>
-                <p className="winner-eyebrow">Manche terminée</p>
-                <p className="winner-name">Égalité&nbsp;!</p>
-              </>
-            ) : (
-              <>
-                <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
-                <p className="winner-name">{chrono.winner_team}</p>
-              </>
-            )}
-            <p className="winner-sub">{recap}</p>
-          </div>
-        ) : null}
-      </>
+      <GameScreen
+        {...screen}
+        gameLabel="Stop Chrono"
+        detail={`Tour ${chrono.round_number}/${chrono.rounds_total}`}
+        className="chrono-screen"
+        winnerTeam={chrono.winner_team}
+        recap={teamsOfGame.map((team) => `${team} ${((chrono.total_errors_ms[team] ?? 0) / 1000).toFixed(2)} s`).join('  ·  ')}
+      >
+        <StopChronoBoard gameConfig={gameConfig} />
+      </GameScreen>
     );
   }
 
   if (activeGameKey === 'culture') {
     const culture = gameConfig.session.culture;
-    const recap = gameConfig.settings.teams.map((team) => `${team} : ${culture.scores[team] ?? 0}`).join('   •   ');
     return (
-      <>
-        <main className="screen blindtest-screen">
-          <section className="hero glass-card">
-            <div>
-              <p className="eyebrow">Culture générale</p>
-              <h1>{gameConfig.settings.game_title}</h1>
-              <p className="meta">
-                <span>{gameConfig.settings.teams.length} équipes</span>
-                <span>•</span>
-                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
-              </p>
-            </div>
-            <div className="hero-aside">
-              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
-              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
-            </div>
-          </section>
-
-          <CultureBoard gameConfig={gameConfig} />
-
-          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
-        </main>
-
-        {culture.winner_team ? (
-          <div className="winner-overlay">
-            {culture.winner_team === 'Égalité' ? (
-              <>
-                <p className="winner-eyebrow">Manche terminée</p>
-                <p className="winner-name">Égalité&nbsp;!</p>
-              </>
-            ) : (
-              <>
-                <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
-                <p className="winner-name">{culture.winner_team}</p>
-              </>
-            )}
-            <p className="winner-sub">{recap}</p>
-          </div>
-        ) : null}
-      </>
+      <GameScreen {...screen} gameLabel="Culture générale" className="culture-screen" winnerTeam={culture.winner_team} scores={culture.scores}>
+        <CultureBoard gameConfig={gameConfig} />
+      </GameScreen>
     );
   }
 
   if (activeGameKey === 'bombe') {
     return (
-      <>
-        <main className="screen blindtest-screen">
-          <section className="hero glass-card">
-            <div>
-              <p className="eyebrow">La Bombe</p>
-              <h1>{gameConfig.settings.game_title}</h1>
-              <p className="meta">
-                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
-                <span>•</span>
-                <span>{gameConfig.settings.teams.length} équipes</span>
-              </p>
-            </div>
-            <div className="hero-aside">
-              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
-            </div>
-          </section>
-          <BombeBoard
-            gameConfig={gameConfig}
-            onBeginAfterRoll={onBombeBeginAfterRoll}
-            onExplode={onBombeExplode}
-          />
-          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
-        </main>
-      </>
+      <GameScreen {...screen} gameLabel="La Bombe" className="bombe-screen" winnerTeam={null}>
+        <BombeBoard gameConfig={gameConfig} onBeginAfterRoll={onBombeBeginAfterRoll} onExplode={onBombeExplode} />
+      </GameScreen>
     );
   }
 
   if (activeGameKey === 'memory') {
     const memory = gameConfig.session.memory;
     return (
-      <>
-        <main className="screen memory-screen">
-          <section className="hero glass-card">
-            <div>
-              <p className="eyebrow">Mémoire en chaîne</p>
-              <h1>{gameConfig.settings.game_title}</h1>
-              <p className="meta">
-                <span>{gameConfig.session.active_round?.label ?? 'En attente'}</span>
-                <span>•</span>
-                <span>{gameConfig.settings.teams.length} équipes</span>
-              </p>
-            </div>
-            <div className="hero-aside">
-              <div className={`badge badge-${connectionState}`}>{connectionState}</div>
-              <div className={`badge badge-status badge-${gameConfig.status}`}>{gameConfig.status}</div>
-            </div>
-          </section>
-
-          <MemoryBoard memory={memory} teams={gameConfig.settings.teams} />
-          {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
-        </main>
-
-        {memory.winner_team ? (
-          <div className="winner-overlay">
-            <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
-            <p className="winner-name">{memory.winner_team}</p>
-            <p className="winner-sub">Dernière équipe encore qualifiée</p>
-          </div>
-        ) : null}
-      </>
+      <GameScreen
+        {...screen}
+        gameLabel="Mémoire en chaîne"
+        className="memory-screen"
+        winnerTeam={memory.winner_team}
+        recap="Dernière équipe encore qualifiée"
+      >
+        <MemoryBoard memory={memory} teams={teamsOfGame} />
+      </GameScreen>
     );
   }
 
@@ -469,10 +360,8 @@ export function DisplayBoard({
     const game = gameConfig.session.seven_differences;
     return (
       <GameScreen
-        gameConfig={gameConfig}
-        connectionState={connectionState}
-        errorMessage={errorMessage}
-        eyebrow="Les 7 différences"
+        {...screen}
+        gameLabel="Les 7 différences"
         className="seven-screen"
         winnerTeam={game.winner_team}
         scores={game.scores}
@@ -486,10 +375,9 @@ export function DisplayBoard({
     const game = gameConfig.session.auction;
     return (
       <GameScreen
-        gameConfig={gameConfig}
-        connectionState={connectionState}
-        errorMessage={errorMessage}
-        eyebrow="L’Enchère · première équipe à 20"
+        {...screen}
+        gameLabel="L’Enchère"
+        detail="Première équipe à 20"
         className="auction-screen"
         winnerTeam={game.winner_team}
         scores={game.scores}
@@ -503,10 +391,9 @@ export function DisplayBoard({
     const game = gameConfig.session.vanishing_word;
     return (
       <GameScreen
-        gameConfig={gameConfig}
-        connectionState={connectionState}
-        errorMessage={errorMessage}
-        eyebrow={`Le mot qui disparaît · premier à ${game.winning_score}`}
+        {...screen}
+        gameLabel="Le mot qui disparaît"
+        detail={`Premier à ${game.winning_score}`}
         className="vw-screen"
         winnerTeam={game.winner_team}
         scores={game.scores}
@@ -520,10 +407,9 @@ export function DisplayBoard({
     const game = gameConfig.session.flash_calc;
     return (
       <GameScreen
-        gameConfig={gameConfig}
-        connectionState={connectionState}
-        errorMessage={errorMessage}
-        eyebrow={`Calcul flash · premier à ${game.winning_score}`}
+        {...screen}
+        gameLabel="Calcul flash"
+        detail={`Premier à ${game.winning_score}`}
         className="fc-screen"
         winnerTeam={game.winner_team}
         scores={game.scores}
@@ -537,10 +423,9 @@ export function DisplayBoard({
     const game = gameConfig.session.right_flag;
     return (
       <GameScreen
-        gameConfig={gameConfig}
-        connectionState={connectionState}
-        errorMessage={errorMessage}
-        eyebrow={`Le bon drapeau · premier à ${game.winning_score}`}
+        {...screen}
+        gameLabel="Le bon drapeau"
+        detail={`Premier à ${game.winning_score}`}
         className="rf-screen"
         winnerTeam={game.winner_team}
         scores={game.scores}
@@ -554,10 +439,9 @@ export function DisplayBoard({
     const game = gameConfig.session.golden_family;
     return (
       <GameScreen
-        gameConfig={gameConfig}
-        connectionState={connectionState}
-        errorMessage={errorMessage}
-        eyebrow={`Une famille en or · premier à ${game.winning_score}`}
+        {...screen}
+        gameLabel="Une famille en or"
+        detail={`Premier à ${game.winning_score}`}
         className="gf-screen"
         winnerTeam={game.winner_team}
         scores={game.scores}
@@ -571,10 +455,9 @@ export function DisplayBoard({
     const game = gameConfig.session.forbidden_word;
     return (
       <GameScreen
-        gameConfig={gameConfig}
-        connectionState={connectionState}
-        errorMessage={errorMessage}
-        eyebrow="Le mot interdit · 60 s par équipe"
+        {...screen}
+        gameLabel="Le mot interdit"
+        detail={game.sudden_death_round ? 'Mort subite' : '60 s par équipe'}
         className="fw-screen"
         winnerTeam={game.winner_team}
         scores={game.scores}
@@ -584,152 +467,13 @@ export function DisplayBoard({
     );
   }
 
-  const { settings, session, status, updated_at } = gameConfig;
-  const { blindtest, active_round } = session;
-  const currentTrack = blindtest.current_track;
-  const progressLabel = `${blindtest.current_track_index}/${Math.max(blindtest.total_tracks, 1)}`;
-  const teams = settings.teams;
-  const buzzerKeys = settings.buzzer_keys?.length ? settings.buzzer_keys : KEYBOARD_BINDINGS.slice(0, teams.length);
-  const keyboardHints = teams.map((team, index) => `${(buzzerKeys[index] ?? '?').toUpperCase()} → ${team}`);
-
+  const blindtest = gameConfig.session.blindtest;
+  const buzzerKeys = gameConfig.settings.buzzer_keys?.length
+    ? gameConfig.settings.buzzer_keys
+    : KEYBOARD_BINDINGS.slice(0, teamsOfGame.length);
   return (
-    <>
-      <main className="screen blindtest-screen">
-      <section className="hero glass-card">
-        <div>
-          <p className="eyebrow">Live</p>
-          <h1>{settings.game_title}</h1>
-          <p className="meta">
-            <span>Mode {settings.random_round_order ? 'aléatoire' : 'manuel'}</span>
-            <span>•</span>
-            <span>{teams.length} équipes</span>
-            <span>•</span>
-            <span>{active_round?.label ?? 'En attente de validation'}</span>
-          </p>
-        </div>
-        <div className="hero-aside">
-          <div className={`badge badge-${connectionState}`}>{connectionState}</div>
-          <div className={`badge badge-status badge-${status}`}>{status}</div>
-          <p className="timestamp">Mis à jour : {new Date(updated_at).toLocaleString('fr-FR')}</p>
-        </div>
-      </section>
-
-      <section className="blindtest-layout">
-        <article className="glass-card now-playing-card">
-          <div className="section-row">
-            <span className="section-chip">Musique en cours</span>
-            <strong className="progress-pill">{progressLabel}</strong>
-          </div>
-
-          <div className="track-visual">
-            <div className="artwork-placeholder">
-              {blindtest.revealed && currentTrack?.artwork_url ? (
-                <img src={currentTrack.artwork_url} alt={currentTrack.title} />
-              ) : (
-                <span>♪</span>
-              )}
-            </div>
-            <div>
-              <p className="muted-label">Titre</p>
-              <h2>{blindtest.revealed && currentTrack ? currentTrack.title : 'Titre masqué'}</h2>
-              <p className="muted-label">Artiste</p>
-              <p className="track-subtitle">{blindtest.revealed && currentTrack ? currentTrack.artist : 'Artiste masqué'}</p>
-            </div>
-          </div>
-
-          <div className="playback-grid">
-            <div>
-              <span>Lecture</span>
-              <strong>{blindtest.playback_state}</strong>
-            </div>
-            <div>
-              <span>Reste</span>
-              <strong>{blindtest.tracks_remaining}</strong>
-            </div>
-            <div>
-              <span>Buzzer</span>
-              <strong>{blindtest.current_buzzer_team ?? '—'}</strong>
-            </div>
-          </div>
-
-          {blindtest.playlist_name ? (
-            <div className="playlist-meta-card">
-              <span>Playlist</span>
-              <strong>{blindtest.playlist_name}</strong>
-              <p>
-                Source {blindtest.playlist_provider || 'manual'}
-                {blindtest.playlist_source_url ? (
-                  <>
-                    {' '}
-                    •{' '}
-                    <a href={blindtest.playlist_source_url} target="_blank" rel="noreferrer">
-                      ouvrir
-                    </a>
-                  </>
-                ) : null}
-              </p>
-            </div>
-          ) : null}
-        </article>
-
-        <aside className="side-column">
-          <article className="glass-card score-card">
-            <div className="section-row">
-              <span className="section-chip">Score blindtest</span>
-              <span className="muted-copy">10 musiques max</span>
-            </div>
-            <div className="score-list">
-              {teams.map((team, index) => (
-                <button
-                  key={team}
-                  type="button"
-                  className={`score-item ${blindtest.current_buzzer_team === team ? 'score-item-active' : ''}`}
-                  onClick={() => onBuzz(team)}
-                >
-                  <span className="score-index">{index + 1}</span>
-                  <span className="score-team-wrap">
-                    <span className="score-team">{team}</span>
-                    <span className="score-key">{(buzzerKeys[index] ?? '?').toUpperCase()}</span>
-                  </span>
-                  <strong>{blindtest.scores[team] ?? 0}</strong>
-                </button>
-              ))}
-            </div>
-          </article>
-
-          <article className="glass-card hints-card">
-            <p className="section-chip">Clavier Mac / PC / USB</p>
-            <ul>
-              {keyboardHints.map((hint) => (
-                <li key={hint}>{hint}</li>
-              ))}
-            </ul>
-            {blindtest.winner_team ? <p className="winner-banner">Vainqueur : {blindtest.winner_team}</p> : null}
-          </article>
-        </aside>
-      </section>
-
-      {errorMessage ? <div className="error-banner glass-card">{errorMessage}</div> : null}
-      </main>
-
-      {blindtest.winner_team ? (
-        <div className="winner-overlay">
-          {blindtest.winner_team === 'Égalité' ? (
-            <>
-              <p className="winner-eyebrow">Manche terminée</p>
-              <p className="winner-name">Égalité&nbsp;!</p>
-            </>
-          ) : (
-            <>
-              <p className="winner-eyebrow">🏆 Vainqueur de la manche</p>
-              <p className="winner-name">{blindtest.winner_team}</p>
-            </>
-          )}
-          <p className="winner-sub">
-            {teams.map((team) => `${team} : ${blindtest.scores[team] ?? 0}`).join('   •   ')}
-          </p>
-        </div>
-      ) : null}
-    </>
+    <GameScreen {...screen} gameLabel="Blindtest" className="blindtest-screen" winnerTeam={blindtest.winner_team} scores={blindtest.scores}>
+      <BlindtestBoard gameConfig={gameConfig} buzzerKeys={buzzerKeys} />
+    </GameScreen>
   );
 }
