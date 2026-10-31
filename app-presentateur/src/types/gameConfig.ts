@@ -190,6 +190,7 @@ export type ForbiddenWordTurn = {
   team: string;
   found_words: string[];
   skipped_words: string[];
+  round: number; // 0 : la manche ; 1, 2… : les tours de mort subite
 };
 
 // Tant que le mot n'est pas révélé, `words` est vide et `vanished_word` vaut "" côté écran public.
@@ -299,6 +300,9 @@ export type ForbiddenWordState = {
   deadline_at_ms: number;
   turn_duration_ms: number;
   scores: Record<string, number>;
+  // Égalité en tête : les équipes concernées rejouent 20 s chacune, jusqu'à les départager.
+  sudden_death_round: number;
+  sudden_death_teams: string[];
   winner_team: string | null;
 };
 

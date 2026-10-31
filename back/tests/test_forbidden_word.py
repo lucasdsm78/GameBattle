@@ -12,7 +12,10 @@ from application.forbidden_word.forbidden_word_commands import ForbiddenWordCard
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
 from domain.forbidden_word.models.forbidden_word_card import ForbiddenWordTurn
-from domain.forbidden_word.models.forbidden_word_state import FORBIDDEN_WORD_TURN_MS
+from domain.forbidden_word.models.forbidden_word_state import (
+    FORBIDDEN_WORD_SUDDEN_DEATH_MS,
+    FORBIDDEN_WORD_TURN_MS,
+)
 from domain.forbidden_word.services.forbidden_word_catalog import FORBIDDEN_WORD_CARDS
 from domain.game_night.models.game_config import GameConfig, build_default_game_config
 from domain.shared.services.scoring import TIE_LABEL
@@ -151,12 +154,87 @@ def test_deadline_hands_over_to_the_next_team_then_finishes_the_manche() -> None
     assert current.expire_due_deadline(10**12) is current
 
 
-def test_equal_best_scores_end_in_a_tie() -> None:
-    current = _forbidden_word_config(teams=["Rouges", "Bleus"])
-    current = _play_turn(current, found=3, start_ms=1_000)
-    current = _play_turn(current, found=3, start_ms=100_000)
-    assert current.session.forbidden_word.winner_team == TIE_LABEL
-    assert current.session.manche_winner == TIE_LABEL
+def _tied_manche(found: dict[str, int]) -> GameConfig:
+    """Joue la manche : chaque équipe fait deviner `found[équipe]` mots."""
+    current = _forbidden_word_config(teams=list(found))
+    for index, team in enumerate(current.session.forbidden_word.turn_order):
+        current = _play_turn(current, found=found[team], start_ms=1_000_000 * (index + 1))
+    return current
+
+
+def test_a_tie_for_first_place_starts_a_twenty_second_sudden_death() -> None:
+    tied = _tied_manche({"Rouges": 3, "Bleus": 3, "Verts": 1})
+    game = tied.session.forbidden_word
+
+    assert game.phase == "ready" and game.winner_team is None and not tied.session.manche_finished
+    assert game.sudden_death_round == 1
+    assert game.sudden_death_teams == [team for team in game.turn_order if team != "Verts"]
+    assert game.current_team == game.sudden_death_teams[0]
+
+    running = tied.start_forbidden_word_turn(50_000_000).session.forbidden_word
+    assert running.deadline_at_ms - running.started_at_ms == FORBIDDEN_WORD_SUDDEN_DEATH_MS
+    assert running.turns[-1].round == 1 and running.turns[-1].team == game.sudden_death_teams[0]
+
+
+def test_the_team_that_finds_more_in_sudden_death_wins() -> None:
+    tied = _tied_manche({"Rouges": 3, "Bleus": 3})
+    first, second = tied.session.forbidden_word.sudden_death_teams
+    current = _play_turn(tied, found=2, start_ms=50_000_000)
+    current = _play_turn(current, found=1, start_ms=60_000_000)
+    game = current.session.forbidden_word
+
+    assert game.phase == "finished" and game.winner_team == first
+    assert game.scores(["Rouges", "Bleus"]) == {first: 5, second: 4}
+    assert current.session.manche_winner == first
+
+
+def test_a_new_tie_replays_the_sudden_death() -> None:
+    tied = _tied_manche({"Rouges": 2, "Bleus": 2})
+    current = _play_turn(_play_turn(tied, found=1, start_ms=50_000_000), found=1, start_ms=60_000_000)
+    game = current.session.forbidden_word
+
+    assert game.phase == "ready" and game.sudden_death_round == 2 and game.winner_team is None
+    assert game.current_team == game.sudden_death_teams[0]
+
+
+def test_only_the_tied_teams_play_the_sudden_death() -> None:
+    tied = _tied_manche({"Rouges": 4, "Bleus": 4, "Verts": 4})
+    assert tied.session.forbidden_word.sudden_death_teams == tied.session.forbidden_word.turn_order
+
+    leaders = _tied_manche({"Rouges": 1, "Bleus": 4, "Verts": 4}).session.forbidden_word.sudden_death_teams
+    assert sorted(leaders) == ["Bleus", "Verts"]
+
+
+def test_the_sudden_death_is_shown_with_its_shorter_timer() -> None:
+    tied = _tied_manche({"Rouges": 3, "Bleus": 3})
+    controller, display = present_game_config(tied.start_forbidden_word_turn(50_000_000))
+
+    for view in (controller, display):
+        payload = view["session"]["forbidden_word"]
+        assert payload["sudden_death_round"] == 1 and payload["turn_duration_ms"] == FORBIDDEN_WORD_SUDDEN_DEATH_MS
+
+
+def test_tampered_sudden_deaths_are_rejected() -> None:
+    tied = _tied_manche({"Rouges": 3, "Bleus": 3, "Verts": 1})
+    game = tied.session.forbidden_word
+
+    for tampered in (
+        replace(game, sudden_death_teams=game.sudden_death_teams[:1]),
+        replace(game, sudden_death_teams=["Rouges", "Jaunes"]),
+        replace(game, sudden_death_round=0),
+    ):
+        with pytest.raises(InvalidGameConfigError, match="mort subite|ordre de passage"):
+            tied._replace_session(forbidden_word=tampered).validate()
+
+
+def test_a_tie_saved_before_the_sudden_death_rule_still_loads() -> None:
+    finished = _tied_manche({"Rouges": 3, "Bleus": 1})
+    game = finished.session.forbidden_word
+    # Ancienne règle : une égalité terminait la manche sur « Égalité ».
+    equal = [replace(turn, found_words=["Mot", "Mot", "Mot"]) for turn in game.turns]
+    legacy = replace(game, turns=equal, winner_team=TIE_LABEL)
+
+    finished._replace_session(forbidden_word=legacy).validate()
 
 
 def test_draws_restart_a_cycle_when_the_catalog_is_exhausted() -> None:

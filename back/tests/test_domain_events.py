@@ -7,7 +7,13 @@ from application.shared.snapshot import serialize_event
 from domain.auction.events import AuctionResolved, BidAccepted
 from domain.blindtest.models.blindtest_track import build_blindtest_track
 from domain.bombe.events import BombeArmed, BombeDieRolling, BombeExploded, BombePassed
-from domain.forbidden_word.events import TurnEnded, TurnStarted, WordFound, WordSkipped
+from domain.forbidden_word.events import (
+    SuddenDeathStarted,
+    TurnEnded,
+    TurnStarted,
+    WordFound,
+    WordSkipped,
+)
 from domain.forbidden_word.models.forbidden_word_state import FORBIDDEN_WORD_TURN_MS
 from domain.game_night.events import (
     GameNightFinished,
@@ -91,10 +97,13 @@ def test_manche_end_next_manche_and_final_ranking_are_announced() -> None:
     assert fresh(winner).reveal_next_ranking().pending_events == ()
 
 
-def test_a_tie_is_announced_as_such() -> None:
-    finished = _finish_forbidden_word_manche(fresh(started_config("forbidden_word", teams=TWO_TEAMS)), scorer=None)
+def test_a_tie_starts_a_sudden_death_instead_of_ending_the_manche() -> None:
+    config = fresh(started_config("forbidden_word", teams=TWO_TEAMS))
+    tied = _finish_forbidden_word_manche(config, scorer=None)
 
-    assert finished.pending_events[-1] == MancheFinished(number=1, game_key="forbidden_word", winner="Égalité")
+    order = tuple(config.session.forbidden_word.turn_order)
+    assert tied.pending_events[-1] == SuddenDeathStarted(1, order)
+    assert not tied.session.manche_finished
 
 
 # --- Événements propres à chaque jeu

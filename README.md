@@ -303,7 +303,8 @@ Le présentateur passe le téléphone à l’orateur de l’équipe, qui lance l
 affiche le mot à faire deviner et ses 3 à 5 mots interdits. Quand son équipe trouve, l’orateur appuie
 sur **TROUVÉ** (ou **Volume +**) ; **Passer** (ou **Volume −**) change de mot sans point. Le chrono est
 arbitré par le serveur, l’écran public n’affiche jamais le mot en cours (seulement l’équipe, le temps
-et les mots déjà trouvés) et l’équipe qui a fait deviner le plus de mots remporte la manche. L’écran
+et les mots déjà trouvés) et l’équipe qui a fait deviner le plus de mots remporte la manche. En cas d’égalité en tête, les équipes
+concernées rejouent 20 secondes chacune (mort subite), autant de fois qu’il le faut pour les départager. L’écran
 du téléphone reste allumé pendant le tour. Le catalogue de cartes se trouve dans
 `back/domain/forbidden_word/services/forbidden_word_catalog.py`.
 
