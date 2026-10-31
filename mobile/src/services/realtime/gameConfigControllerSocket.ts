@@ -399,6 +399,10 @@ export class GameConfigControllerSocket {
     this.sendMessage({ type: 'game.next-manche' });
   }
 
+  skipOpening(): void {
+    this.sendMessage({ type: 'game.skip-opening' });
+  }
+
   revealNextRanking(): void {
     this.sendMessage({ type: 'ranking.reveal-next' });
   }

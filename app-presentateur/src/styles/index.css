@@ -2268,6 +2268,201 @@ button {
   }
 }
 
+/* --- Ouverture : entrée des équipes et écran des règles --- */
+.opening-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 48px);
+  background:
+    radial-gradient(45% 60% at 50% 30%, rgba(255, 46, 136, 0.28), transparent 70%),
+    radial-gradient(70% 40% at 50% 110%, rgba(255, 198, 41, 0.22), transparent 70%),
+    rgba(9, 5, 26, 0.94);
+  animation: winner-in 0.3s ease-out;
+}
+
+.opening-team,
+.opening-go {
+  display: grid;
+  justify-items: center;
+  gap: clamp(10px, 2vh, 20px);
+  text-align: center;
+}
+
+.opening-team {
+  animation: opening-enter 0.6s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.opening-go {
+  animation: winner-pop 0.5s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.opening-kicker {
+  margin: 0;
+  padding: 6px 22px 8px;
+  background: var(--pink);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2.4vw, 1.7rem);
+  text-transform: uppercase;
+  transform: skewX(var(--skew));
+}
+
+.opening-title {
+  margin: 0;
+  max-width: 14ch;
+  font-family: var(--font-display);
+  font-size: clamp(3.6rem, 13vw, 10rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: var(--gold);
+  text-shadow: 0 6px 0 var(--gold-deep), 0 0 60px rgba(255, 198, 41, 0.45);
+  overflow-wrap: anywhere;
+}
+
+.opening-key {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  font-weight: 800;
+}
+
+.opening-key kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.8em;
+  margin-left: 6px;
+  padding: 2px 10px;
+  border-radius: 8px;
+  border: 3px solid var(--gold);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 1.3em;
+}
+
+.opening-rules {
+  width: min(980px, 100%);
+  display: grid;
+  gap: clamp(12px, 2.2vh, 20px);
+  padding: clamp(22px, 4vw, 44px);
+  animation: winner-pop 0.5s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.opening-rules .opening-kicker {
+  justify-self: start;
+}
+
+.opening-game {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 7vw, 5rem);
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.opening-rules ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rule;
+  display: grid;
+  gap: 12px;
+}
+
+.opening-rules li {
+  counter-increment: rule;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  font-size: clamp(1.15rem, 2.4vw, 1.75rem);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.opening-rules li::before {
+  content: counter(rule);
+  width: 1.8em;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-display);
+}
+
+.opening-example {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 12px 18px;
+  border-left: 6px solid var(--accent);
+  border-radius: 6px;
+  background: rgba(34, 221, 107, 0.12);
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-weight: 700;
+}
+
+.opening-example b {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.opening-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.opening-bar span {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform-origin: left;
+  animation-name: opening-drain;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+@keyframes opening-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-12vw) skewX(-12deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(1vw) skewX(0);
+  }
+}
+
+@keyframes opening-drain {
+  from {
+    transform: scaleX(var(--opening-from, 1));
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opening-overlay,
+  .opening-team,
+  .opening-go,
+  .opening-rules {
+    animation: none;
+  }
+}
+
 /* --- La Bombe --- */
 .bombe-board {
   position: relative;

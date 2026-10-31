@@ -26,6 +26,7 @@ import { VanishingWordLiveScreen } from './src/screens/VanishingWordLiveScreen';
 import { FlashCalcLiveScreen } from './src/screens/FlashCalcLiveScreen';
 import { RightFlagLiveScreen } from './src/screens/RightFlagLiveScreen';
 import { GoldenFamilyLiveScreen } from './src/screens/GoldenFamilyLiveScreen';
+import { OpeningBanner } from './src/components/OpeningBanner';
 import { styles } from './src/theme';
 
 const socket = new GameConfigControllerSocket();
@@ -133,6 +134,7 @@ export default function App() {
 
         {step === 'live' && remoteSnapshot && !partyFinished ? (
           <>
+            {session?.opening ? <OpeningBanner opening={session.opening} onSkip={() => socket.skipOpening()} /> : null}
             {mancheFinished ? (
               <View style={styles.mancheBanner}>
                 <Text style={styles.mancheBannerTitle}>

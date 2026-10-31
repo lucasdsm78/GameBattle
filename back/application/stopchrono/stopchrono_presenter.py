@@ -3,10 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 from application.shared.game_presenter import GamePresenter
+from application.stopchrono.stopchrono_rules import STOPCHRONO_RULES
 from domain.stopchrono.models.stopchrono_state import STOPCHRONO_ROUNDS, StopChronoState
 
 
 class StopChronoPresenter(GamePresenter[StopChronoState]):
+    rules = STOPCHRONO_RULES
+
     def extras(self, state: StopChronoState, teams: list[str]) -> dict[str, Any]:
         return {
             "target_seconds": state.target_ms // 1000,

@@ -17,6 +17,8 @@ from domain.game_night.events import (
     MancheFinished,
     MancheStarted,
     RankingRevealed,
+    RulesShown,
+    TeamsPresented,
 )
 from domain.game_night.models.active_round import ActiveRound
 from domain.game_night.models.game_registry import GAME_STATE_TYPES
@@ -45,6 +47,10 @@ from domain.vanishing_word.models.vanishing_word_actions import VanishingWordAct
 from exceptions import GameConfigurationNotReadyError, InvalidGameConfigError
 
 ALLOWED_STATUSES = frozenset({"configuring", "ready", "live", "finished"})
+# Ouverture : chaque équipe entre sur le plateau, puis les règles de la manche restent affichées 10 secondes.
+TEAM_INTRO_MS = 2_500
+TEAMS_OUTRO_MS = 2_000
+RULES_MS = 10_000
 
 GameTransition = Callable[[Any], GameState]
 
@@ -149,6 +155,9 @@ class GameConfig(
         if updated is state:
             return self
         changes: dict[str, Any] = {game_key: updated}
+        if self.session.opening_stage:
+            # Le jeu commence : l'écran des règles (ou la présentation) laisse la place au plateau.
+            changes.update(opening_stage="", opening_started_ms=0, opening_until_ms=0)
         events = updated.events_since(state, self.teams)
         if updated.winner_team is not None and not self.session.manche_finished:
             changes.update(
@@ -173,11 +182,35 @@ class GameConfig(
         active_round = self.session.active_round
         if self.status != "live" or active_round is None:
             return self
+        if self.session.opening_stage:
+            return self._advance_opening(now_ms) if now_ms >= self.session.opening_until_ms else self
         return self._play(active_round.game_key, lambda game: game.expire_due(self.teams, now_ms))
 
     # --- Orchestration des manches / classement final ---
 
-    def start_session(self) -> GameConfig:
+    # --- Ouverture : présentation des équipes, puis règles de la manche ---
+
+    def _open(self, stage: str, now_ms: int, duration_ms: int) -> GameConfig:
+        return self._replace_session(opening_stage=stage, opening_started_ms=now_ms, opening_until_ms=now_ms + duration_ms)
+
+    def _show_rules(self, now_ms: int) -> GameConfig:
+        active_round = self.session.active_round
+        assert active_round is not None
+        return self._open("rules", now_ms, RULES_MS)._record(RulesShown(self.session.round_index + 1, active_round.game_key))
+
+    def _advance_opening(self, now_ms: int) -> GameConfig:
+        if self.session.opening_stage == "teams":
+            return self._show_rules(now_ms)
+        return self._replace_session(opening_stage="", opening_started_ms=0, opening_until_ms=0)
+
+    def skip_opening(self, now_ms: int) -> GameConfig:
+        if not self.session.opening_stage:
+            raise InvalidGameConfigError("Aucune présentation ni règle n’est affichée.")
+        return self._advance_opening(now_ms)
+
+    def start_session(self, now_ms: Optional[int] = None) -> GameConfig:
+        """Lance la soirée ; avec l'horloge `now_ms`, l'écran ouvre sur la présentation des équipes."""
+
         pool = self.enabled_game_keys()
         if not pool:
             raise GameConfigurationNotReadyError("Aucun jeu sélectionné pour démarrer la partie.")
@@ -190,7 +223,11 @@ class GameConfig(
             status="live",
             updated_at=utc_now_iso(),
         )
-        return prepared._record(GameNightStarted(total_rounds=len(sequence)))._start_manche(0)
+        started = prepared._record(GameNightStarted(total_rounds=len(sequence)))._start_manche(0)
+        if now_ms is None:
+            return started
+        intro_ms = TEAM_INTRO_MS * len(self.teams) + TEAMS_OUTRO_MS
+        return started._open("teams", now_ms, intro_ms)._record(TeamsPresented(tuple(self.teams)))
 
     def _start_manche(self, index: int) -> GameConfig:
         game_key = self.session.round_sequence[index]
@@ -202,11 +239,15 @@ class GameConfig(
             round_index=index,
             manche_finished=False,
             manche_winner=None,
+            opening_stage="",
+            opening_started_ms=0,
+            opening_until_ms=0,
             status="live",
             **states,
         )._record(MancheStarted(number=index + 1, game_key=game_key))
 
-    def next_manche(self) -> GameConfig:
+    def next_manche(self, now_ms: Optional[int] = None) -> GameConfig:
+        """Passe à la manche suivante ; avec l'horloge `now_ms`, ses règles s'affichent d'abord."""
         if not self.session.manche_finished:
             raise InvalidGameConfigError("La manche en cours n'est pas terminée.")
         manches_won = dict(self.session.manches_won)
@@ -215,7 +256,8 @@ class GameConfig(
             manches_won[winner] = manches_won.get(winner, 0) + 1
         next_index = self.session.round_index + 1
         if next_index < self.session.total_rounds:
-            return self._replace_session(manches_won=manches_won)._start_manche(next_index)
+            following = self._replace_session(manches_won=manches_won)._start_manche(next_index)
+            return following if now_ms is None else following._show_rules(now_ms)
         ranking = compute_ranking(self.teams, manches_won)
         leaders = tuple(entry["team"] for entry in reversed(ranking) if entry["rank"] == 1)
         return self._replace_session(

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, ClassVar
 
+from application.shared.game_rules import GameRules
 from domain.shared.models.game_state import GameState
 
 HIDDEN_ANSWER = "Réponse masquée"
@@ -16,6 +17,8 @@ class GamePresenter[StateT: GameState]:
     """
 
     internal_fields: ClassVar[frozenset[str]] = frozenset()
+    # Écran des règles affiché avant chaque manche du jeu (trois lignes et un exemple).
+    rules: ClassVar[GameRules]
 
     def extras(self, state: StateT, teams: list[str]) -> dict[str, Any]:
         """Valeurs calculées utiles aux apps (restants, constantes de règle…)."""

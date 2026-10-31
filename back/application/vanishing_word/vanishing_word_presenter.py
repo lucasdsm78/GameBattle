@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from application.shared.game_presenter import GamePresenter
+from application.vanishing_word.vanishing_word_rules import VANISHING_WORD_RULES
 from domain.vanishing_word.models.vanishing_word_state import (
     HIDDEN_PHASES,
     VANISHING_WORD_MEMORIZATION_MS,
@@ -13,6 +14,8 @@ from domain.vanishing_word.services.vanishing_word_catalog import WORDS_PER_LIST
 
 
 class VanishingWordPresenter(GamePresenter[VanishingWordState]):
+    rules = VANISHING_WORD_RULES
+
     internal_fields = frozenset({"used_words"})
 
     def extras(self, state: VanishingWordState, teams: list[str]) -> dict[str, Any]:

@@ -25,6 +25,8 @@ from domain.stopchrono.models.stopchrono_state import StopChronoState
 from domain.vanishing_word.models.vanishing_word_state import VanishingWordState
 from exceptions import InvalidGameConfigError
 
+OPENING_STAGES = frozenset({"", "teams", "rules"})
+
 
 @dataclass(slots=True)
 class GameSession:
@@ -51,6 +53,10 @@ class GameSession:
     final_ranking: list[dict[str, Any]] = field(default_factory=list)
     ranking_reveal_count: int = 0
     last_bombe_roller_index: Optional[int] = None
+    # Ouverture affichée à l'écran : présentation des équipes (« teams ») puis règles de la manche (« rules »).
+    opening_stage: str = ""
+    opening_started_ms: int = 0
+    opening_until_ms: int = 0
     updated_at: str = field(default_factory=utc_now_iso)
 
     def game(self, game_key: str) -> GameState:
@@ -70,3 +76,5 @@ class GameSession:
             raise InvalidGameConfigError("La séquence de manches contient un jeu non supporté.")
         if self.last_bombe_roller_index is not None and not 0 <= self.last_bombe_roller_index < len(teams):
             raise InvalidGameConfigError("Le dernier lanceur du dé de La Bombe est invalide.")
+        if self.opening_stage not in OPENING_STAGES or (self.opening_stage and self.opening_until_ms <= self.opening_started_ms):
+            raise InvalidGameConfigError("L’ouverture de la manche est invalide.")

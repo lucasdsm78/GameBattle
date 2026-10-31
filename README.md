@@ -92,7 +92,8 @@ back/
 │   ├── blindtest/           # Use case, schémas, service de playlist et port Spotify
 │   ├── stopchrono/ culture/ bombe/ memory/ seven_differences/ auction/ forbidden_word/
 │   │   vanishing_word/ flash_calc/ right_flag/ golden_family/
-│   │                        # <jeu>_command_usecase.py, <jeu>_presenter.py (+ <jeu>_commands.py pour ses schémas)
+│   │                        # <jeu>_command_usecase.py, <jeu>_presenter.py, <jeu>_rules.py
+│   │                        # (+ <jeu>_commands.py pour ses schémas)
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
 │   ├── database/            # Moteur SQLAlchemy et tables
@@ -297,6 +298,13 @@ affiche l’image originale pendant 25 secondes puis passe automatiquement à l�
 premier buzzer valide prend la main. Le présentateur sélectionne ensuite une différence correcte sur
 le mobile, ou choisit « Mauvaise réponse » pour libérer la main et bloquer temporairement l’équipe
 fautive. Les descriptions des différences ne sont jamais envoyées à l’écran public.
+
+Au lancement de la soirée, l’écran public présente les équipes une à une (avec leur touche de buzzer),
+puis affiche les **règles de la manche** pendant 10 secondes : trois lignes et un exemple. Chaque
+nouvelle manche s’ouvre aussi sur ses règles. L’enchaînement est piloté par le serveur (synchronisé
+avec la régie, même après un rechargement) ; la régie peut passer à l’étape suivante, et le premier coup
+joué ferme l’écran des règles. Les règles de chaque jeu ont leur propre fichier,
+`back/application/<jeu>/<jeu>_rules.py`, branché sur le presenter du jeu.
 
 Pour **Stop Chrono**, la manche se joue en 3 tours, avec une nouvelle cible à chaque tour, de plus en plus
 longue (7 à 12 s, puis 13 à 18 s, puis 19 à 25 s). Chaque équipe démarre puis arrête le chrono à l’aveugle ;

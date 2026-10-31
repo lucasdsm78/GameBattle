@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from application.flash_calc.flash_calc_rules import FLASH_CALC_RULES
 from application.shared.buzz_stream_presenter import BuzzStreamPresenter
 from domain.flash_calc.models.flash_calc_state import FlashCalcState
 from domain.flash_calc.services.flash_calc_generator import (
@@ -12,6 +13,8 @@ from domain.flash_calc.services.flash_calc_generator import (
 
 
 class FlashCalcPresenter(BuzzStreamPresenter[FlashCalcState]):
+    rules = FLASH_CALC_RULES
+
     # Personne, régie comprise, ne doit savoir si le calcul affiché est juste avant un buzz.
     internal_fields = BuzzStreamPresenter.internal_fields | {"true_result"}
 

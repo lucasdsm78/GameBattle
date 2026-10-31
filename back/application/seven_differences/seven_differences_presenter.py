@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from application.seven_differences.seven_differences_rules import (
+    SEVEN_DIFFERENCES_RULES,
+)
 from application.shared.game_presenter import GamePresenter
 from domain.seven_differences.models.seven_differences_state import (
     DIFFERENCE_COUNT,
@@ -10,6 +13,8 @@ from domain.seven_differences.models.seven_differences_state import (
 
 
 class SevenDifferencesPresenter(GamePresenter[SevenDifferencesState]):
+    rules = SEVEN_DIFFERENCES_RULES
+
     def extras(self, state: SevenDifferencesState, teams: list[str]) -> dict[str, Any]:
         return {"differences_remaining": DIFFERENCE_COUNT - len(state.found_difference_ids)}
 

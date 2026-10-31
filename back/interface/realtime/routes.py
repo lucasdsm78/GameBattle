@@ -50,6 +50,7 @@ ROUTES: tuple[Route, ...] = (
     Route("game.config.validate-and-launch", lambda uc, cmd: uc.game_night.validate_and_launch(cmd), GameConfigUpsertModel),
     Route("game.config.launch", lambda uc, _: uc.game_night.launch_game()),
     Route("game.next-manche", lambda uc, _: uc.game_night.next_manche()),
+    Route("game.skip-opening", lambda uc, _: uc.game_night.skip_opening()),
     Route("ranking.reveal-next", lambda uc, _: uc.game_night.reveal_next_ranking()),
     # Blindtest
     Route("blindtest.playlist.load", lambda uc, cmd: uc.blindtest.load_playlist(cmd), PlaylistLoadCommand),
