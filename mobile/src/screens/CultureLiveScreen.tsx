@@ -101,7 +101,7 @@ export function CultureLiveScreen({
             réponse remporte la manche.
           </Text>
           <Pressable style={styles.primaryButton} onPress={() => onSelectDifficulty('difficile')} accessibilityRole="button">
-            <Text style={styles.primaryButtonText}>⚔️ Poser la question de départage</Text>
+            <Text style={styles.primaryButtonText}>Poser la question de départage</Text>
           </Pressable>
         </View>
       ) : null}
@@ -195,7 +195,7 @@ export function CultureLiveScreen({
             ) : null}
             <Text style={styles.helperText}>
               {volumeButtonsActive
-                ? '🔊 Volume haut = Vrai puis Suivant après validation · 🔉 Volume bas = Faux'
+                ? 'Volume + : Vrai, puis Suivant après validation · Volume − : Faux'
                 : 'Boutons volume inactifs (uniquement en APK).'}
             </Text>
           </View>

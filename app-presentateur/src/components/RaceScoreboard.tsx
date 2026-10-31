@@ -3,29 +3,41 @@ export type ScoreHighlight = { team: string; tone: 'good' | 'bad' } | null;
 type Props = {
   teams: string[];
   scores: Record<string, number>;
-  goal: number;
+  // « Premier à N » : une pastille par point (barre au-delà de MAX_DOTS). Sans objectif, le score seul.
+  goal?: number;
   unit: string;
+  keys?: string[];
   highlight?: ScoreHighlight;
   winnerTeam?: string | null;
   excludedTeams?: string[];
   excludedLabel?: string;
 };
 
-// Au-delà, une barre de progression remplace les pastilles (ex. 300 points).
 const MAX_DOTS = 12;
 
-// Tableau des scores des jeux « premier à N » : une pastille par point, le score rebondit à chaque changement.
-export function RaceScoreboard({ teams, scores, goal, unit, highlight = null, winnerTeam = null, excludedTeams = [], excludedLabel }: Props) {
+// Tableau des scores façon panneau d'affichage : le score rebondit à chaque changement.
+export function RaceScoreboard({
+  teams,
+  scores,
+  goal,
+  unit,
+  keys,
+  highlight = null,
+  winnerTeam = null,
+  excludedTeams = [],
+  excludedLabel,
+}: Props) {
   return (
-    <aside className="glass-card race-scores">
+    <aside className="panel race-scores">
       <div className="section-row">
         <span className="section-chip">Scores</span>
-        <strong className="progress-pill">Objectif {goal}</strong>
+        {goal ? <strong className="progress-pill">Objectif {goal}</strong> : null}
       </div>
       <ol className="race-score-list">
         {teams.map((team, index) => {
           const score = scores[team] ?? 0;
           const excluded = excludedTeams.includes(team);
+          const label = `${score} ${unit}${score > 1 ? 's' : ''}${goal ? ` sur ${goal}` : ''}`;
           const classes = [
             'race-score',
             highlight?.team === team ? (highlight.tone === 'good' ? 'is-current' : 'is-penalty') : '',
@@ -34,23 +46,26 @@ export function RaceScoreboard({ teams, scores, goal, unit, highlight = null, wi
           ].join(' ');
           return (
             <li key={team} className={classes}>
-              <span className="score-index">{index + 1}</span>
+              <span className="score-index">{keys?.[index]?.toUpperCase() ?? index + 1}</span>
               <span className="race-score-team">
                 <strong>{team}</strong>
-                {goal <= MAX_DOTS ? (
-                  <span className="race-dots" aria-label={`${score} ${unit}${score > 1 ? 's' : ''} sur ${goal}`}>
+                {goal && goal <= MAX_DOTS ? (
+                  <span className="race-dots" aria-label={label}>
                     {Array.from({ length: goal }, (_, dot) => (
                       <i key={dot} className={dot < score ? 'is-filled' : ''} />
                     ))}
                   </span>
-                ) : (
-                  <span className="race-bar" aria-label={`${score} ${unit}${score > 1 ? 's' : ''} sur ${goal}`}>
+                ) : null}
+                {goal && goal > MAX_DOTS ? (
+                  <span className="race-bar" aria-label={label}>
                     <i style={{ transform: `scaleX(${Math.min(1, score / goal)})` }} />
                   </span>
-                )}
+                ) : null}
                 {excluded && excludedLabel ? <small>{excludedLabel}</small> : null}
               </span>
-              <b key={score}>{score}</b>
+              <b key={score} aria-label={goal ? undefined : label}>
+                {score}
+              </b>
             </li>
           );
         })}

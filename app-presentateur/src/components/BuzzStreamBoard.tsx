@@ -25,11 +25,8 @@ export function BuzzStreamBoard({ title, badge, game, teams, rules, children }: 
 
   return (
     <section className="race-layout">
-      <article className={`glass-card race-stage stream-stage ${tone}`}>
-        <div className="stream-topline">
-          <p className="race-kicker">{title}</p>
-          {game.phase !== 'idle' ? badge : null}
-        </div>
+      <article className={`panel race-stage stream-stage ${tone}`} aria-label={title}>
+        {game.phase !== 'idle' && badge ? <div className="stream-topline">{badge}</div> : null}
 
         {game.phase === 'idle' ? (
           <ul className="stream-rules">
@@ -42,7 +39,7 @@ export function BuzzStreamBoard({ title, badge, game, teams, rules, children }: 
 
         {game.phase === 'paused' ? (
           <div className="stream-paused" role="status">
-            <p>{game.auto_paused ? '⏸ Pause : personne ne joue ?' : '⏸ Pause'}</p>
+            <p>{game.auto_paused ? 'Pause — personne ne joue ?' : 'Pause'}</p>
             {game.auto_paused ? <span>La régie relance le défilement d’un appui.</span> : null}
           </div>
         ) : null}

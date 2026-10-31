@@ -16,7 +16,7 @@ export function StopChronoBoard({ gameConfig }: Props) {
 
   return (
     <section className="chrono-layout">
-      <article className="glass-card chrono-stage">
+      <article className="panel chrono-stage">
         <p className="section-chip">
           {chrono.phase === 'finished' ? 'Manche terminée' : `Tour ${chrono.round_number}/${chrono.rounds_total} · cible à atteindre`}
         </p>
@@ -52,7 +52,7 @@ export function StopChronoBoard({ gameConfig }: Props) {
         )}
       </article>
 
-      <aside className="glass-card chrono-scores">
+      <aside className="panel chrono-scores">
         <p className="section-chip">Erreur totale · la plus petite gagne</p>
         <div className="chrono-score-list">
           {teams.map((team) => {

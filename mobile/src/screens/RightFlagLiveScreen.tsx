@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { BuzzStreamScreen, StreamTimer, streamStyles } from '../components/BuzzStreamScreen';
 import { flagEmoji } from '../lib/flags';
-import { colors } from '../theme';
+import { colors, fonts } from '../theme';
 import { GameConfigSnapshot } from '../types/gameConfig';
 
 type Props = {
@@ -28,7 +28,7 @@ export function RightFlagLiveScreen({ snapshot, ...actions }: Props) {
         <Text style={local.flag} accessibilityLabel="Drapeau affiché à l’écran">
           {flagEmoji(shownFlag)}
         </Text>
-        {onTarget ? <Text style={local.targetTag}>👉 C’est le bon drapeau !</Text> : null}
+        {onTarget ? <Text style={local.targetTag}>C’est le bon drapeau !</Text> : null}
         {verdict && !verdict.correct ? (
           <Text style={streamStyles.correction}>
             Ce drapeau : <Text style={local.wrongCountry}>{verdict.flag_country}</Text>
@@ -75,18 +75,18 @@ export function RightFlagLiveScreen({ snapshot, ...actions }: Props) {
 
 const local = StyleSheet.create({
   flag: { fontSize: 120, lineHeight: 140, textAlign: 'center' },
-  targetTag: { color: colors.accent, fontSize: 16, fontWeight: '900', textAlign: 'center' },
+  targetTag: { color: colors.gold, fontSize: 16, fontFamily: fonts.black, textAlign: 'center' },
   wrongCountry: { color: colors.text },
   answerCard: {
     gap: 8,
     padding: 16,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.45)',
+    borderColor: 'rgba(255,198,41,0.45)',
     backgroundColor: '#0f1f17',
   },
-  answerLabel: { color: '#86efac', fontWeight: '800', fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' },
+  answerLabel: { color: '#b6ffd2', fontFamily: fonts.black, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' },
   answerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   answerFlag: { fontSize: 56, lineHeight: 66 },
-  answerCountry: { flex: 1, color: colors.text, fontSize: 26, fontWeight: '900' },
+  answerCountry: { flex: 1, color: colors.text, fontSize: 26, fontFamily: fonts.black },
 });

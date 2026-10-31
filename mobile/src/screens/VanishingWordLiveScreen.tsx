@@ -4,7 +4,7 @@ import { RaceScoreCard } from '../components/RaceScoreCard';
 import { useCountdown } from '../hooks/useCountdown';
 import { useSendLock } from '../hooks/useSendLock';
 import { useVolumeButtons } from '../hooks/useVolumeButtons';
-import { colors, styles } from '../theme';
+import { colors, styles, fonts } from '../theme';
 import { GameConfigSnapshot, VanishingWordState } from '../types/gameConfig';
 
 type Props = {
@@ -147,7 +147,7 @@ export function VanishingWordLiveScreen({ snapshot, errorMessage, onStartRound, 
             <Text style={styles.ghostButtonText}>Révéler le mot sans point</Text>
           </Pressable>
           <Text style={styles.helperText}>
-            {volumeButtonsActive ? '🔊 Volume + = TROUVÉ · 🔉 Volume − = FAUX' : 'Boutons volume inactifs (uniquement en APK).'}
+            {volumeButtonsActive ? 'Volume + : TROUVÉ · Volume − : FAUX' : 'Boutons volume inactifs (uniquement en APK).'}
           </Text>
         </View>
       ) : null}
@@ -195,10 +195,10 @@ function MemorizationTimer({ deadlineMs, durationMs }: TimerProps) {
 const local = StyleSheet.create({
   timer: { gap: 8 },
   timerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  timerLabel: { color: colors.muted, fontWeight: '700', fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' },
-  timerValue: { color: colors.accent, fontSize: 30, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  timerLabel: { color: colors.muted, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' },
+  timerValue: { color: colors.gold, fontSize: 30, fontFamily: fonts.black, fontVariant: ['tabular-nums'] },
   timerTrack: { height: 8, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)' },
-  timerFill: { flex: 1, backgroundColor: colors.accent, transformOrigin: 'left' },
+  timerFill: { flex: 1, backgroundColor: colors.gold, transformOrigin: 'left' },
 
   answerCard: {
     alignItems: 'center',
@@ -206,11 +206,11 @@ const local = StyleSheet.create({
     padding: 18,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.45)',
+    borderColor: 'rgba(255,61,94,0.45)',
     backgroundColor: '#1d1016',
   },
-  answerLabel: { color: '#fca5a5', fontWeight: '800', fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', textAlign: 'center' },
-  answerWord: { color: colors.text, fontSize: 34, fontWeight: '900', textAlign: 'center' },
+  answerLabel: { color: '#fca5a5', fontFamily: fonts.black, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', textAlign: 'center' },
+  answerWord: { color: colors.text, fontSize: 34, fontFamily: fonts.black, textAlign: 'center' },
 
   wordGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   wordTile: {
@@ -224,9 +224,9 @@ const local = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.cardAlt,
   },
-  wordTileVanished: { borderColor: colors.danger, backgroundColor: 'rgba(239,68,68,0.14)' },
-  word: { color: colors.text, fontSize: 19, fontWeight: '800' },
+  wordTileVanished: { borderColor: colors.danger, backgroundColor: 'rgba(255,61,94,0.14)' },
+  word: { color: colors.text, fontSize: 19, fontFamily: fonts.black },
   wordVanished: { color: '#fecaca' },
-  vanishedTag: { color: '#fca5a5', fontSize: 11, fontWeight: '800', marginTop: 4, textTransform: 'uppercase' },
+  vanishedTag: { color: '#fca5a5', fontSize: 11, fontFamily: fonts.black, marginTop: 4, textTransform: 'uppercase' },
   excludedTile: { opacity: 0.4 },
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useCountdown } from '../hooks/useCountdown';
-import { colors, styles } from '../theme';
+import { colors, styles, fonts } from '../theme';
 import { GameConfigSnapshot } from '../types/gameConfig';
 
 type Props = {
@@ -80,7 +80,7 @@ export function AuctionLiveScreen({
         <View style={styles.sectionCard}>
           <Text style={styles.helperText}>Un thème et sa liste de réponses seront tirés au sort.</Text>
           <Pressable style={styles.primaryButton} onPress={onStart}>
-            <Text style={styles.primaryButtonText}>🎯 Lancer L’Enchère</Text>
+            <Text style={styles.primaryButtonText}>Lancer L’Enchère</Text>
           </Pressable>
         </View>
       ) : null}
@@ -111,7 +111,7 @@ export function AuctionLiveScreen({
                 disabled={!validBid}
               >
                 <Text style={localStyles.teamButtonName}>{team}</Text>
-                <Text style={localStyles.teamButtonHint}>{game.bidding_teams.includes(team) ? '⚡ A buzzé' : 'Sélectionner'}</Text>
+                <Text style={localStyles.teamButtonHint}>{game.bidding_teams.includes(team) ? 'A buzzé' : 'Sélectionner'}</Text>
               </Pressable>
             ))}
           </View>
@@ -181,18 +181,18 @@ export function AuctionLiveScreen({
 }
 
 const localStyles = StyleSheet.create({
-  goal: { color: colors.accent, fontWeight: '900' },
-  points: { color: colors.accent, marginTop: 5, fontWeight: '800' },
-  bidInput: { fontSize: 28, fontWeight: '900', textAlign: 'center' },
+  goal: { color: colors.gold, fontFamily: fonts.black },
+  points: { color: colors.gold, marginTop: 5, fontFamily: fonts.black },
+  bidInput: { fontSize: 28, fontFamily: fonts.black, textAlign: 'center' },
   teamButton: { flexBasis: '45%', flexGrow: 1, padding: 15, borderRadius: 16, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
-  teamButtonBuzzed: { borderColor: colors.accent, backgroundColor: 'rgba(34,197,94,0.16)' },
-  teamButtonName: { color: colors.text, fontWeight: '900', fontSize: 16 },
+  teamButtonBuzzed: { borderColor: colors.gold, backgroundColor: 'rgba(255,198,41,0.16)' },
+  teamButtonName: { color: colors.text, fontFamily: fonts.black, fontSize: 16 },
   teamButtonHint: { color: colors.muted, marginTop: 5 },
-  timer: { color: colors.accent, fontSize: 54, fontWeight: '900', textAlign: 'center' },
+  timer: { color: colors.gold, fontSize: 54, fontFamily: fonts.black, textAlign: 'center' },
   timerDanger: { color: colors.danger },
-  count: { color: colors.text, fontSize: 44, fontWeight: '900', textAlign: 'center' },
+  count: { color: colors.text, fontSize: 44, fontFamily: fonts.black, textAlign: 'center' },
   answerGrid: { gap: 8 },
   answerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.cardAlt, padding: 11, borderRadius: 12 },
-  answerIndex: { color: colors.accent, width: 28, textAlign: 'center', fontWeight: '900' },
-  answerText: { color: colors.text, flex: 1, fontWeight: '700' },
+  answerIndex: { color: colors.accent, width: 28, textAlign: 'center', fontFamily: fonts.black },
+  answerText: { color: colors.text, flex: 1, fontFamily: fonts.bold },
 });

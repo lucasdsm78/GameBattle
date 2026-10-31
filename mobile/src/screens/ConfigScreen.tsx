@@ -146,7 +146,7 @@ export function ConfigScreen({ draft, setDraft, connectionState, errorMessage, o
           <Switch
             value={draft.settings.random_round_order}
             onValueChange={updateRandomOrder}
-            trackColor={{ false: '#4b5563', true: colors.accentDark }}
+            trackColor={{ false: '#4b5563', true: colors.goldDeep }}
             thumbColor={colors.text}
           />
         </View>

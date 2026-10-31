@@ -2,10 +2,10 @@ import { ReactNode, useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { RaceScoreCard, ScoreHighlight } from './RaceScoreCard';
 import { useSendLock } from '../hooks/useSendLock';
-import { colors, styles } from '../theme';
+import { colors, styles, fonts } from '../theme';
 import { BuzzStreamGame, BuzzVerdict, GameConfigSnapshot } from '../types/gameConfig';
 
-export const STREAM_WARNING = '#f59e0b';
+export const STREAM_WARNING = colors.gold;
 
 type Props = {
   snapshot: GameConfigSnapshot;
@@ -147,7 +147,7 @@ export function BuzzStreamScreen({
             ))}
           </View>
           <Pressable style={styles.ghostButton} onPress={() => controlOnce(onPause)} disabled={controlling} accessibilityRole="button">
-            <Text style={styles.ghostButtonText}>⏸ Mettre en pause</Text>
+            <Text style={styles.ghostButtonText}>Mettre en pause</Text>
           </Pressable>
         </View>
       ) : null}
@@ -187,7 +187,7 @@ export function StreamTimer({ durationMs }: { durationMs: number }) {
 }
 
 export const streamStyles = StyleSheet.create({
-  correction: { color: colors.muted, fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  correction: { color: colors.muted, fontSize: 20, fontFamily: fonts.black, textAlign: 'center' },
   good: { color: colors.accent },
 });
 
@@ -199,11 +199,11 @@ const local = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.4)',
+    borderColor: 'rgba(255,198,41,0.4)',
     backgroundColor: '#17150f',
   },
-  itemCardGood: { borderColor: colors.accent, backgroundColor: 'rgba(34,197,94,0.16)' },
-  itemCardBad: { borderColor: colors.danger, backgroundColor: 'rgba(239,68,68,0.16)' },
+  itemCardGood: { borderColor: colors.accent, backgroundColor: 'rgba(34,221,107,0.16)' },
+  itemCardBad: { borderColor: colors.danger, backgroundColor: 'rgba(255,61,94,0.16)' },
   timerTrack: { height: 8, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)' },
   timerFill: { flex: 1, backgroundColor: STREAM_WARNING, transformOrigin: 'left' },
 });

@@ -63,7 +63,7 @@ export function StopChronoLiveScreen({ snapshot, errorMessage, onStart, onStop, 
 
           {chrono.phase === 'running' ? (
             <Pressable style={[styles.primaryButton, styles.falseButton]} onPress={onStop}>
-              <Text style={styles.primaryButtonText}>⏹ STOP</Text>
+              <Text style={styles.primaryButtonText}>STOP</Text>
             </Pressable>
           ) : null}
 
@@ -101,7 +101,7 @@ export function StopChronoLiveScreen({ snapshot, errorMessage, onStart, onStop, 
           })}
         </View>
         {chrono.winner_team ? (
-          <Text style={styles.winnerText}>🏆 Vainqueur de la manche : {chrono.winner_team}</Text>
+          <Text style={styles.winnerText}>Vainqueur de la manche : {chrono.winner_team}</Text>
         ) : null}
       </View>
     </>

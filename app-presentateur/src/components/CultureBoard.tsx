@@ -1,4 +1,5 @@
 import { GameConfigSnapshot } from '../types/gameConfig';
+import { RaceScoreboard } from './RaceScoreboard';
 
 type Props = {
   gameConfig: GameConfigSnapshot;
@@ -14,7 +15,7 @@ export function CultureBoard({ gameConfig }: Props) {
 
   return (
     <section className="chrono-layout">
-      <article className="glass-card culture-stage">
+      <article className="panel culture-stage">
         {culture.phase === 'idle' ? (
           <>
             <p className="section-chip">Culture générale</p>
@@ -74,21 +75,15 @@ export function CultureBoard({ gameConfig }: Props) {
         {culture.phase === 'finished' ? <p className="chrono-state">Manche terminée</p> : null}
       </article>
 
-      <aside className="glass-card chrono-scores">
-        <p className="section-chip">Scores</p>
-        <div className="chrono-score-list">
-          {teams.map((team) => {
-            const active = team === culture.current_buzzer_team;
-            const out = tiebreak && !culture.tiebreak_teams.includes(team);
-            return (
-              <div key={team} className={`chrono-score-item ${active ? 'chrono-score-item-active' : ''} ${out ? 'is-out' : ''}`}>
-                <span className="chrono-score-team">{team}</span>
-                <span className="chrono-score-time">{culture.scores[team] ?? 0}</span>
-              </div>
-            );
-          })}
-        </div>
-      </aside>
+      <RaceScoreboard
+        teams={teams}
+        scores={culture.scores}
+        unit="point"
+        highlight={culture.current_buzzer_team ? { team: culture.current_buzzer_team, tone: 'good' } : null}
+        winnerTeam={culture.winner_team}
+        excludedTeams={tiebreak ? teams.filter((team) => !culture.tiebreak_teams.includes(team)) : []}
+        excludedLabel="Hors départage"
+      />
     </section>
   );
 }

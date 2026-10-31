@@ -1,6 +1,6 @@
 import { StyleSheet, Text } from 'react-native';
 import { BuzzStreamScreen, STREAM_WARNING, StreamTimer, streamStyles } from '../components/BuzzStreamScreen';
-import { colors } from '../theme';
+import { colors, fonts } from '../theme';
 import { GameConfigSnapshot } from '../types/gameConfig';
 
 type Props = {
@@ -51,7 +51,7 @@ export function FlashCalcLiveScreen({ snapshot, ...actions }: Props) {
 }
 
 const local = StyleSheet.create({
-  calcText: { color: colors.text, fontSize: 48, fontWeight: '900', textAlign: 'center', fontVariant: ['tabular-nums'] },
+  calcText: { color: colors.text, fontSize: 48, fontFamily: fonts.black, textAlign: 'center', fontVariant: ['tabular-nums'] },
   equals: { color: colors.muted },
   result: { color: STREAM_WARNING },
   struck: { color: '#fca5a5', textDecorationLine: 'line-through' },

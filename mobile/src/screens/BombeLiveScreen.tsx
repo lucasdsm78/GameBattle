@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { styles } from '../theme';
+import { styles, fonts } from '../theme';
 import { GameConfigSnapshot } from '../types/gameConfig';
 
 type Props = {
@@ -68,7 +68,7 @@ export function BombeLiveScreen({
         <View style={styles.bombeCard}>
           <Text style={styles.bombeInstruction}>Prépare le son et désigne l’équipe qui lancera le dé.</Text>
           <Pressable style={styles.primaryButton} onPress={onStart}>
-            <Text style={styles.primaryButtonText}>🎲 Préparer la manche</Text>
+            <Text style={styles.primaryButtonText}>Préparer la manche</Text>
           </Pressable>
         </View>
       ) : null}
@@ -79,16 +79,16 @@ export function BombeLiveScreen({
           <Text style={styles.bombeLetter}>{bombe.sound}</Text>
           <Text style={styles.bombeTeam}>{rollerTeam} doit lancer le dé</Text>
           <Text style={styles.bombeInstruction}>Utilise le buzzer de cette équipe pour choisir TIC, TAC ou BOUM.</Text>
-          <Text style={local.wordRule}>🚫 {WORD_RULE}</Text>
+          <Text style={local.wordRule}>{WORD_RULE}</Text>
           <Pressable style={styles.primaryButton} onPress={() => onBuzz(rollerTeam)}>
-            <Text style={styles.primaryButtonText}>🎲 Tester le buzzer de {rollerTeam}</Text>
+            <Text style={styles.primaryButtonText}>Tester le buzzer de {rollerTeam}</Text>
           </Pressable>
         </View>
       ) : null}
 
       {bombe.phase === 'rolling' ? (
         <View style={styles.bombeCard}>
-          <Text style={styles.bombeLetter}>🎲</Text>
+          <Text style={styles.bombeLetter}>?</Text>
           <Text style={styles.bombeTeam}>Le dé tourne…</Text>
           <Text style={styles.bombeInstruction}>Son de la manche : {bombe.sound}</Text>
         </View>
@@ -98,14 +98,14 @@ export function BombeLiveScreen({
         <>
           <View style={styles.bombeCard}>
             {bombe.tiebreak_round > 0 ? <Text style={styles.eyebrow}>Départage {bombe.tiebreak_round}</Text> : null}
-            <Text style={styles.bombeTeam}>🎲 {bombe.die_result}</Text>
+            <Text style={styles.bombeTeam}>{bombe.die_result}</Text>
             <Text style={styles.bombeInstruction}>{dieInstruction(bombe.die_result, bombe.sound)}</Text>
             <Text style={styles.nowPlayingLabel}>Son imposé</Text>
             <Text style={styles.bombeLetter}>{bombe.sound}</Text>
             <Text style={styles.nowPlayingLabel}>À toi de jouer</Text>
             <Text style={styles.bombeTeam}>{currentTeam}</Text>
             <Text style={styles.bombeInstruction}>Respecte la règle du dé, puis buzze pour passer la bombe.</Text>
-            <Text style={local.wordRule}>🚫 {WORD_RULE}</Text>
+            <Text style={local.wordRule}>{WORD_RULE}</Text>
           </View>
 
           <View style={styles.sectionCard}>
@@ -160,13 +160,13 @@ export function BombeLiveScreen({
             ))}
           </View>
           {bombe.winner_team ? (
-            <Text style={styles.bombeTeam}>🏆 {bombe.winner_team} remporte la manche</Text>
+            <Text style={styles.bombeTeam}>{bombe.winner_team} remporte la manche</Text>
           ) : null}
           {isTiebreakPending ? (
             <>
               <Text style={styles.bombeInstruction}>Égalité au plus petit score : une partie décisive est nécessaire.</Text>
               <Pressable style={styles.primaryButton} onPress={onStart}>
-                <Text style={styles.primaryButtonText}>💣 Commencer le départage</Text>
+                <Text style={styles.primaryButtonText}>Commencer le départage</Text>
               </Pressable>
             </>
           ) : null}
@@ -177,5 +177,5 @@ export function BombeLiveScreen({
 }
 
 const local = StyleSheet.create({
-  wordRule: { color: '#fca5a5', fontSize: 14, fontWeight: '800', textAlign: 'center' },
+  wordRule: { color: '#fca5a5', fontSize: 14, fontFamily: fonts.black, textAlign: 'center' },
 });

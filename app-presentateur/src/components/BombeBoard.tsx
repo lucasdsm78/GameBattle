@@ -109,7 +109,7 @@ export function BombeBoard({ gameConfig, onBeginAfterRoll, onExplode }: Props) {
   useEffect(() => () => void audioContextRef.current?.close(), []);
 
   return (
-    <section className={`bombe-board glass-card bombe-${bombe.phase}`}>
+    <section className={`bombe-board panel bombe-${bombe.phase}`}>
       {bombe.phase === 'idle' ? (
         <>
           <p className="section-chip">La Bombe</p>
@@ -124,7 +124,7 @@ export function BombeBoard({ gameConfig, onBeginAfterRoll, onExplode }: Props) {
           <div className="bombe-die">?</div>
           <h2 className="bombe-current-team">{rollerTeam}, buzzez pour lancer le dé</h2>
           <p className="bombe-instruction">Le dé choisira TIC, TAC ou BOUM.</p>
-          <p className="bombe-word-rule">🚫 {WORD_RULE}</p>
+          <p className="bombe-word-rule">{WORD_RULE}</p>
         </>
       ) : null}
 
@@ -141,12 +141,14 @@ export function BombeBoard({ gameConfig, onBeginAfterRoll, onExplode }: Props) {
           {bombe.tiebreak_round > 0 ? <p className="section-chip">Départage {bombe.tiebreak_round}</p> : null}
           <div className="bombe-die-result">{bombe.die_result}</div>
           <p className="bombe-rule">{dieInstruction(bombe.die_result, bombe.sound)}</p>
-          <div className="bombe-orb" aria-label="Bombe en cours">💣</div>
+          <div className="bombe-orb" role="img" aria-label="Bombe en cours">
+            <span className="bombe-fuse" />
+          </div>
           <p className="bombe-kicker">Son imposé</p>
           <div className="bombe-letter bombe-sound">{bombe.sound}</div>
           <p className="bombe-current-team">À {currentTeam} de jouer</p>
           <p className="bombe-instruction">Dites un mot, puis buzzez pour passer la bombe.</p>
-          <p className="bombe-word-rule">🚫 {WORD_RULE}</p>
+          <p className="bombe-word-rule">{WORD_RULE}</p>
           <div className="bombe-scoreboard" aria-label="Points de pénalité">
             {teams.map((team, index) => (
               <div
@@ -179,7 +181,7 @@ export function BombeBoard({ gameConfig, onBeginAfterRoll, onExplode }: Props) {
             ))}
           </div>
           {bombe.winner_team ? (
-            <p className="bombe-winner">🏆 {bombe.winner_team} remporte la manche avec le moins de pénalités</p>
+            <p className="bombe-winner">{bombe.winner_team} remporte la manche avec le moins de pénalités</p>
           ) : (
             <p className="bombe-winner">Égalité au plus petit score — préparez la partie décisive !</p>
           )}

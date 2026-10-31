@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RaceScoreCard } from '../components/RaceScoreCard';
 import { useSendLock } from '../hooks/useSendLock';
 import { useVolumeButtons } from '../hooks/useVolumeButtons';
-import { colors, styles } from '../theme';
+import { colors, styles, fonts } from '../theme';
 import { GameConfigSnapshot, GoldenFamilyState } from '../types/gameConfig';
 
 type Props = {
@@ -16,7 +16,7 @@ type Props = {
   onBack: () => void;
 };
 
-const GOLD = '#fbbf24';
+const GOLD = colors.gold;
 const ANSWERING = new Set<GoldenFamilyState['phase']>(['duel', 'control', 'steal']);
 const QUESTION_ACTIVE = new Set<GoldenFamilyState['phase']>(['faceoff', 'duel', 'control', 'steal']);
 
@@ -123,7 +123,7 @@ export function GoldenFamilyLiveScreen({ snapshot, errorMessage, onNextQuestion,
                 <Text style={styles.primaryButtonText}>✕ FAUTE · {game.current_team}</Text>
               </Pressable>
               <Text style={styles.helperText}>
-                {volumeButtonsActive ? '🔉 Volume − = FAUTE' : 'Bouton volume inactif (uniquement en APK).'}
+                {volumeButtonsActive ? 'Volume − : FAUTE' : 'Bouton volume inactif (uniquement en APK).'}
               </Text>
             </>
           ) : null}
@@ -175,9 +175,9 @@ export function GoldenFamilyLiveScreen({ snapshot, errorMessage, onNextQuestion,
 
 const local = StyleSheet.create({
   gold: { color: GOLD },
-  question: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 10, lineHeight: 24 },
+  question: { color: colors.text, fontSize: 18, fontFamily: fonts.bold, marginTop: 10, lineHeight: 24 },
   strikes: { flexDirection: 'row', gap: 6 },
-  strike: { color: 'rgba(239,68,68,0.3)', fontSize: 22, fontWeight: '900' },
+  strike: { color: 'rgba(255,61,94,0.3)', fontSize: 22, fontFamily: fonts.black },
   strikeOn: { color: colors.danger },
   answer: {
     flexDirection: 'row',
@@ -192,7 +192,7 @@ const local = StyleSheet.create({
     backgroundColor: colors.cardAlt,
   },
   answerSelectable: { borderColor: 'rgba(251,191,36,0.6)', backgroundColor: '#1b2335' },
-  answerRevealed: { borderColor: 'rgba(34,197,94,0.45)', backgroundColor: 'rgba(34,197,94,0.1)' },
+  answerRevealed: { borderColor: 'rgba(34,221,107,0.45)', backgroundColor: 'rgba(34,221,107,0.1)' },
   answerRank: {
     width: 30,
     height: 30,
@@ -203,13 +203,13 @@ const local = StyleSheet.create({
     lineHeight: 30,
     color: '#1c1300',
     backgroundColor: GOLD,
-    fontWeight: '900',
+    fontFamily: fonts.black,
   },
   answerBody: { flex: 1, gap: 2 },
-  answerText: { color: colors.text, fontSize: 17, fontWeight: '800' },
-  answerTextRevealed: { color: '#bbf7d0' },
-  answerFoundBy: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  answerPoints: { color: GOLD, fontSize: 22, fontWeight: '900', minWidth: 34, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  answerText: { color: colors.text, fontSize: 17, fontFamily: fonts.black },
+  answerTextRevealed: { color: '#b6ffd2' },
+  answerFoundBy: { color: colors.muted, fontSize: 12, fontFamily: fonts.bold },
+  answerPoints: { color: GOLD, fontSize: 22, fontFamily: fonts.black, minWidth: 34, textAlign: 'right', fontVariant: ['tabular-nums'] },
   goldButton: { backgroundColor: GOLD },
-  goldButtonText: { color: '#1c1300', fontWeight: '900', fontSize: 16, textAlign: 'center' },
+  goldButtonText: { color: '#1c1300', fontFamily: fonts.black, fontSize: 16, textAlign: 'center' },
 });
