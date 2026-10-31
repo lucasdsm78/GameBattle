@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from application.blindtest.blindtest_rules import BLINDTEST_RULES
 from application.shared.game_presenter import GamePresenter
 from domain.blindtest.models.blindtest_state import BlindtestState
 
 
 class BlindtestPresenter(GamePresenter[BlindtestState]):
+    rules = BLINDTEST_RULES
+
     def extras(self, state: BlindtestState, teams: list[str]) -> dict[str, Any]:
         return {"tracks_remaining": state.tracks_remaining}
 

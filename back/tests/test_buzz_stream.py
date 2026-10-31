@@ -59,6 +59,8 @@ def test_the_scrolling_pauses_itself_when_nobody_plays(game_key: str) -> None:
 @pytest.mark.parametrize("game_key", GAMES)
 def test_any_buzz_restarts_the_count(game_key: str) -> None:
     current = _let_items_pass(_running(game_key), game_key, BUZZ_STREAM_AUTO_PAUSE_AFTER - 1)
+    while _game(current, game_key).phase == "feedback":  # un buzz pendant un retour est ignoré, par règle
+        current = current.expire_due_deadline(_game(current, game_key).deadline_ms)
     assert _game(_buzz(current, game_key), game_key).unanswered_streak == 0
     assert _game(_buzz(current, game_key, late=True), game_key).unanswered_streak == 0
 

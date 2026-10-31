@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from application.golden_family.golden_family_rules import GOLDEN_FAMILY_RULES
 from application.shared.game_presenter import GamePresenter
 from domain.golden_family.models.golden_family_state import (
     GOLDEN_FAMILY_MAX_STRIKES,
@@ -13,6 +14,8 @@ HIDDEN_FAMILY_ANSWER = {"text": "", "points": 0}
 
 
 class GoldenFamilyPresenter(GamePresenter[GoldenFamilyState]):
+    rules = GOLDEN_FAMILY_RULES
+
     internal_fields = frozenset({"used_questions", "attempts"})
 
     def extras(self, state: GoldenFamilyState, teams: list[str]) -> dict[str, Any]:

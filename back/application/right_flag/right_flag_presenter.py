@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from application.right_flag.right_flag_rules import RIGHT_FLAG_RULES
 from application.shared.buzz_stream_presenter import BuzzStreamPresenter
 from domain.right_flag.models.right_flag_state import RightFlagState
 from domain.right_flag.services.flag_catalog import FLAGS_PER_ROUND
 
 
 class RightFlagPresenter(BuzzStreamPresenter[RightFlagState]):
+    rules = RIGHT_FLAG_RULES
+
     # La série à venir ne quitte jamais le serveur : sinon on connaîtrait la position du bon drapeau.
     internal_fields = BuzzStreamPresenter.internal_fields | {"flags", "used_countries"}
 

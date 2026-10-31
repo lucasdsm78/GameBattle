@@ -2,11 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from application.forbidden_word.forbidden_word_rules import FORBIDDEN_WORD_RULES
 from application.shared.game_presenter import GamePresenter
-from domain.forbidden_word.models.forbidden_word_state import ForbiddenWordState
+from domain.forbidden_word.models.forbidden_word_state import (
+    ForbiddenWordState,
+)
 
 
 class ForbiddenWordPresenter(GamePresenter[ForbiddenWordState]):
+    rules = FORBIDDEN_WORD_RULES
+
     internal_fields = frozenset({"used_card_ids"})
 
     def extras(self, state: ForbiddenWordState, teams: list[str]) -> dict[str, Any]:

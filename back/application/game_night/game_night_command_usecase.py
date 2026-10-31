@@ -11,13 +11,16 @@ class GameNightCommandUseCase(CommandUseCase):
         return await self._execute(lambda config, ctx: command.to_domain().with_timestamp())
 
     async def validate_and_launch(self, command: GameConfigUpsertModel) -> GameConfigSnapshot | None:
-        return await self._execute(lambda config, ctx: ctx.playlists.autoimport(command.to_domain().with_timestamp().start_session()))
+        return await self._execute(lambda config, ctx: ctx.playlists.autoimport(command.to_domain().with_timestamp().start_session(ctx.now_ms)))
 
     async def launch_game(self) -> GameConfigSnapshot | None:
-        return await self._execute(lambda config, ctx: ctx.playlists.autoimport(config.start_session()))
+        return await self._execute(lambda config, ctx: ctx.playlists.autoimport(config.start_session(ctx.now_ms)))
 
     async def next_manche(self) -> GameConfigSnapshot | None:
-        return await self._execute(lambda config, ctx: ctx.playlists.autoimport(config.next_manche()))
+        return await self._execute(lambda config, ctx: ctx.playlists.autoimport(config.next_manche(ctx.now_ms)))
+
+    async def skip_opening(self) -> GameConfigSnapshot | None:
+        return await self._execute(lambda config, ctx: config.skip_opening(ctx.now_ms))
 
     async def reveal_next_ranking(self) -> GameConfigSnapshot | None:
         return await self._execute(lambda config, ctx: config.reveal_next_ranking())

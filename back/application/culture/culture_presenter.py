@@ -2,11 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from application.culture.culture_rules import CULTURE_RULES
 from application.shared.game_presenter import HIDDEN_ANSWER, GamePresenter
-from domain.culture.models.culture_state import CultureState
+from domain.culture.models.culture_state import (
+    CultureState,
+)
 
 
 class CulturePresenter(GamePresenter[CultureState]):
+    rules = CULTURE_RULES
+
     def extras(self, state: CultureState, teams: list[str]) -> dict[str, Any]:
         return {"questions_remaining": state.questions_remaining}
 

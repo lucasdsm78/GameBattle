@@ -18,7 +18,7 @@ from application.seven_differences.seven_differences_presenter import (
 from application.shared.game_presenter import GamePresenter
 from application.stopchrono.stopchrono_presenter import StopChronoPresenter
 from application.vanishing_word.vanishing_word_presenter import VanishingWordPresenter
-from domain.game_night.models.game_config import GameConfig
+from domain.game_night.models.game_config import TEAM_INTRO_MS, GameConfig
 
 GAME_PRESENTERS: dict[str, GamePresenter[Any]] = {
     "blindtest": BlindtestPresenter(),
@@ -58,6 +58,7 @@ def present_game_config(config: GameConfig) -> ClientViews:
         "final_ranking_total": len(session.final_ranking),
         "ranking_reveal_count": session.ranking_reveal_count,
         "last_bombe_roller_index": session.last_bombe_roller_index,
+        "opening": _opening_view(config),
         "updated_at": session.updated_at,
     }
     controller = {
@@ -78,3 +79,17 @@ def present_game_config(config: GameConfig) -> ClientViews:
         **{game_key: presenter.display_view(session_view[game_key]) for game_key, presenter in GAME_PRESENTERS.items()},
     }
     return controller, {**controller, "session": display_session}
+
+
+def _opening_view(config: GameConfig) -> dict[str, Any] | None:
+    session = config.session
+    if not session.opening_stage or session.active_round is None:
+        return None
+    rules = GAME_PRESENTERS[session.active_round.game_key].rules
+    return {
+        "stage": session.opening_stage,
+        "started_at_ms": session.opening_started_ms,
+        "until_ms": session.opening_until_ms,
+        "team_intro_ms": TEAM_INTRO_MS,
+        "rules": {"lines": list(rules.lines), "example": rules.example} if session.opening_stage == "rules" else None,
+    }

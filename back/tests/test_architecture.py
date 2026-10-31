@@ -145,6 +145,8 @@ def test_every_game_has_its_presenter_in_the_application_layer() -> None:
     for game in GAME_MODULES:
         assert (BACK_DIR / "application" / game / f"{game}_presenter.py").is_file(), game
         assert type(GAME_PRESENTERS[game]).__module__ == f"application.{game}.{game}_presenter"
+        assert (BACK_DIR / "application" / game / f"{game}_rules.py").is_file(), f"{game} doit avoir son fichier de règles"
+        assert "rules" in vars(type(GAME_PRESENTERS[game])), f"{game} doit déclarer ses règles dans son presenter"
 
 
 def test_the_configuration_accepts_every_supported_game_at_once() -> None:

@@ -312,6 +312,15 @@ export type ForbiddenWordState = {
   winner_team: string | null;
 };
 
+// Ouverture pilotée par le serveur : présentation des équipes, puis règles de la manche.
+export type OpeningView = {
+  stage: 'teams' | 'rules';
+  started_at_ms: number;
+  until_ms: number;
+  team_intro_ms: number;
+  rules: { lines: string[]; example: string } | null;
+};
+
 export type GameSession = {
   active_round: ActiveRound | null;
   blindtest: BlindtestState;
@@ -332,6 +341,7 @@ export type GameSession = {
   manches_won: Record<string, number>;
   manche_finished: boolean;
   manche_winner: string | null;
+  opening: OpeningView | null;
   final_ranking: RankingEntry[];
   final_ranking_total: number;
   ranking_reveal_count: number;

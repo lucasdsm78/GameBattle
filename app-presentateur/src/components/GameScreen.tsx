@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { GameConfigSnapshot } from '../types/gameConfig';
+import { OpeningOverlay } from './OpeningOverlay';
 import { ConnectionState, ShowHeader } from './ShowHeader';
 
 const TIE = 'Égalité';
@@ -34,6 +35,7 @@ export function GameScreen({ gameConfig, connectionState, errorMessage, gameLabe
         ) : null}
       </main>
 
+      <OpeningOverlay gameConfig={gameConfig} gameLabel={gameLabel} />
       {winnerTeam ? <WinnerOverlay winnerTeam={winnerTeam} recap={recap ?? scoreRecap} /> : null}
     </>
   );
