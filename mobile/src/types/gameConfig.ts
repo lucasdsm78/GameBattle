@@ -303,10 +303,16 @@ export type StopChronoState = {
   current_team_index: number;
   current_team: string | null;
   started_at_ms: number;
-  results: Record<string, number>;
+  results: Record<string, number>; // temps du tour en cours
   deltas_ms: Record<string, number>;
   scores: Record<string, number>;
   winner_team: string | null;
+  // 3 tours, une cible par tour : la plus petite erreur totale gagne.
+  round_number: number;
+  rounds_total: number;
+  past_targets_ms: number[];
+  past_results: Record<string, number>[];
+  total_errors_ms: Record<string, number>;
 };
 
 export type GameSession = {

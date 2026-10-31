@@ -10,12 +10,16 @@ export function StopChronoBoard({ gameConfig }: Props) {
   const chrono = gameConfig.session.stopchrono;
   const teams = gameConfig.settings.teams;
   const currentTeam = chrono.current_team;
-  const teamPosition = Math.min(chrono.current_team_index + 1, teams.length);
+  // Avec la rotation, la position dans le tour vient du nombre d'équipes qui ont déjà joué.
+  const playedCount = Object.keys(chrono.results).length;
+  const teamPosition = Math.min(chrono.phase === 'revealed' ? playedCount : playedCount + 1, teams.length);
 
   return (
     <section className="chrono-layout">
       <article className="glass-card chrono-stage">
-        <p className="section-chip">Cible à atteindre</p>
+        <p className="section-chip">
+          {chrono.phase === 'finished' ? 'Manche terminée' : `Tour ${chrono.round_number}/${chrono.rounds_total} · cible à atteindre`}
+        </p>
         <div className="chrono-target">{chrono.target_seconds}s</div>
 
         {chrono.phase !== 'finished' ? (
@@ -40,12 +44,16 @@ export function StopChronoBoard({ gameConfig }: Props) {
             ) : null}
           </>
         ) : (
-          <p className="chrono-state">Manche terminée</p>
+          <p className="chrono-state">
+            {chrono.winner_team === 'Égalité'
+              ? 'Égalité : même erreur totale !'
+              : `${chrono.winner_team} gagne avec ${seconds(chrono.total_errors_ms[chrono.winner_team ?? ''] ?? 0)} d’erreur totale`}
+          </p>
         )}
       </article>
 
       <aside className="glass-card chrono-scores">
-        <p className="section-chip">Temps des équipes</p>
+        <p className="section-chip">Erreur totale · la plus petite gagne</p>
         <div className="chrono-score-list">
           {teams.map((team) => {
             const played = team in chrono.results;
@@ -53,9 +61,9 @@ export function StopChronoBoard({ gameConfig }: Props) {
             return (
               <div key={team} className={`chrono-score-item ${active ? 'chrono-score-item-active' : ''}`}>
                 <span className="chrono-score-team">{team}</span>
-                <span className="chrono-score-time">{played ? seconds(chrono.results[team]) : '—'}</span>
+                <span className="chrono-score-time">{seconds(chrono.total_errors_ms[team] ?? 0)}</span>
                 <span className="chrono-score-delta">
-                  {played ? `écart ${seconds(chrono.deltas_ms[team] ?? 0)}` : 'en attente'}
+                  {played ? `ce tour : ${seconds(chrono.results[team])} (écart ${seconds(chrono.deltas_ms[team] ?? 0)})` : 'pas encore joué ce tour'}
                   {chrono.scores[team] ? ` · +${chrono.scores[team]}` : ''}
                 </span>
               </div>
