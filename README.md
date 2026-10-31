@@ -298,6 +298,11 @@ premier buzzer valide prend la main. Le présentateur sélectionne ensuite une d
 le mobile, ou choisit « Mauvaise réponse » pour libérer la main et bloquer temporairement l’équipe
 fautive. Les descriptions des différences ne sont jamais envoyées à l’écran public.
 
+Pour **Stop Chrono**, la manche se joue en 3 tours, avec une nouvelle cible à chaque tour, de plus en plus
+longue (7 à 12 s, puis 13 à 18 s, puis 19 à 25 s). Chaque équipe démarre puis arrête le chrono à l’aveugle ;
+les écarts à la cible s’additionnent et la plus petite erreur totale remporte la manche. À chaque tour,
+l’équipe qui commence change, pour que personne ne joue toujours en dernier.
+
 Pour **Le mot interdit**, chaque équipe joue une minute, dans un ordre de passage tiré au sort.
 Le présentateur passe le téléphone à l’orateur de l’équipe, qui lance le chrono : l’app mobile
 affiche le mot à faire deviner et ses 3 à 5 mots interdits. Quand son équipe trouve, l’orateur appuie

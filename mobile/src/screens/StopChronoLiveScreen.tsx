@@ -17,7 +17,11 @@ export function StopChronoLiveScreen({ snapshot, errorMessage, onStart, onStop, 
   const chrono = snapshot.session.stopchrono;
   const teams = snapshot.settings.teams;
   const currentTeam = chrono.current_team;
-  const teamPosition = Math.min(chrono.current_team_index + 1, teams.length);
+  // Avec la rotation, la position dans le tour vient du nombre d'équipes qui ont déjà joué.
+  const playedCount = Object.keys(chrono.results).length;
+  const teamPosition = Math.min(chrono.phase === 'revealed' ? playedCount : playedCount + 1, teams.length);
+  const roundComplete = playedCount >= teams.length;
+  const lastRound = chrono.round_number >= chrono.rounds_total;
 
   return (
     <>
@@ -29,6 +33,9 @@ export function StopChronoLiveScreen({ snapshot, errorMessage, onStart, onStop, 
         <Text style={styles.eyebrow}>Stop Chrono en direct</Text>
         <Text style={styles.title}>{snapshot.settings.game_title}</Text>
         <View style={styles.badgeRow}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>Tour {chrono.round_number}/{chrono.rounds_total}</Text>
+          </View>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>Cible {chrono.target_seconds}s</Text>
           </View>
@@ -66,7 +73,7 @@ export function StopChronoLiveScreen({ snapshot, errorMessage, onStart, onStop, 
               <Text style={styles.chronoResultDelta}>écart {seconds(chrono.deltas_ms[currentTeam] ?? 0)}</Text>
               <Pressable style={styles.primaryButton} onPress={onNext}>
                 <Text style={styles.primaryButtonText}>
-                  {teamPosition >= teams.length ? 'Voir le résultat' : 'Équipe suivante'}
+                  {!roundComplete ? 'Équipe suivante' : lastRound ? 'Voir le résultat' : `Tour ${chrono.round_number + 1} →`}
                 </Text>
               </Pressable>
             </View>
@@ -75,7 +82,8 @@ export function StopChronoLiveScreen({ snapshot, errorMessage, onStart, onStop, 
       ) : null}
 
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Temps des équipes</Text>
+        <Text style={styles.sectionTitle}>Erreur totale</Text>
+        <Text style={styles.helperText}>Les écarts des 3 tours s’additionnent : la plus petite erreur gagne.</Text>
         <View style={styles.scoreGrid}>
           {teams.map((team) => {
             const played = team in chrono.results;
@@ -83,9 +91,9 @@ export function StopChronoLiveScreen({ snapshot, errorMessage, onStart, onStop, 
             return (
               <View key={team} style={[styles.scoreTile, active && styles.scoreTileActive]}>
                 <Text style={styles.scoreTileLabel}>{team}</Text>
-                <Text style={styles.scoreTileValue}>{played ? seconds(chrono.results[team]) : '—'}</Text>
+                <Text style={styles.scoreTileValue}>{seconds(chrono.total_errors_ms[team] ?? 0)}</Text>
                 <Text style={styles.scoreTileHint}>
-                  {played ? `écart ${seconds(chrono.deltas_ms[team] ?? 0)}` : 'pas encore joué'}
+                  {played ? `ce tour : écart ${seconds(chrono.deltas_ms[team] ?? 0)}` : 'pas encore joué ce tour'}
                   {chrono.scores[team] ? ` · +${chrono.scores[team]}` : ''}
                 </Text>
               </View>
