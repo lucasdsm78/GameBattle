@@ -28,6 +28,8 @@ export function ForbiddenWordLiveScreen({ snapshot, errorMessage, onStartTurn, o
 
   const lastTurn = game.turns.at(-1);
   const finished = game.phase === 'finished';
+  const suddenDeath = game.sudden_death_round > 0;
+  const seconds = Math.round(game.turn_duration_ms / 1000);
 
   return (
     <>
@@ -36,7 +38,9 @@ export function ForbiddenWordLiveScreen({ snapshot, errorMessage, onStartTurn, o
       </Pressable>
 
       <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>Le mot interdit · 60 s par équipe</Text>
+        <Text style={[styles.eyebrow, suddenDeath && !finished && local.suddenDeath]}>
+          {suddenDeath && !finished ? `⚔️ Mort subite · ${seconds} s par équipe` : 'Le mot interdit · 60 s par équipe'}
+        </Text>
         <Text style={styles.title}>
           {finished
             ? game.winner_team === 'Égalité' ? 'Égalité !' : `${game.winner_team} remporte la manche`
@@ -44,8 +48,10 @@ export function ForbiddenWordLiveScreen({ snapshot, errorMessage, onStartTurn, o
         </Text>
         <Text style={styles.subtitle}>
           {finished
-            ? 'Toutes les équipes ont joué leur minute.'
-            : 'Faites deviner un maximum de mots à votre équipe sans prononcer les mots interdits.'}
+            ? 'Toutes les équipes ont joué.'
+            : suddenDeath
+              ? `Égalité entre ${game.sudden_death_teams.join(' et ')} : le plus de mots en ${seconds} secondes l’emporte.`
+              : 'Faites deviner un maximum de mots à votre équipe sans prononcer les mots interdits.'}
         </Text>
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
       </View>
@@ -64,7 +70,7 @@ export function ForbiddenWordLiveScreen({ snapshot, errorMessage, onStartTurn, o
             disabled={starting}
             accessibilityRole="button"
           >
-            <Text style={styles.primaryButtonText}>▶ C’est parti — 60 secondes</Text>
+            <Text style={styles.primaryButtonText}>▶ C’est parti — {seconds} secondes</Text>
           </Pressable>
           <Text style={styles.helperText}>Pendant le tour : TROUVÉ ou 🔊 Volume + · PASSER ou 🔉 Volume −</Text>
         </View>
@@ -184,10 +190,12 @@ function Scoreboard({ game }: { game: ForbiddenWordState }) {
         <Text style={local.mutedLabel}>Ordre de passage</Text>
       </View>
       {game.turn_order.map((team, index) => {
-        const played = index < game.turns.length;
+        const suddenDeath = game.sudden_death_round > 0;
+        const played = suddenDeath || game.turns.some((turn) => turn.team === team && turn.round === game.sudden_death_round);
+        const out = suddenDeath && !game.sudden_death_teams.includes(team);
         const highlighted = team === game.current_team || team === game.winner_team;
         return (
-          <View key={team} style={[styles.rankRow, highlighted && styles.rankRowWinner]}>
+          <View key={team} style={[styles.rankRow, highlighted && styles.rankRowWinner, out && local.outRow]}>
             <Text style={styles.rankPosition}>{index + 1}</Text>
             <Text style={styles.rankTeam} numberOfLines={1}>{team}</Text>
             <Text style={played ? local.score : styles.rankScore}>
@@ -242,6 +250,8 @@ export function ForbiddenWordActionBar({ cardId, onFound, onSkip }: ActionBarPro
 
 const local = StyleSheet.create({
   shrink: { flexShrink: 1 },
+  suddenDeath: { color: colors.danger },
+  outRow: { opacity: 0.4 },
   turnHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   teamPill: { flexShrink: 1, backgroundColor: colors.accent, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   teamPillText: { color: '#041019', fontWeight: '900', fontSize: 15 },

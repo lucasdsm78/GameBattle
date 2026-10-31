@@ -15,3 +15,4 @@ class ForbiddenWordTurn:
     team: str
     found_words: list[str] = field(default_factory=list)
     skipped_words: list[str] = field(default_factory=list)
+    round: int = 0

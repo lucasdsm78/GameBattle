@@ -1609,6 +1609,23 @@ button {
 }
 
 /* --- Le mot interdit --- */
+.fw-sudden-death {
+  margin: 0 0 6px;
+  padding: 8px 22px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--danger);
+  font-size: clamp(1rem, 2.2vw, 1.5rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  animation: race-pop 0.45s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.fw-score.is-out {
+  opacity: 0.4;
+}
+
 .fw-screen {
   align-content: start;
 }

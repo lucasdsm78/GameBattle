@@ -15,6 +15,10 @@ type Props = {
 export function ForbiddenWordBoard({ game }: Props) {
   const currentTurn = game.phase === 'running' ? game.turns[game.turns.length - 1] : undefined;
   const lastTurn = game.phase !== 'running' ? game.turns[game.turns.length - 1] : undefined;
+  const suddenDeath = game.sudden_death_round > 0;
+  const seconds = Math.round(game.turn_duration_ms / 1000);
+  const playedThisRound = new Set(game.turns.filter((turn) => turn.round === game.sudden_death_round).map((turn) => turn.team));
+  const suddenDeathLabel = `⚔️ Mort subite${game.sudden_death_round > 1 ? ` n°${game.sudden_death_round}` : ''}`;
 
   return (
     <section className="fw-layout">
@@ -22,7 +26,7 @@ export function ForbiddenWordBoard({ game }: Props) {
         {game.phase === 'running' && currentTurn ? (
           <>
             <div className="fw-stage-header">
-              <span className="fw-live"><i aria-hidden="true" />Live</span>
+              <span className="fw-live"><i aria-hidden="true" />{suddenDeath ? suddenDeathLabel : 'Live'}</span>
               <span className="fw-team-badge">{currentTurn.team}</span>
             </div>
             <div className="fw-scoreline">
@@ -37,12 +41,15 @@ export function ForbiddenWordBoard({ game }: Props) {
           </>
         ) : (
           <>
+            {suddenDeath && game.phase !== 'finished' ? <p className="fw-sudden-death">{suddenDeathLabel}</p> : null}
             <p className="fw-kicker">{game.phase === 'finished' ? 'Manche terminée' : 'Au tour de'}</p>
             <h2 className="fw-team-name">{game.phase === 'finished' ? 'Le mot interdit' : game.current_team ?? '…'}</h2>
             <p className="fw-instruction">
               {game.phase === 'finished'
-                ? 'Toutes les équipes ont joué leur minute.'
-                : '60 secondes pour faire deviner un maximum de mots… sans jamais prononcer les mots interdits !'}
+                ? 'Toutes les équipes ont joué.'
+                : suddenDeath
+                  ? `Égalité entre ${game.sudden_death_teams.join(' et ')} : ${seconds} secondes chacune, le plus de mots l’emporte !`
+                  : `${seconds} secondes pour faire deviner un maximum de mots… sans jamais prononcer les mots interdits !`}
             </p>
             {lastTurn ? (
               <div className="fw-recap">
@@ -59,15 +66,23 @@ export function ForbiddenWordBoard({ game }: Props) {
       <aside className="glass-card fw-scores">
         <div className="section-row">
           <span className="section-chip">Tableau des scores</span>
-          <strong className="progress-pill">{game.turns.length}/{game.turn_order.length}</strong>
+          <strong className="progress-pill">{suddenDeath ? 'Mort subite' : `${game.turns.length}/${game.turn_order.length}`}</strong>
         </div>
         <ol className="fw-score-list">
           {game.turn_order.map((team, index) => {
-            const played = index < game.turns.length;
             const isCurrent = team === game.current_team;
-            const status = isCurrent ? (game.phase === 'running' ? 'En jeu' : 'Prochaine équipe') : played ? 'A joué' : 'À venir';
+            const out = suddenDeath && !game.sudden_death_teams.includes(team);
+            const played = suddenDeath || playedThisRound.has(team);
+            const status = out
+              ? 'Hors départage'
+              : isCurrent
+                ? game.phase === 'running' ? 'En jeu' : 'Prochaine équipe'
+                : playedThisRound.has(team) ? 'A joué' : 'À venir';
             return (
-              <li key={team} className={`fw-score ${isCurrent ? 'is-current' : ''} ${team === game.winner_team ? 'is-winner' : ''}`}>
+              <li
+                key={team}
+                className={`fw-score ${isCurrent ? 'is-current' : ''} ${team === game.winner_team ? 'is-winner' : ''} ${out ? 'is-out' : ''}`}
+              >
                 <span className="score-index">{index + 1}</span>
                 <span className="fw-score-team">
                   <strong>{team}</strong>
