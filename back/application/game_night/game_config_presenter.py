@@ -7,6 +7,7 @@ from application.auction.auction_presenter import AuctionPresenter
 from application.blindtest.blindtest_presenter import BlindtestPresenter
 from application.bombe.bombe_presenter import BombePresenter
 from application.culture.culture_presenter import CulturePresenter
+from application.fair_price.fair_price_presenter import FairPricePresenter
 from application.flash_calc.flash_calc_presenter import FlashCalcPresenter
 from application.forbidden_word.forbidden_word_presenter import ForbiddenWordPresenter
 from application.golden_family.golden_family_presenter import GoldenFamilyPresenter
@@ -33,6 +34,7 @@ GAME_PRESENTERS: dict[str, GamePresenter[Any]] = {
     "flash_calc": FlashCalcPresenter(),
     "right_flag": RightFlagPresenter(),
     "golden_family": GoldenFamilyPresenter(),
+    "fair_price": FairPricePresenter(),
 }
 
 ClientViews = tuple[dict[str, Any], dict[str, Any]]

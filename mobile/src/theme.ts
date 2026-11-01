@@ -15,6 +15,7 @@ export const colors = {
   gold: '#ffc629',
   goldDeep: '#c98a00',
   pink: '#ff2e88',
+  blue: '#2f6bff',
   pinkDeep: '#9c0a52',
   accent: '#22dd6b', // juste / positif
   accentDark: '#139a48',

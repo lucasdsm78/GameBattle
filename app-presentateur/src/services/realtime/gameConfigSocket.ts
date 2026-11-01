@@ -1,4 +1,5 @@
 import { GameConfigMessage } from '../../types/gameConfig';
+import { backendWsBase } from '../backend';
 
 type Handlers = {
   onMessage: (message: GameConfigMessage) => void;
@@ -7,10 +8,8 @@ type Handlers = {
 };
 
 const buildUrl = (): string => {
-  const base = (import.meta.env.VITE_GAMEBATTLE_WS_URL as string | undefined) ?? 'ws://localhost:8000';
   const token = (import.meta.env.VITE_GAMEBATTLE_DISPLAY_TOKEN as string | undefined) ?? 'change-me-display';
-  const normalized = base.replace(/\/$/, '');
-  return `${normalized}/ws/game-config?client_type=display&token=${encodeURIComponent(token)}`;
+  return `${backendWsBase()}/ws/game-config?client_type=display&token=${encodeURIComponent(token)}`;
 };
 
 export class GameConfigSocket {

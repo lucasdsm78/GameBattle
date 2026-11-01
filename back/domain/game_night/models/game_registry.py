@@ -2,6 +2,7 @@ from domain.auction.models.auction_state import AuctionState
 from domain.blindtest.models.blindtest_state import BlindtestState
 from domain.bombe.models.bombe_state import BombeState
 from domain.culture.models.culture_state import CultureState
+from domain.fair_price.models.fair_price_state import FairPriceState
 from domain.flash_calc.models.flash_calc_state import FlashCalcState
 from domain.forbidden_word.models.forbidden_word_state import ForbiddenWordState
 from domain.golden_family.models.golden_family_state import GoldenFamilyState
@@ -29,6 +30,7 @@ GAME_STATE_TYPES: dict[str, type[GameState]] = {
         FlashCalcState,
         RightFlagState,
         GoldenFamilyState,
+        FairPriceState,
     )
 }
 
@@ -38,6 +40,7 @@ __all__ = [
     "BlindtestState",
     "BombeState",
     "CultureState",
+    "FairPriceState",
     "FlashCalcState",
     "ForbiddenWordState",
     "GoldenFamilyState",

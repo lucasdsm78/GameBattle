@@ -8,6 +8,7 @@ from domain.auction.models.auction_actions import AuctionActions
 from domain.blindtest.models.blindtest_actions import BlindtestActions
 from domain.bombe.models.bombe_actions import BombeActions
 from domain.culture.models.culture_actions import CultureActions
+from domain.fair_price.models.fair_price_actions import FairPriceActions
 from domain.flash_calc.models.flash_calc_actions import FlashCalcActions
 from domain.forbidden_word.models.forbidden_word_actions import ForbiddenWordActions
 from domain.golden_family.models.golden_family_actions import GoldenFamilyActions
@@ -69,6 +70,7 @@ class GameConfig(
     FlashCalcActions,
     RightFlagActions,
     GoldenFamilyActions,
+    FairPriceActions,
 ):
     """Racine d'agrégat : configuration de la soirée et orchestration des manches.
 

@@ -11,6 +11,7 @@ from infrastructure.config import Settings
 from infrastructure.logging_filters import install_secret_redaction
 from interface.api.game_config import router as game_config_router
 from interface.api.hardware import router as hardware_router
+from interface.api.media import router as media_router
 from interface.api.realtime import router as realtime_router
 from interface.dependencies.container import (
     database,
@@ -68,6 +69,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     app.include_router(game_config_router)
     app.include_router(hardware_router)
     app.include_router(realtime_router)
+    app.include_router(media_router)
     return app
 
 

@@ -15,6 +15,10 @@ from application.blindtest.blindtest_commands import (
     SpotifyTokenCommand,
 )
 from application.culture.culture_commands import CultureDifficultyCommand
+from application.fair_price.fair_price_commands import (
+    FairPriceFoundCommand,
+    FairPriceHintCommand,
+)
 from application.forbidden_word.forbidden_word_commands import ForbiddenWordCardCommand
 from application.game_night.game_night_commands import GameConfigUpsertModel
 from application.golden_family.golden_family_commands import (
@@ -123,4 +127,8 @@ ROUTES: tuple[Route, ...] = (
     Route("golden-family.answer", lambda uc, cmd: uc.golden_family.give_answer(cmd), FamilyAnswerCommand),
     Route("golden-family.strike", lambda uc, cmd: uc.golden_family.strike(cmd), FamilyTurnCommand),
     Route("golden-family.reveal-board", lambda uc, _: uc.golden_family.reveal_board()),
+    # Le juste prix
+    Route("fair-price.start-turn", lambda uc, _: uc.fair_price.start_turn()),
+    Route("fair-price.hint", lambda uc, cmd: uc.fair_price.give_hint(cmd), FairPriceHintCommand),
+    Route("fair-price.found", lambda uc, cmd: uc.fair_price.mark_found(cmd), FairPriceFoundCommand),
 )

@@ -8,6 +8,7 @@ from application.blindtest.blindtest_command_usecase import BlindtestCommandUseC
 from application.blindtest.playlist_service import BlindtestPlaylistService
 from application.bombe.bombe_command_usecase import BombeCommandUseCase
 from application.culture.culture_command_usecase import CultureCommandUseCase
+from application.fair_price.fair_price_command_usecase import FairPriceCommandUseCase
 from application.flash_calc.flash_calc_command_usecase import FlashCalcCommandUseCase
 from application.forbidden_word.forbidden_word_command_usecase import (
     ForbiddenWordCommandUseCase,
@@ -50,6 +51,7 @@ class GameUseCases:
     flash_calc: FlashCalcCommandUseCase
     right_flag: RightFlagCommandUseCase
     golden_family: GoldenFamilyCommandUseCase
+    fair_price: FairPriceCommandUseCase
 
     @classmethod
     def build(
@@ -74,6 +76,7 @@ class GameUseCases:
             flash_calc=FlashCalcCommandUseCase(*dependencies),
             right_flag=RightFlagCommandUseCase(*dependencies),
             golden_family=GoldenFamilyCommandUseCase(*dependencies),
+            fair_price=FairPriceCommandUseCase(*dependencies),
         )
 
 __all__ = ["CommandUseCase", "GameUseCases", "SnapshotPublisher"]

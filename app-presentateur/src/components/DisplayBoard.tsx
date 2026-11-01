@@ -12,6 +12,7 @@ import { VanishingWordBoard } from './VanishingWordBoard';
 import { FlashCalcBoard } from './FlashCalcBoard';
 import { RightFlagBoard } from './RightFlagBoard';
 import { GoldenFamilyBoard } from './GoldenFamilyBoard';
+import { FairPriceBoard } from './FairPriceBoard';
 import { GameScreen } from './GameScreen';
 import { BlindtestBoard } from './BlindtestBoard';
 
@@ -215,8 +216,8 @@ export function DisplayBoard({
         return;
       }
 
-      // Le mot interdit se pilote uniquement depuis le téléphone de l'orateur.
-      if (activeGameKey === 'forbidden_word') return;
+      // Le mot interdit et le juste prix se pilotent uniquement depuis la régie.
+      if (activeGameKey === 'forbidden_word' || activeGameKey === 'fair_price') return;
 
       if (activeGameKey === 'vanishing_word') {
         if (vanishingPhase !== 'vanished') return;
@@ -447,6 +448,18 @@ export function DisplayBoard({
         scores={game.scores}
       >
         <GoldenFamilyBoard game={game} teams={gameConfig.settings.teams} />
+      </GameScreen>
+    );
+  }
+
+  if (activeGameKey === 'fair_price') {
+    const game = gameConfig.session.fair_price;
+    const recap = game.results
+      .map((result) => `${result.team} ${result.found ? `${(result.elapsed_ms / 1000).toFixed(1).replace('.', ',')} s` : '—'}`)
+      .join('  ·  ');
+    return (
+      <GameScreen {...screen} gameLabel="Le juste prix" detail="Le plus rapide gagne" className="fp-screen" winnerTeam={game.winner_team} recap={recap}>
+        <FairPriceBoard game={game} />
       </GameScreen>
     );
   }

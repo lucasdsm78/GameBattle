@@ -17,6 +17,7 @@ const GAME_LABELS: Record<GameKey, string> = {
   flash_calc: 'Calcul flash',
   right_flag: 'Le bon drapeau',
   golden_family: 'Une famille en or',
+  fair_price: 'Le juste prix',
 };
 const GAME_KEYS = Object.keys(GAME_LABELS) as GameKey[];
 
