@@ -14,7 +14,8 @@ Le backend suit une architecture DDD inspirée de `BetLeague`.
 
 Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop Chrono**,
 **Culture générale**, **La Bombe**, **Mémoire en chaîne**, **Les 7 différences**, **L’Enchère**,
-**Le mot interdit**, **Le mot qui disparaît**, **Calcul flash**, **Le bon drapeau** et **Une famille en or**.
+**Le mot interdit**, **Le mot qui disparaît**, **Calcul flash**, **Le bon drapeau**, **Une famille en or** et
+**Le juste prix**.
 
 ### Déjà implémenté
 
@@ -83,6 +84,7 @@ back/
 │   ├── flash_calc/          # models/ (état, calcul, verdict), services/ (générateur par niveau), events/
 │   ├── right_flag/          # models/ (état, pays, verdict), services/ (catalogue de drapeaux), events/
 │   ├── golden_family/       # models/ (état, question, tableau), services/ (catalogue), events/
+│   ├── fair_price/          # models/ (état, objet, gamme, résultat), services/ (catalogue), events/
 │   ├── bombe/  memory/  stopchrono/   # models/, events/
 │   └── blindtest/  culture/           # models/ (leurs événements sont ceux du noyau partagé)
 ├── application/             # Un dossier par domaine
@@ -91,7 +93,7 @@ back/
 │   │                        # et presenter de la soirée (vues régie / écran public)
 │   ├── blindtest/           # Use case, schémas, service de playlist et port Spotify
 │   ├── stopchrono/ culture/ bombe/ memory/ seven_differences/ auction/ forbidden_word/
-│   │   vanishing_word/ flash_calc/ right_flag/ golden_family/
+│   │   vanishing_word/ flash_calc/ right_flag/ golden_family/ fair_price/
 │   │                        # <jeu>_command_usecase.py, <jeu>_presenter.py, <jeu>_rules.py
 │   │                        # (+ <jeu>_commands.py pour ses schémas)
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
@@ -305,6 +307,20 @@ nouvelle manche s’ouvre aussi sur ses règles. L’enchaînement est piloté p
 avec la régie, même après un rechargement) ; la régie peut passer à l’étape suivante, et le premier coup
 joué ferme l’écran des règles. Les règles de chaque jeu ont leur propre fichier,
 `back/application/<jeu>/<jeu>_rules.py`, branché sur le presenter du jeu.
+
+Pour **Le juste prix**, chaque équipe joue à son tour. Le serveur tire une gamme de prix (par exemple « de
+150 à 900 € »), puis attribue à chaque équipe un objet différent de cette gamme, avec un prix différent :
+personne ne peut reprendre la réponse de l’équipe précédente. La régie lance le chrono (60 s maximum) :
+l’image de l’objet apparaît alors sur l’écran public et sur le mobile, qui affiche aussi le vrai prix. Le
+présentateur répond « c’est plus » / « c’est moins » (boutons ou Volume + / Volume −) puis « Trouvé ! ».
+L’équipe qui trouve le plus vite remporte la manche ; l’écran public ne reçoit le prix qu’à la fin du tour.
+Le catalogue est dans `back/domain/fair_price/services/fair_price_catalog.py` : 31 vrais produits (du sac
+FRAKTA d’IKEA à 1 € au Renault Espace à 46 500 €), avec leurs prix publics TTC relevés le 31 octobre 2026 sur
+le site de la marque ou d’un grand distributeur français. Les photos, dans `back/media/fair_price/`, viennent
+de Wikimedia Commons sous licence libre ; l’auteur et la licence s’affichent sous l’image, et
+`back/media/fair_price/CREDITS.md` donne pour chaque objet la page de la photo et la source du prix. Elles sont
+servies par le backend sur `/media/fair-price/<fichier>` (liste fermée, cache long). Les prix changent : mettez
+à jour `PRICES_CHECKED_ON` et le catalogue quand vous les relevez de nouveau.
 
 Pour **Stop Chrono**, la manche se joue en 3 tours, avec une nouvelle cible à chaque tour, de plus en plus
 longue (7 à 12 s, puis 13 à 18 s, puis 19 à 25 s). Chaque équipe démarre puis arrête le chrono à l’aveugle ;

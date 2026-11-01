@@ -26,6 +26,7 @@ import { VanishingWordLiveScreen } from './src/screens/VanishingWordLiveScreen';
 import { FlashCalcLiveScreen } from './src/screens/FlashCalcLiveScreen';
 import { RightFlagLiveScreen } from './src/screens/RightFlagLiveScreen';
 import { GoldenFamilyLiveScreen } from './src/screens/GoldenFamilyLiveScreen';
+import { FairPriceLiveScreen } from './src/screens/FairPriceLiveScreen';
 import { OpeningBanner } from './src/components/OpeningBanner';
 import { styles } from './src/theme';
 
@@ -150,7 +151,16 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeGameKey === 'golden_family' ? (
+            {activeGameKey === 'fair_price' ? (
+              <FairPriceLiveScreen
+                snapshot={remoteSnapshot}
+                errorMessage={errorMessage}
+                onStartTurn={() => socket.startFairPriceTurn()}
+                onHint={(direction, proposals) => socket.fairPriceHint(direction, proposals)}
+                onFound={(proposals) => socket.fairPriceFound(proposals)}
+                onBack={() => setStep('config')}
+              />
+            ) : activeGameKey === 'golden_family' ? (
               <GoldenFamilyLiveScreen
                 snapshot={remoteSnapshot}
                 errorMessage={errorMessage}

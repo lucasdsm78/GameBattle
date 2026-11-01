@@ -1,10 +1,10 @@
-import Constants from 'expo-constants';
 import {
   BlindtestPlaylistSeedTrack,
   GameConfigMessage,
   GameConfigSnapshot,
   GameDraft,
 } from '../../types/gameConfig';
+import { backendWsBase, controllerToken } from '../backend';
 
 type Handlers = {
   onSnapshot: (config: GameConfigSnapshot) => void;
@@ -19,24 +19,8 @@ type PendingLaunch = {
   timeout: ReturnType<typeof setTimeout>;
 };
 
-const extra = (Constants.expoConfig?.extra ?? {}) as {
-  backendWsUrl?: string;
-  controllerToken?: string;
-};
-
-// En développement (Expo Go), le backend tourne sur la même machine que Metro : on reprend son IP
-// pour ne pas devoir modifier app.json à chaque changement de réseau. Un APK utilise app.json.
-const backendBaseUrl = (): string => {
-  const configured = (extra.backendWsUrl ?? 'ws://localhost:8000').replace(/\/$/, '');
-  const metroHost = __DEV__ ? Constants.expoConfig?.hostUri?.split(':')[0] : undefined;
-  return metroHost ? configured.replace(/^(wss?:\/\/)[^:/]+/, `$1${metroHost}`) : configured;
-};
-
-const socketUrl = (): string => {
-  const base = backendBaseUrl();
-  const token = extra.controllerToken ?? 'change-me-controller';
-  return `${base}/ws/game-config?client_type=controller&token=${encodeURIComponent(token)}`;
-};
+const socketUrl = (): string =>
+  `${backendWsBase()}/ws/game-config?client_type=controller&token=${encodeURIComponent(controllerToken())}`;
 
 export class GameConfigControllerSocket {
   private socket: WebSocket | null = null;
@@ -393,6 +377,19 @@ export class GameConfigControllerSocket {
 
   revealFamilyBoard(): void {
     this.sendMessage({ type: 'golden-family.reveal-board' });
+  }
+
+  startFairPriceTurn(): void {
+    this.sendMessage({ type: 'fair-price.start-turn' });
+  }
+
+  // `proposals` : réponses déjà jugées vues par la régie, pour qu'un double appui ne compte qu'une fois.
+  fairPriceHint(direction: 'plus' | 'moins', proposals: number): void {
+    this.sendMessage({ type: 'fair-price.hint', payload: { direction, proposals } });
+  }
+
+  fairPriceFound(proposals: number): void {
+    this.sendMessage({ type: 'fair-price.found', payload: { proposals } });
   }
 
   nextManche(): void {

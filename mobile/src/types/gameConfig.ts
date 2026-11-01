@@ -10,7 +10,8 @@ export type GameKey =
   | 'vanishing_word'
   | 'flash_calc'
   | 'right_flag'
-  | 'golden_family';
+  | 'golden_family'
+  | 'fair_price';
 export type CultureDifficulty = 'toutes' | 'facile' | 'moyen' | 'difficile';
 
 export type GameStatus = 'configuring' | 'ready' | 'live' | 'finished';
@@ -315,6 +316,35 @@ export type StopChronoState = {
   total_errors_ms: Record<string, number>;
 };
 
+export type PriceItem = { id: string; name: string; image: string; price: number; credit: string };
+
+export type PriceResult = {
+  team: string;
+  item_id: string;
+  found: boolean;
+  elapsed_ms: number;
+  proposals: number;
+  item: PriceItem;
+};
+
+// La régie voit l'objet et son vrai prix ; `proposals` rend ses décisions idempotentes.
+export type FairPriceState = {
+  phase: 'idle' | 'ready' | 'running' | 'finished';
+  band_id: string;
+  band_label: string;
+  turn_order: string[];
+  results: PriceResult[];
+  started_at_ms: number;
+  deadline_ms: number;
+  proposals: number;
+  hint: '' | 'plus' | 'moins';
+  winner_team: string | null;
+  turn_ms: number;
+  prices_checked_on: string;
+  current_team: string | null;
+  current_item: PriceItem | null;
+};
+
 // Ouverture pilotée par le serveur : présentation des équipes, puis règles de la manche.
 export type OpeningView = {
   stage: 'teams' | 'rules';
@@ -338,6 +368,7 @@ export type GameSession = {
   flash_calc: FlashCalcState;
   right_flag: RightFlagState;
   golden_family: GoldenFamilyState;
+  fair_price: FairPriceState;
   round_index: number;
   total_rounds: number;
   manche_number: number;
