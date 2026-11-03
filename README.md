@@ -59,6 +59,7 @@ Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop 
 
 - `back/` : backend FastAPI (`domain` / `application` / `infrastructure` / `presentation`)
 - `app-presentateur/` : app React TypeScript affichée à l'écran
+- `app-joueur/` : app React TypeScript des joueurs en ligne (compte par pseudo et mot de passe)
 - `mobile/` : app React Native Expo pour le présentateur
 - `scripts/` : scripts simples de démarrage et de validation
 
@@ -157,6 +158,33 @@ back/
 - Les jetons passés en query string sont masqués dans les logs uvicorn.
 - L'API tourne en un seul processus (verrou, cache et hub en mémoire) : ne pas lancer plusieurs workers.
 
+### Comptes joueurs (`/api/accounts`)
+
+- `POST /register`, `POST /login`, `POST /logout`, `GET /me`. Domaine dans `back/domain/accounts/`
+  (pseudo, règles du mot de passe, compte, session), cas d'usage dans `back/application/accounts/`.
+- Pseudo de 3 à 20 caractères (lettres, accents compris, chiffres, `-`, `_`), unique sans tenir compte de
+  la casse. Les noms qui imitent l'équipe (« admin », « modo », « gamebattle »…) sont refusés à l'inscription.
+- Mot de passe de 8 à 128 caractères, normalisé en NFKC (un « é » tapé sur n'importe quel clavier reste le
+  même), refusé s'il est très répandu ou contient le pseudo.
+- Une erreur de règle indique le champ fautif (`{"detail": …, "field": "pseudo" | "password"}`) : l'app
+  l'affiche sous ce champ.
+- Mots de passe hachés en Argon2id (`argon2-cffi`, paramètres RFC 9106) dans un thread, au plus deux à la
+  fois : la boucle d'événements des parties ne bloque jamais. Les anciens hachages sont mis à niveau à la
+  connexion suivante.
+- La session est un jeton aléatoire de 256 bits, dans un cookie `HttpOnly`, `SameSite=Strict`, valable
+  30 jours (`__Host-gb_session` avec `Secure` en production). La base n'en garde que l'empreinte SHA-256.
+  Elle glisse : un joueur qui revient après plus de 15 jours repart pour 30 jours. Se reconnecter dans le
+  même navigateur révoque la session précédente.
+- Le corps des requêtes de connexion est lu par morceaux et borné à 2 Ko, même sans `Content-Length`.
+- L'app joueur de production embarque une CSP stricte (tout depuis la même origine, aucun script inline).
+- Une requête dont l'en-tête `Origin` n'est pas celui du serveur est refusée (403).
+- Un mauvais mot de passe et un pseudo inconnu donnent la même réponse, dans le même temps.
+- Freins en mémoire : 5 échecs par pseudo puis 30 essais par adresse IP sur 15 minutes, 5 comptes par
+  IP et par heure. Les réponses 429 portent un en-tête `Retry-After`. Derrière un proxy (Caddy), lancer
+  uvicorn avec `--proxy-headers` pour que l'adresse comptée soit celle du joueur.
+- L'app joueur appelle l'API sur sa propre origine : proxy Vite en développement, et en production le même
+  domaine derrière Caddy. Aucune requête n'est donc cross-origin.
+
 ---
 
 ## Configuration d'environnement
@@ -233,6 +261,16 @@ bash scripts/dev-back.sh
 cd /Users/lucasdasilvamarques/GameBattle
 bash scripts/dev-web.sh
 ```
+
+### App joueur
+
+```bash
+cd /Users/lucasdasilvamarques/GameBattle
+bash scripts/dev-joueur.sh
+```
+
+Ouvre <http://127.0.0.1:5174>. Le proxy Vite renvoie `/api` vers le backend sur `http://127.0.0.1:8000`
+(ou vers `GAMEBATTLE_API_URL`).
 
 ### Mobile
 

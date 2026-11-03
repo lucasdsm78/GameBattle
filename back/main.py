@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from infrastructure.config import Settings
 from infrastructure.logging_filters import install_secret_redaction
+from interface.api.accounts import router as accounts_router
 from interface.api.game_config import router as game_config_router
 from interface.api.hardware import router as hardware_router
 from interface.api.media import router as media_router
@@ -70,6 +71,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     app.include_router(hardware_router)
     app.include_router(realtime_router)
     app.include_router(media_router)
+    app.include_router(accounts_router)
     return app
 
 
