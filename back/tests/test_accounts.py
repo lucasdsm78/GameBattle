@@ -2,18 +2,28 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from types import TracebackType
+from typing import Optional, Self
 
 import pytest
+from alembic import command
+from alembic.autogenerate import compare_metadata
+from alembic.config import Config
+from alembic.migration import MigrationContext
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, func, select
 
 from application.accounts.account_commands import CredentialsCommand
-from application.accounts.account_usecase import (
-    AccountUseCase,
-    hash_session_token,
+from application.accounts.account_unit_of_work import AccountUnitOfWork
+from application.accounts.account_usecase import AccountUseCase, hash_session_token
+from application.accounts.attempt_counter import (
+    AttemptCounter,
+    AttemptLimit,
+    AttemptWindow,
 )
-from application.accounts.attempt_limiter import AttemptLimiter
 from domain.accounts.models.password_policy import check_password, normalize_password
 from domain.accounts.models.player_account import PlayerAccount
 from domain.accounts.models.player_session import (
@@ -37,56 +47,119 @@ from exceptions import (
     TooManyAttemptsError,
 )
 from infrastructure.config import Settings
-from infrastructure.database.database import Database
+from infrastructure.database.database import Base, Database
+from infrastructure.database.models import AuthAttemptModel, PlayerAccountModel
+from infrastructure.repositories.account_unit_of_work import SqlAccountUnitOfWork
 from infrastructure.repositories.postgresql_player_account import (
-    PostgreSQLPlayerAccountRepository,
     PostgreSQLPlayerSessionRepository,
 )
 from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher
 from interface.api import accounts as accounts_api
 from interface.dependencies.container import account_usecase
 
+BACK_DIR = Path(__file__).resolve().parents[1]
 PASSWORD = "Tartiflette au four 74"
 IP = "203.0.113.7"
 
 
+# --- Doubles en mémoire : une « base » et une unité de travail qui travaille sur une copie ---
+
+
+@dataclass
+class AccountStore:
+    accounts: dict[str, PlayerAccount] = field(default_factory=dict)
+    sessions: dict[str, PlayerSession] = field(default_factory=dict)
+    attempts: dict[str, tuple[int, int]] = field(default_factory=dict)  # clé -> (début de fenêtre, essais)
+
+    def copy(self) -> AccountStore:
+        return AccountStore(dict(self.accounts), dict(self.sessions), dict(self.attempts))
+
+
 class InMemoryAccounts(PlayerAccountRepository):
-    def __init__(self) -> None:
-        self.by_id: dict[str, PlayerAccount] = {}
+    def __init__(self, data: AccountStore) -> None:
+        self._data = data
 
     async def get(self, account_id: str) -> Optional[PlayerAccount]:
-        return self.by_id.get(account_id)
+        return self._data.accounts.get(account_id)
 
     async def find_by_pseudo(self, pseudo: Pseudo) -> Optional[PlayerAccount]:
-        return next((account for account in self.by_id.values() if account.pseudo.key == pseudo.key), None)
+        return next((account for account in self._data.accounts.values() if account.pseudo.key == pseudo.key), None)
 
     async def add(self, account: PlayerAccount) -> None:
         if await self.find_by_pseudo(account.pseudo):
             raise PseudoAlreadyTakenError("Ce pseudo est déjà pris.")
-        self.by_id[account.id] = account
+        self._data.accounts[account.id] = account
 
     async def save_password_hash(self, account: PlayerAccount) -> None:
-        self.by_id[account.id] = account
+        self._data.accounts[account.id] = account
 
 
 class InMemorySessions(PlayerSessionRepository):
-    def __init__(self) -> None:
-        self.by_hash: dict[str, PlayerSession] = {}
+    def __init__(self, data: AccountStore, *, broken: bool = False) -> None:
+        self._data = data
+        self._broken = broken
 
     async def add(self, session: PlayerSession) -> None:
-        self.by_hash[session.token_hash] = session
+        if self._broken:
+            raise RuntimeError("base indisponible")
+        self._data.sessions[session.token_hash] = session
 
     async def get(self, token_hash: str) -> Optional[PlayerSession]:
-        return self.by_hash.get(token_hash)
-
-    async def delete(self, token_hash: str) -> None:
-        self.by_hash.pop(token_hash, None)
+        return self._data.sessions.get(token_hash)
 
     async def save_expiry(self, session: PlayerSession) -> None:
-        self.by_hash[session.token_hash] = session
+        self._data.sessions[session.token_hash] = session
+
+    async def delete(self, token_hash: str) -> None:
+        self._data.sessions.pop(token_hash, None)
 
     async def delete_expired(self, now_ms: int) -> None:
-        self.by_hash = {key: session for key, session in self.by_hash.items() if not session.is_expired(now_ms)}
+        self._data.sessions = {key: session for key, session in self._data.sessions.items() if not session.is_expired(now_ms)}
+
+
+class InMemoryAttempts(AttemptCounter):
+    def __init__(self, data: AccountStore) -> None:
+        self._data = data
+
+    async def peek(self, key: str, now_ms: int, window_ms: int) -> AttemptWindow:
+        start, count = self._data.attempts.get(key, (now_ms, 0))
+        return AttemptWindow(count, start + window_ms) if now_ms < start + window_ms else AttemptWindow(0, now_ms + window_ms)
+
+    async def hit(self, key: str, now_ms: int, window_ms: int) -> AttemptWindow:
+        current = await self.peek(key, now_ms, window_ms)
+        start = current.resets_at_ms - window_ms if current.count else now_ms
+        self._data.attempts[key] = (start, current.count + 1)
+        return AttemptWindow(current.count + 1, start + window_ms)
+
+    async def reset(self, key: str) -> None:
+        self._data.attempts.pop(key, None)
+
+    async def purge(self, started_before_ms: int) -> None:
+        self._data.attempts = {key: value for key, value in self._data.attempts.items() if value[0] >= started_before_ms}
+
+
+class InMemoryAccountUnitOfWork(AccountUnitOfWork):
+    """Travaille sur une copie de la « base » : seul `commit()` publie, comme une vraie transaction."""
+
+    def __init__(self, store: AccountStore, *, broken_sessions: bool = False) -> None:
+        self._store = store
+        self._broken_sessions = broken_sessions
+
+    async def __aenter__(self) -> Self:
+        self._work = self._store.copy()
+        self.accounts = InMemoryAccounts(self._work)
+        self.sessions = InMemorySessions(self._work, broken=self._broken_sessions)
+        self.attempts = InMemoryAttempts(self._work)
+        return self
+
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc: BaseException | None, traceback: TracebackType | None
+    ) -> None:
+        return None
+
+    async def commit(self) -> None:
+        committed = self._work.copy()
+        self._store.accounts, self._store.sessions, self._store.attempts = committed.accounts, committed.sessions, committed.attempts
 
 
 class FakeHasher(PasswordHasher):
@@ -115,9 +188,12 @@ class Clock:
         return self.now
 
 
-def _use_case(hasher: Optional[FakeHasher] = None) -> tuple[AccountUseCase, InMemoryAccounts, InMemorySessions, Clock]:
-    accounts, sessions, clock = InMemoryAccounts(), InMemorySessions(), Clock()
-    return AccountUseCase(accounts, sessions, hasher or FakeHasher(), clock=clock), accounts, sessions, clock
+def _use_case(
+    hasher: Optional[FakeHasher] = None, *, store: Optional[AccountStore] = None, clock: Optional[Clock] = None, broken_sessions: bool = False
+) -> tuple[AccountUseCase, AccountStore, Clock]:
+    store, clock = store or AccountStore(), clock or Clock()
+    use_case = AccountUseCase(lambda: InMemoryAccountUnitOfWork(store, broken_sessions=broken_sessions), hasher or FakeHasher(), clock=clock)
+    return use_case, store, clock
 
 
 def _credentials(pseudo: str = "Lucas", password: str = PASSWORD) -> CredentialsCommand:
@@ -173,20 +249,28 @@ def test_a_reserved_pseudo_still_loads_for_an_existing_account() -> None:
 
 
 def test_passwords_are_compared_in_a_single_unicode_form() -> None:
-    assert normalize_password("cafe\u0301 au lait") == normalize_password("caf\u00e9 au lait")
+    assert normalize_password("café au lait") == normalize_password("café au lait")
 
 
 # --- Cas d'usage ---
 
 
 def test_registering_opens_a_session_and_never_stores_the_password() -> None:
-    use_case, accounts, sessions, _ = _use_case()
+    use_case, store, _ = _use_case()
     signed_in = asyncio.run(use_case.register(_credentials(), IP))
 
-    (account,) = accounts.by_id.values()
+    (account,) = store.accounts.values()
     assert account.pseudo.value == "Lucas" and PASSWORD not in account.password_hash.split("$", 1)[0]
-    assert list(sessions.by_hash) == [hash_session_token(signed_in.token)]  # seule l'empreinte du jeton est gardée
+    assert list(store.sessions) == [hash_session_token(signed_in.token)]  # seule l'empreinte du jeton est gardée
     assert asyncio.run(use_case.current(signed_in.token)).account.pseudo == "Lucas"
+
+
+def test_an_account_never_exists_without_its_session() -> None:
+    use_case, store, _ = _use_case(broken_sessions=True)
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(use_case.register(_credentials(), IP))
+    assert store.accounts == {} and store.sessions == {}  # tout ou rien : le pseudo reste libre
 
 
 def test_a_pseudo_cannot_be_taken_twice_whatever_its_case() -> None:
@@ -219,7 +303,7 @@ def test_a_wrong_password_and_an_unknown_pseudo_are_indistinguishable() -> None:
 
 
 def test_repeated_failures_lock_the_pseudo_for_a_while() -> None:
-    use_case, _, _, clock = _use_case()
+    use_case, _, clock = _use_case()
     asyncio.run(use_case.register(_credentials(), IP))
     for attempt in range(5):
         with pytest.raises(InvalidCredentialsError):
@@ -233,6 +317,19 @@ def test_repeated_failures_lock_the_pseudo_for_a_while() -> None:
     assert asyncio.run(use_case.login(_credentials(), IP)).account.pseudo == "Lucas"
 
 
+def test_attempt_counters_survive_a_restart() -> None:
+    first_process, store, clock = _use_case()
+    asyncio.run(first_process.register(_credentials(), IP))
+    for attempt in range(5):
+        with pytest.raises(InvalidCredentialsError):
+            asyncio.run(first_process.login(_credentials(password=f"essai {attempt} raté"), IP))
+
+    restarted, *_ = _use_case(store=store, clock=clock)  # nouveau processus, même base
+    with pytest.raises(TooManyAttemptsError):
+        asyncio.run(restarted.login(_credentials(), IP))
+    assert all(len(key) == 64 and IP not in key for key in store.attempts)  # empreintes, jamais l'adresse en clair
+
+
 def test_one_address_cannot_create_accounts_in_bulk() -> None:
     use_case, *_ = _use_case()
     for index in range(5):
@@ -242,8 +339,18 @@ def test_one_address_cannot_create_accounts_in_bulk() -> None:
         asyncio.run(use_case.register(_credentials("Joueur5"), IP))
 
 
+def test_one_address_is_slowed_down_after_thirty_attempts_of_any_kind() -> None:
+    use_case, *_ = _use_case()
+    for attempt in range(30):
+        with pytest.raises(InvalidCredentialsError):
+            asyncio.run(use_case.login(_credentials(f"Inconnu{attempt}"), IP))
+
+    with pytest.raises(TooManyAttemptsError):
+        asyncio.run(use_case.register(_credentials(), IP))
+
+
 def test_logout_and_expiry_end_the_session() -> None:
-    use_case, _, sessions, clock = _use_case()
+    use_case, store, clock = _use_case()
     first = asyncio.run(use_case.register(_credentials(), IP))
     asyncio.run(use_case.logout(first.token))
     with pytest.raises(NotAuthenticatedError):
@@ -253,7 +360,15 @@ def test_logout_and_expiry_end_the_session() -> None:
     clock.now += SESSION_TTL_MS
     with pytest.raises(NotAuthenticatedError):
         asyncio.run(use_case.current(second.token))
-    assert sessions.by_hash == {}
+    assert store.sessions == {}
+
+
+def test_signing_in_again_replaces_the_previous_session_atomically() -> None:
+    use_case, store, _ = _use_case()
+    first = asyncio.run(use_case.register(_credentials(), IP))
+
+    second = asyncio.run(use_case.login(_credentials(), IP, replacing_token=first.token))
+    assert list(store.sessions) == [hash_session_token(second.token)]
 
 
 @pytest.mark.parametrize("token", [None, "", "x" * 129, "jeton-inconnu"])
@@ -266,21 +381,21 @@ def test_missing_or_forged_tokens_are_not_authenticated(token: Optional[str]) ->
 
 def test_an_accented_password_works_whatever_the_keyboard_encoding() -> None:
     use_case, *_ = _use_case()
-    asyncio.run(use_case.register(_credentials(password="caf\u00e9 crème glacée"), IP))
+    asyncio.run(use_case.register(_credentials(password="café crème glacée"), IP))
 
-    assert asyncio.run(use_case.login(_credentials(password="cafe\u0301 cre\u0300me glace\u0301e"), IP)).account.pseudo == "Lucas"
+    assert asyncio.run(use_case.login(_credentials(password="café crème glacée"), IP)).account.pseudo == "Lucas"
 
 
 def test_signing_up_with_a_reserved_pseudo_is_refused() -> None:
-    use_case, accounts, *_ = _use_case()
+    use_case, store, _ = _use_case()
 
     with pytest.raises(InvalidAccountError, match="réservé"):
         asyncio.run(use_case.register(_credentials("Admin"), IP))
-    assert accounts.by_id == {}
+    assert store.accounts == {}
 
 
 def test_an_active_player_session_slides_instead_of_expiring() -> None:
-    use_case, _, sessions, clock = _use_case()
+    use_case, store, clock = _use_case()
     signed_in = asyncio.run(use_case.register(_credentials(), IP))
 
     clock.now += SESSION_RENEW_AFTER_MS - 60_000
@@ -288,7 +403,7 @@ def test_an_active_player_session_slides_instead_of_expiring() -> None:
     clock.now += 2 * 60_000
     renewed = asyncio.run(use_case.current(signed_in.token))
     assert renewed.renewed_until_ms == clock.now + SESSION_TTL_MS
-    assert sessions.by_hash[hash_session_token(signed_in.token)].expires_at_ms == renewed.renewed_until_ms
+    assert store.sessions[hash_session_token(signed_in.token)].expires_at_ms == renewed.renewed_until_ms
 
     clock.now += SESSION_TTL_MS - 1
     assert asyncio.run(use_case.current(signed_in.token)).account.pseudo == "Lucas"
@@ -296,22 +411,24 @@ def test_an_active_player_session_slides_instead_of_expiring() -> None:
 
 def test_an_outdated_hash_is_upgraded_at_the_next_login() -> None:
     hasher = FakeHasher(outdated=True)
-    use_case, accounts, *_ = _use_case(hasher)
+    use_case, store, _ = _use_case(hasher)
     asyncio.run(use_case.register(_credentials(), IP))
     hasher.outdated = False
 
     asyncio.run(use_case.login(_credentials(), IP))
-    assert next(iter(accounts.by_id.values())).password_hash.startswith("fake-v2$")
+    assert next(iter(store.accounts.values())).password_hash.startswith("fake-v2$")
 
 
-def test_the_attempt_limiter_keeps_a_bounded_number_of_keys() -> None:
-    limiter = AttemptLimiter(limit=1, window_ms=1_000, max_keys=3)
-    for index in range(10):
-        limiter.record(f"ip-{index}", 0)
+def test_an_attempt_limit_counts_and_checks_in_one_step() -> None:
+    store = AccountStore()
+    counter, limit = InMemoryAttempts(store), AttemptLimit("test", limit=2, window_ms=1_000)
+    asyncio.run(limit.count_attempt(counter, "joueur", 0))
+    asyncio.run(limit.count_attempt(counter, "joueur", 10))
 
-    limiter.check("ip-0", 1)  # évincée : la mémoire ne grossit pas
-    with pytest.raises(TooManyAttemptsError):
-        limiter.check("ip-9", 1)
+    with pytest.raises(TooManyAttemptsError) as blocked:
+        asyncio.run(limit.count_attempt(counter, "joueur", 20))
+    assert blocked.value.retry_after_seconds == 1
+    asyncio.run(limit.count_attempt(counter, "joueur", 1_000))  # nouvelle fenêtre
 
 
 # --- Infrastructure ---
@@ -329,44 +446,106 @@ def test_argon2id_hashes_are_salted_and_verified() -> None:
     assert hasher.needs_rehash(first) is False
 
 
-def test_sql_repositories_enforce_unique_pseudos_and_expire_sessions() -> None:
-    async def scenario(database: Database) -> None:
-        await database.create_schema()
-        accounts, sessions = PostgreSQLPlayerAccountRepository(database), PostgreSQLPlayerSessionRepository(database)
-        account = PlayerAccount(id="a1", pseudo=Pseudo("Zoé"), password_hash="hash", created_at_ms=1)
-        await accounts.add(account)
-        assert await accounts.find_by_pseudo(Pseudo("ZOÉ")) == account
-        with pytest.raises(PseudoAlreadyTakenError):
-            await accounts.add(PlayerAccount(id="a2", pseudo=Pseudo("zoé"), password_hash="hash", created_at_ms=2))
-
-        await accounts.save_password_hash(account.with_password_hash("nouveau"))
-        assert (await accounts.get("a1")).password_hash == "nouveau"
-
-        await sessions.add(PlayerSession("t1", "a1", expires_at_ms=100))
-        await sessions.add(PlayerSession("t2", "a1", expires_at_ms=10_000))
-        await sessions.save_expiry(PlayerSession("t1", "a1", expires_at_ms=50).renewed(now_ms=0))
-        assert (await sessions.get("t1")).expires_at_ms == SESSION_TTL_MS
-        await sessions.save_expiry(PlayerSession("t1", "a1", expires_at_ms=100))
-        await sessions.delete_expired(now_ms=100)
-        assert await sessions.get("t1") is None and await sessions.get("t2") is not None
-        await sessions.delete("t2")
-        assert await sessions.get("t2") is None
-        await database.dispose()
-
+@pytest.fixture
+def sqlite_database() -> Iterator[Database]:
     with tempfile.TemporaryDirectory() as directory:
-        asyncio.run(scenario(Database(f"sqlite+aiosqlite:///{Path(directory) / 'accounts.db'}")))
+        database = Database(f"sqlite+aiosqlite:///{Path(directory) / 'accounts.db'}")
+        asyncio.run(database.create_schema())
+        yield database
+        asyncio.run(database.dispose())
+
+
+async def _count(database: Database, model: type[Base]) -> int:
+    async with database.session() as session:
+        return await session.scalar(select(func.count()).select_from(model))
+
+
+def test_sql_unit_of_work_enforces_unique_pseudos_and_expires_sessions(sqlite_database: Database) -> None:
+    async def scenario() -> None:
+        account = PlayerAccount(id="a1", pseudo=Pseudo("Zoé"), password_hash="hash", created_at_ms=1)
+        async with SqlAccountUnitOfWork(sqlite_database) as uow:
+            await uow.accounts.add(account)
+            await uow.sessions.add(PlayerSession("t1", "a1", expires_at_ms=100))
+            await uow.sessions.add(PlayerSession("t2", "a1", expires_at_ms=10_000))
+            await uow.commit()
+
+        async with SqlAccountUnitOfWork(sqlite_database) as uow:
+            assert await uow.accounts.find_by_pseudo(Pseudo("ZOÉ")) == account
+            with pytest.raises(PseudoAlreadyTakenError):
+                await uow.accounts.add(PlayerAccount(id="a2", pseudo=Pseudo("zoé"), password_hash="hash", created_at_ms=2))
+
+        async with SqlAccountUnitOfWork(sqlite_database) as uow:
+            await uow.accounts.save_password_hash(account.with_password_hash("nouveau"))
+            await uow.sessions.save_expiry(PlayerSession("t1", "a1", expires_at_ms=50).renewed(now_ms=0))
+            await uow.commit()
+            assert (await uow.accounts.get("a1")).password_hash == "nouveau"
+            assert (await uow.sessions.get("t1")).expires_at_ms == SESSION_TTL_MS
+            await uow.sessions.save_expiry(PlayerSession("t1", "a1", expires_at_ms=100))
+            await uow.sessions.delete_expired(now_ms=100)
+            await uow.sessions.delete("t2")
+            await uow.commit()
+            assert await uow.sessions.get("t1") is None and await uow.sessions.get("t2") is None
+
+    asyncio.run(scenario())
+
+
+def test_sql_registration_is_all_or_nothing(sqlite_database: Database, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def unavailable(*_: object) -> None:
+        raise RuntimeError("base indisponible")
+
+    use_case = AccountUseCase(lambda: SqlAccountUnitOfWork(sqlite_database), FakeHasher(), clock=Clock())
+    monkeypatch.setattr(PostgreSQLPlayerSessionRepository, "add", unavailable)
+    with pytest.raises(RuntimeError):
+        asyncio.run(use_case.register(_credentials(), IP))
+    assert asyncio.run(_count(sqlite_database, PlayerAccountModel)) == 0
+
+    monkeypatch.undo()
+    signed_in = asyncio.run(use_case.register(_credentials(), IP))
+    assert asyncio.run(use_case.current(signed_in.token)).account.pseudo == "Lucas"
+
+
+def test_sql_attempt_counter_upserts_atomically_and_purges(sqlite_database: Database) -> None:
+    async def scenario() -> None:
+        async with SqlAccountUnitOfWork(sqlite_database) as uow:
+            assert await uow.attempts.hit("k", 1_000, 500) == AttemptWindow(1, 1_500)
+            assert await uow.attempts.hit("k", 1_200, 500) == AttemptWindow(2, 1_500)
+            assert await uow.attempts.peek("k", 1_499, 500) == AttemptWindow(2, 1_500)
+            assert await uow.attempts.peek("k", 1_500, 500) == AttemptWindow(0, 2_000)
+            assert await uow.attempts.hit("k", 1_600, 500) == AttemptWindow(1, 2_100)  # fenêtre expirée : on repart de 1
+            await uow.attempts.hit("old", 0, 500)
+            await uow.attempts.purge(started_before_ms=1_000)
+            await uow.attempts.reset("k")
+            await uow.commit()
+        assert await _count(sqlite_database, AuthAttemptModel) == 0
+
+    asyncio.run(scenario())
+
+
+def test_migrations_build_exactly_the_schema_of_the_models() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "migrated.db"
+        config = Config(str(BACK_DIR / "alembic.ini"))
+        config.attributes.update(database_url=f"sqlite+aiosqlite:///{path}", configure_logging=False)
+        command.upgrade(config, "head")
+
+        engine = create_engine(f"sqlite:///{path}")
+        with engine.connect() as connection:
+            differences = compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), Base.metadata)
+        engine.dispose()
+        assert differences == []
+        command.downgrade(config, "base")
 
 
 # --- API ---
 
 
-def _client(monkeypatch: pytest.MonkeyPatch, *, environment: str = "development") -> TestClient:
-    return _client_with_state(monkeypatch, environment=environment)[0]
+def _client(monkeypatch: pytest.MonkeyPatch, *, environment: str = "development", player_origins: str = "") -> TestClient:
+    return _client_with_state(monkeypatch, environment=environment, player_origins=player_origins)[0]
 
 
 def _client_with_state(
-    monkeypatch: pytest.MonkeyPatch, *, environment: str = "development"
-) -> tuple[TestClient, InMemorySessions, Clock]:
+    monkeypatch: pytest.MonkeyPatch, *, environment: str = "development", player_origins: str = ""
+) -> tuple[TestClient, AccountStore, Clock]:
     from main import create_app
 
     settings = Settings(
@@ -375,12 +554,13 @@ def _client_with_state(
         controller_token="controller-test-token",
         display_token="display-test-token",
         hardware_token="hardware-test-token",
+        player_origins=player_origins,
     )
     monkeypatch.setattr(accounts_api, "get_settings", lambda: settings)
     app = create_app(settings)
-    use_case, _, sessions, clock = _use_case()
+    use_case, store, clock = _use_case()
     app.dependency_overrides[account_usecase] = lambda: use_case
-    return TestClient(app, base_url="http://testserver"), sessions, clock
+    return TestClient(app, base_url="http://testserver"), store, clock
 
 
 def test_register_sets_an_httponly_strict_cookie_and_returns_only_the_pseudo(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -420,11 +600,22 @@ def test_too_many_attempts_answer_429_with_retry_after(monkeypatch: pytest.Monke
 
 def test_requests_from_another_site_are_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _client(monkeypatch)
+    body = {"pseudo": "Lucas", "password": PASSWORD}
 
-    forged = client.post("/api/accounts/register", json={"pseudo": "Lucas", "password": PASSWORD}, headers={"Origin": "https://pirate.example"})
+    forged = client.post("/api/accounts/register", json=body, headers={"Origin": "https://pirate.example"})
     assert forged.status_code == 403 and "set-cookie" not in forged.headers
-    same_site = client.post("/api/accounts/register", json={"pseudo": "Lucas", "password": PASSWORD}, headers={"Origin": "http://testserver"})
-    assert same_site.status_code == 201
+    assert client.post("/api/accounts/register", json=body, headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
+    assert client.post("/api/accounts/register", json=body, headers={"Origin": "http://testserver"}).status_code == 201
+
+
+def test_a_configured_player_origin_is_the_only_one_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _client(monkeypatch, player_origins="https://jeu.exemple.fr")
+    body = {"pseudo": "Lucas", "password": PASSWORD}
+
+    # Même l'hôte de la requête ne suffit plus : derrière un proxy, seule l'origine déclarée fait foi.
+    assert client.post("/api/accounts/register", json=body, headers={"Origin": "http://testserver"}).status_code == 403
+    assert client.post("/api/accounts/register", json=body, headers={"Origin": "http://jeu.exemple.fr"}).status_code == 403
+    assert client.post("/api/accounts/register", json=body, headers={"Origin": "https://jeu.exemple.fr"}).status_code == 201
 
 
 def test_oversized_bodies_are_refused_even_when_streamed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -438,13 +629,13 @@ def test_oversized_bodies_are_refused_even_when_streamed(monkeypatch: pytest.Mon
 
 
 def test_signing_in_again_revokes_the_previous_session_of_this_browser(monkeypatch: pytest.MonkeyPatch) -> None:
-    client, sessions, _ = _client_with_state(monkeypatch)
+    client, store, _ = _client_with_state(monkeypatch)
     client.post("/api/accounts/register", json={"pseudo": "Lucas", "password": PASSWORD})
     first_token = client.cookies["gb_session"]
 
     client.post("/api/accounts/login", json={"pseudo": "Lucas", "password": PASSWORD})
     assert client.cookies["gb_session"] != first_token
-    assert list(sessions.by_hash) == [hash_session_token(client.cookies["gb_session"])]
+    assert list(store.sessions) == [hash_session_token(client.cookies["gb_session"])]
 
 
 def test_me_refreshes_the_cookie_only_when_the_session_slides(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -458,7 +649,7 @@ def test_me_refreshes_the_cookie_only_when_the_session_slides(monkeypatch: pytes
 
 
 def test_production_cookies_are_secure_and_host_only(monkeypatch: pytest.MonkeyPatch) -> None:
-    client = _client(monkeypatch, environment="production")
+    client = _client(monkeypatch, environment="production", player_origins="http://testserver")
     cookie = client.post("/api/accounts/register", json={"pseudo": "Lucas", "password": PASSWORD}).headers["set-cookie"]
 
     assert cookie.startswith("__Host-gb_session=") and "Secure" in cookie and "Domain" not in cookie

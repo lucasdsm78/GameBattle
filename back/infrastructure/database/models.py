@@ -45,3 +45,13 @@ class PlayerSessionModel(Base):
         String(36), ForeignKey("player_accounts.id", ondelete="CASCADE"), nullable=False, index=True
     )
     expires_at_ms: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+
+
+class AuthAttemptModel(Base):
+    """Compteur d'essais par fenêtre fixe ; `key` est une empreinte (portée + adresse IP ou pseudo)."""
+
+    __tablename__ = "auth_attempts"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_start_ms: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False)

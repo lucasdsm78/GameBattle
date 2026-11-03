@@ -5,7 +5,7 @@ import { useAccount } from './hooks/useAccount';
 const GAMES = ['Blindtest', 'Culture', 'La bombe', 'Calcul flash', 'Le bon drapeau', 'Une famille en or', 'Le juste prix', 'Stop chrono'];
 
 export default function App() {
-  const { state, signedIn, signOut } = useAccount();
+  const { state, retry, signedIn, signOut } = useAccount();
 
   return (
     <main className="home">
@@ -24,6 +24,14 @@ export default function App() {
       {state.status === 'loading' ? (
         <section className="panel auth-card is-loading" aria-busy="true" aria-label="Chargement de ton compte">
           <span className="loader" />
+        </section>
+      ) : state.status === 'unreachable' ? (
+        <section className="panel status-card" role="alert">
+          <h2 className="status-title">Connexion impossible</h2>
+          <p className="welcome-text">{state.message}</p>
+          <button type="button" className="primary-button" onClick={retry}>
+            Réessayer
+          </button>
         </section>
       ) : state.status === 'guest' ? (
         <AuthCard onSignedIn={signedIn} />
