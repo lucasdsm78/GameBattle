@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import ipaddress
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+IpNetwork = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
 
 
 class Settings(BaseSettings):
@@ -30,11 +32,21 @@ class Settings(BaseSettings):
     # Origines exactes de l'app joueur (`https://jeu.exemple.fr`), seules autorisées à écrire sur /api/accounts.
     # Vide en développement : on compare alors l'Origin à l'hôte de la requête (proxy Vite, même origine).
     player_origins: str = ""
+    # Adresses (ou réseaux CIDR) des reverse proxies de confiance, Caddy en production. `X-Forwarded-For` n'est lu
+    # que pour une connexion venant de l'un d'eux ; vide (développement), l'en-tête est ignoré.
+    trusted_proxies: str = ""
 
     @field_validator("environment")
     @classmethod
     def normalize_environment(cls, value: str) -> str:
         return value.strip().lower()
+
+    @field_validator("trusted_proxies")
+    @classmethod
+    def validate_trusted_proxies(cls, value: str) -> str:
+        for entry in filter(None, (part.strip() for part in value.split(","))):
+            ipaddress.ip_network(entry, strict=False)  # une adresse invalide arrête le démarrage, pas une requête
+        return value
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> Settings:
@@ -64,6 +76,10 @@ class Settings(BaseSettings):
     @property
     def player_origins_set(self) -> frozenset[str]:
         return frozenset(origin.strip().rstrip("/") for origin in self.player_origins.split(",") if origin.strip())
+
+    @property
+    def trusted_proxy_networks(self) -> tuple[IpNetwork, ...]:
+        return tuple(ipaddress.ip_network(entry.strip(), strict=False) for entry in self.trusted_proxies.split(",") if entry.strip())
 
     @property
     def creates_schema_on_startup(self) -> bool:

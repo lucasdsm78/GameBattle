@@ -11,6 +11,7 @@ from application.accounts.account_commands import CredentialsCommand
 from application.accounts.account_usecase import SignedIn
 from domain.accounts.models.player_session import SESSION_TTL_MS
 from exceptions import InvalidCommandPayloadError
+from interface.client_address import client_address
 from interface.dependencies import AccountUseCaseDep
 from interface.dependencies.container import get_settings
 from interface.schemas.accounts import AccountResponse
@@ -71,12 +72,6 @@ def _session_token(request: Request) -> Optional[str]:
     return request.cookies.get(_cookie_name())
 
 
-def _client_ip(request: Request) -> str:
-    # Derrière Caddy, uvicorn ne lit `X-Forwarded-For` que si la connexion vient d'une adresse listée dans
-    # `FORWARDED_ALLOW_IPS` (celle de Caddy, et elle seule) : sinon c'est l'adresse du proxy, jamais un en-tête forgé.
-    return request.client.host if request.client else "inconnue"
-
-
 def _set_session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         _cookie_name(),
@@ -97,12 +92,12 @@ def _signed_in(response: Response, signed_in: SignedIn) -> AccountResponse:
 # La session que ce navigateur avait encore est révoquée dans la même transaction que l'ouverture de la nouvelle.
 @router.post("/register", status_code=status.HTTP_201_CREATED, summary="Créer un compte joueur et se connecter")
 async def register(credentials: Credentials, request: Request, response: Response, accounts: AccountUseCaseDep) -> AccountResponse:
-    return _signed_in(response, await accounts.register(credentials, _client_ip(request), _session_token(request)))
+    return _signed_in(response, await accounts.register(credentials, client_address(request), _session_token(request)))
 
 
 @router.post("/login", summary="Se connecter avec son pseudo et son mot de passe")
 async def login(credentials: Credentials, request: Request, response: Response, accounts: AccountUseCaseDep) -> AccountResponse:
-    return _signed_in(response, await accounts.login(credentials, _client_ip(request), _session_token(request)))
+    return _signed_in(response, await accounts.login(credentials, client_address(request), _session_token(request)))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, summary="Se déconnecter")
