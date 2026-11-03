@@ -170,14 +170,6 @@ class AccountUseCase:
             await uow.commit()
         return CurrentPlayer(view, renewed_until_ms=renewed.expires_at_ms)
 
-    async def purge_expired(self) -> None:
-        """Ménage périodique : sessions expirées et compteurs d'essais dont la fenêtre est close."""
-        now = self._clock()
-        async with self._unit_of_work() as uow:
-            await uow.sessions.delete_expired(now)
-            await uow.attempts.purge(started_before_ms=now - self._limits.longest_window_ms)
-            await uow.commit()
-
     async def _reserve_attempt(self, uow: AccountUnitOfWork, now_ms: int, *limits: tuple[AttemptLimit, str]) -> None:
         """Compte l'essai dans chaque limite et le valide en base, puis refuse si l'une est dépassée.
 

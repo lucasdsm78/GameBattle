@@ -156,7 +156,17 @@ back/
   reçoit jamais les réponses, mots secrets ni descriptions de différences.
 - Messages WebSocket limités à 64 Ko, débit limité par connexion, entrées validées strictement.
 - Les jetons passés en query string sont masqués dans les logs uvicorn.
-- L'API tourne en un seul processus (verrou, cache et hub en mémoire) : ne pas lancer plusieurs workers.
+- L'API tourne en un seul processus : l'état des parties, le hub WebSocket, les verrous et les minuteurs sont
+  en mémoire. C'est imposé, pas seulement recommandé : au démarrage, l'API prend un verrou consultatif
+  PostgreSQL (`SingleInstanceLock`), tenu toute la vie du processus. Une seconde instance sur la même base
+  (`--workers 2`, une réplique…) s'arrête avec un message explicite. PostgreSQL libère le verrou si le
+  processus meurt.
+- Environnements : `development`, `dev`, `local` et `test` sont locaux. Tout autre nom (`staging`, `recette`,
+  `production`, ou une faute de frappe) est traité comme un déploiement : secrets, origine de l'app joueur et
+  proxy de confiance obligatoires, cookies `Secure`, schéma par migrations seulement.
+- Tâches de fond (`infrastructure/runtime/periodic_task.py`) : minuteur des jeux et ménage des comptes. Après
+  une erreur, elles réessaient vite (1 s, 2 s, 4 s…, plafonné à leur intervalle), avec le nombre d'échecs
+  d'affilée dans le journal.
 
 ### Comptes joueurs (`/api/accounts`)
 
@@ -183,7 +193,7 @@ back/
 - L'app joueur de production embarque une CSP stricte (tout depuis la même origine, aucun script inline).
 - Anti-CSRF en plus de `SameSite=Strict` :
   - toute écriture doit annoncer son origine (`Origin`, sinon `Referer`) ; `Origin: null` est refusé ;
-  - l'origine doit figurer dans `GAMEBATTLE_PLAYER_ORIGINS` (obligatoire en production), ou désigner l'hôte de
+  - l'origine doit figurer dans `GAMEBATTLE_PLAYER_ORIGINS` (obligatoire une fois déployé), ou désigner l'hôte de
     la requête en développement ;
   - `Sec-Fetch-Site: cross-site` est toujours refusé (403) ;
   - l'app joueur a la politique de référent `same-origin` : avec `no-referrer`, ses POST partiraient avec
@@ -197,7 +207,8 @@ back/
     simultanées ne peuvent pas dépasser la limite, et une requête refusée compte aussi ;
   - les clés sont des HMAC-SHA256 à clé dédiée (`GAMEBATTLE_RATE_LIMIT_SECRET`) : ni IP ni pseudo en clair, et
     rien à retrouver par énumération. Changer la clé remet simplement les compteurs à zéro ;
-  - le nettoyeur `AccountJanitor` purge toutes les 10 minutes les compteurs périmés et les sessions expirées ;
+  - le nettoyeur `AccountJanitor` (`interface/workers/`) déclenche toutes les 10 minutes `AccountMaintenance`,
+    qui purge les compteurs périmés et les sessions expirées ;
   - les réponses 429 portent un en-tête `Retry-After`.
 
 #### Déploiement : décisions imposées
@@ -228,9 +239,10 @@ Variables principales :
 - `GAMEBATTLE_ALLOWED_ORIGINS`
 - `GAMEBATTLE_DATABASE_URL`
 - `GAMEBATTLE_BLINDTEST_PLAYLIST_URL` (playlist importée automatiquement en blindtest)
-- `GAMEBATTLE_PLAYER_ORIGINS` (origine exacte de l’app joueur, obligatoire en production)
+- `GAMEBATTLE_PLAYER_ORIGINS` (origine exacte de l’app joueur, obligatoire une fois déployé)
 - `GAMEBATTLE_TRUSTED_PROXIES` (adresses des reverse proxies de confiance pour `X-Forwarded-For`)
-- `GAMEBATTLE_RATE_LIMIT_SECRET` (clé HMAC dédiée des compteurs d'essais, obligatoire en production)
+- `GAMEBATTLE_RATE_LIMIT_SECRET` (clé HMAC dédiée des compteurs d'essais, obligatoire une fois déployé ; sans espace,
+  générée par `openssl rand -hex 32`)
 - `PEXELS_API_KEY` pour rechercher automatiquement les photos sources
 - `OPENAI_API_KEY` pour analyser et retoucher les objets réels
 
@@ -297,10 +309,26 @@ cp deploy/.env.example deploy/.env      # domaine, origine, secrets (openssl ran
 docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
 ```
 
+L'adresse de Caddy (`172.30.0.10`) est définie une seule fois dans le compose : elle sert à son réseau et comme
+seul proxy de confiance du backend. Le contrôle de santé de Caddy passe par lui-même jusqu'au backend (port
+interne 8081, jamais publié). Il n'est sain que si le backend le reconnaît comme proxy : si l'adresse dérive,
+`up --wait` échoue et Caddy reste *unhealthy*. Un `X-Forwarded-For` reçu d'un pair inconnu est aussi signalé dans
+les journaux (`client_address.untrusted_forwarded_for peer=…`).
+
+Après chaque déploiement, vérifier le contrat avec :
+
+```bash
+deploy/verify.sh https://jeu.exemple.fr
+```
+
+Le script n'écrit rien : aucun compte créé, aucun essai consommé. Il contrôle les en-têtes de sécurité et la CSP,
+l'API sur la même origine, la reconnaissance du proxy, les refus anti-CSRF et l'absence de cookies CORS.
+
 Ce déploiement a été vérifié en local (`GAMEBATTLE_DOMAIN=localhost`, ports 8080/8443) :
-- en-têtes de sécurité et CSP, cookie `__Host-gb_session` `Secure` en HTTPS ;
-- origines étrangères refusées ;
-- `X-Forwarded-For` forgé sans effet sur les limites, alors qu'un second client est bien compté à part ;
+- `deploy/verify.sh` passe sans échec ; cookie `__Host-gb_session` `Secure` en HTTPS ;
+- un `X-Forwarded-For` forgé n'a aucun effet sur les limites, alors qu'un second client est bien compté à part ;
+- cinq connexions simultanées sur le dernier essai donnent un seul 401 et quatre 429 ;
+- une seconde instance du backend refuse de démarrer ; une adresse de proxy qui dérive fait échouer `up --wait` ;
 - parcours complet dans un navigateur, coupures réseau comprises.
 
 ### Migrations de la base (Alembic)

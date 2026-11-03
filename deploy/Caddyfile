@@ -36,3 +36,13 @@
 		file_server
 	}
 }
+
+# Contrôle de santé interne, sur un port jamais publié : le backend y confirme qu'il reconnaît Caddy comme proxy.
+http://:8081 {
+	handle /health {
+		reverse_proxy backend:8000
+	}
+	handle {
+		respond 404
+	}
+}

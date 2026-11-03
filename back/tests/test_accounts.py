@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, select
 
 from application.accounts.account_commands import CredentialsCommand
+from application.accounts.account_maintenance import AccountMaintenance
 from application.accounts.account_unit_of_work import AccountUnitOfWork
 from application.accounts.account_usecase import AccountUseCase, hash_session_token
 from application.accounts.attempt_counter import (
@@ -56,9 +57,9 @@ from infrastructure.repositories.postgresql_player_account import (
     PostgreSQLPlayerSessionRepository,
 )
 from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher
-from interface.account_janitor import AccountJanitor
 from interface.api import accounts as accounts_api
 from interface.dependencies.container import account_usecase
+from interface.workers.account_janitor import AccountJanitor
 
 BACK_DIR = Path(__file__).resolve().parents[1]
 ATTEMPT_SECRET = b"secret-de-test-des-compteurs-0123456789"
@@ -447,7 +448,8 @@ def test_the_janitor_purges_expired_sessions_and_stale_counters() -> None:
     signed_in = asyncio.run(use_case.register(_credentials(), IP))
     clock.now += SESSION_TTL_MS
 
-    asyncio.run(AccountJanitor(use_case).run_once())
+    maintenance = AccountMaintenance(lambda: InMemoryAccountUnitOfWork(store), clock=clock)
+    asyncio.run(AccountJanitor(maintenance).run_once())
     assert store.sessions == {} and store.attempts == {}
     with pytest.raises(NotAuthenticatedError):
         asyncio.run(use_case.current(signed_in.token))
@@ -606,6 +608,7 @@ def _client_with_state(
         display_token="display-test-token",
         hardware_token="hardware-test-token",
         player_origins=player_origins,
+        trusted_proxies="10.0.0.1",
         rate_limit_secret="r" * 64,
     )
     monkeypatch.setattr(accounts_api, "get_settings", lambda: settings)

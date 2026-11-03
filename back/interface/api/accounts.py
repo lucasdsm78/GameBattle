@@ -17,9 +17,9 @@ from interface.dependencies.container import get_settings
 from interface.schemas.accounts import AccountResponse
 
 MAX_CREDENTIALS_BODY_BYTES = 2_048
-# En production, le préfixe `__Host-` impose au navigateur Secure, Path=/ et aucun Domain : le cookie ne fuit vers aucun sous-domaine.
-SESSION_COOKIE_PRODUCTION = "__Host-gb_session"
-SESSION_COOKIE_DEVELOPMENT = "gb_session"
+# Déployé (HTTPS), le préfixe `__Host-` impose au navigateur Secure, Path=/ et aucun Domain : le cookie ne fuit vers aucun sous-domaine.
+SESSION_COOKIE_DEPLOYED = "__Host-gb_session"
+SESSION_COOKIE_LOCAL = "gb_session"
 _TOO_LARGE = HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Requête trop volumineuse.")
 _FOREIGN_ORIGIN = HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origine de la requête refusée.")
 
@@ -83,7 +83,7 @@ router = APIRouter(prefix="/api/accounts", tags=["accounts"], dependencies=[Depe
 
 
 def _cookie_name() -> str:
-    return SESSION_COOKIE_PRODUCTION if get_settings().is_production else SESSION_COOKIE_DEVELOPMENT
+    return SESSION_COOKIE_DEPLOYED if get_settings().is_deployed else SESSION_COOKIE_LOCAL
 
 
 def _session_token(request: Request) -> Optional[str]:
@@ -96,7 +96,7 @@ def _set_session_cookie(response: Response, token: str) -> None:
         token,
         max_age=SESSION_TTL_MS // 1000,
         httponly=True,  # illisible par le JavaScript de la page : une faille XSS ne vole pas la session
-        secure=get_settings().is_production,
+        secure=get_settings().is_deployed,
         samesite="strict",
         path="/",
     )
@@ -122,7 +122,7 @@ async def login(credentials: Credentials, request: Request, response: Response, 
 async def logout(request: Request, accounts: AccountUseCaseDep) -> Response:
     await accounts.logout(_session_token(request))
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
-    response.delete_cookie(_cookie_name(), path="/", secure=get_settings().is_production, httponly=True, samesite="strict")
+    response.delete_cookie(_cookie_name(), path="/", secure=get_settings().is_deployed, httponly=True, samesite="strict")
     return response
 
 

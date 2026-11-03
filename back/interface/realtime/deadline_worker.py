@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from application.game_night.game_night_command_usecase import GameNightCommandUseCase
-from interface.periodic_task import PeriodicTask
+from infrastructure.runtime.periodic_task import PeriodicTask
 
 
 class GameDeadlineWorker(PeriodicTask):
