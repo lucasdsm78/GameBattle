@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -14,20 +13,31 @@ class AttemptWindow:
 
 
 class AttemptCounter(ABC):
-    """Compteurs d'essais par fenêtre fixe, persistés : ils survivent à un redémarrage et sont partagés entre processus."""
+    """Compteurs d'essais par fenêtre fixe, persistés et partagés entre processus.
+
+    Aucune lecture séparée : on ne peut que réserver un essai (compter et obtenir le total en une opération
+    atomique), si bien que deux requêtes simultanées ne voient jamais le même total.
+    L'adaptateur ne stocke jamais `subject` (adresse IP, pseudo) en clair.
+    """
 
     @abstractmethod
-    async def peek(self, key: str, now_ms: int, window_ms: int) -> AttemptWindow: ...
+    async def hit(self, scope: str, subject: str, now_ms: int, window_ms: int) -> AttemptWindow: ...
 
     @abstractmethod
-    async def hit(self, key: str, now_ms: int, window_ms: int) -> AttemptWindow:
-        """Compte un essai de façon atomique et renvoie la fenêtre qui l'inclut."""
-
-    @abstractmethod
-    async def reset(self, key: str) -> None: ...
+    async def reset(self, scope: str, subject: str) -> None: ...
 
     @abstractmethod
     async def purge(self, started_before_ms: int) -> None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class Reservation:
+    limit: int
+    window: AttemptWindow
+
+    @property
+    def exceeded(self) -> bool:
+        return self.window.count > self.limit
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,24 +48,15 @@ class AttemptLimit:
     limit: int
     window_ms: int
 
-    def key(self, subject: str) -> str:
-        # Empreinte : la base ne stocke ni adresse IP ni pseudo en clair.
-        return hashlib.sha256(f"{self.scope}:{subject}".encode("utf-8")).hexdigest()
-
-    async def ensure_allowed(self, counter: AttemptCounter, subject: str, now_ms: int) -> None:
-        self._raise_if_over(await counter.peek(self.key(subject), now_ms, self.window_ms), now_ms, self.limit - 1)
-
-    async def count_attempt(self, counter: AttemptCounter, subject: str, now_ms: int) -> None:
-        """Compte puis vérifie en une seule opération atomique : deux requêtes simultanées ne passent pas la limite."""
-        self._raise_if_over(await counter.hit(self.key(subject), now_ms, self.window_ms), now_ms, self.limit)
-
-    async def record(self, counter: AttemptCounter, subject: str, now_ms: int) -> None:
-        await counter.hit(self.key(subject), now_ms, self.window_ms)
+    async def reserve(self, counter: AttemptCounter, subject: str, now_ms: int) -> Reservation:
+        return Reservation(self.limit, await counter.hit(self.scope, subject, now_ms, self.window_ms))
 
     async def reset(self, counter: AttemptCounter, subject: str) -> None:
-        await counter.reset(self.key(subject))
+        await counter.reset(self.scope, subject)
 
-    @staticmethod
-    def _raise_if_over(window: AttemptWindow, now_ms: int, allowed: int) -> None:
-        if window.count > allowed:
-            raise TooManyAttemptsError(retry_after_seconds=max(1, -(-(window.resets_at_ms - now_ms) // 1000)))
+
+def enforce(now_ms: int, *reservations: Reservation) -> None:
+    """Refuse si une des réservations dépasse sa limite ; l'attente annoncée est celle de la plus longue."""
+    exceeded = [reservation.window.resets_at_ms for reservation in reservations if reservation.exceeded]
+    if exceeded:
+        raise TooManyAttemptsError(retry_after_seconds=max(1, -(-(max(exceeded) - now_ms) // 1000)))

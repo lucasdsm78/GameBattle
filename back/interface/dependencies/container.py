@@ -18,6 +18,7 @@ from infrastructure.repositories.postgresql_game_config import (
 )
 from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
 from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher
+from interface.account_janitor import AccountJanitor
 from interface.realtime.deadline_worker import GameDeadlineWorker
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.hub import WebSocketHub
@@ -76,7 +77,12 @@ def game_night_query_usecase() -> GameNightQueryUseCase:
 
 @lru_cache
 def account_usecase() -> AccountUseCase:
-    return AccountUseCase(lambda: SqlAccountUnitOfWork(database()), Argon2PasswordHasher())
+    attempt_secret = get_settings().rate_limit_secret.encode("utf-8")
+    return AccountUseCase(lambda: SqlAccountUnitOfWork(database(), attempt_secret), Argon2PasswordHasher())
+
+
+def account_janitor() -> AccountJanitor:
+    return AccountJanitor(account_usecase())
 
 
 def game_deadline_worker() -> GameDeadlineWorker:

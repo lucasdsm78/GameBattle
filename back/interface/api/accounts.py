@@ -21,21 +21,39 @@ MAX_CREDENTIALS_BODY_BYTES = 2_048
 SESSION_COOKIE_PRODUCTION = "__Host-gb_session"
 SESSION_COOKIE_DEVELOPMENT = "gb_session"
 _TOO_LARGE = HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Requête trop volumineuse.")
+_FOREIGN_ORIGIN = HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origine de la requête refusée.")
+
+
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def _request_origin(request: Request) -> Optional[str]:
+    """Origine annoncée par le navigateur : `Origin`, sinon celle du `Referer`. `Origin: null` n'est jamais de confiance."""
+    origin = request.headers.get("origin")
+    if origin is not None:
+        return None if origin == "null" else origin.rstrip("/")
+    referer = urlsplit(request.headers.get("referer", ""))
+    return f"{referer.scheme}://{referer.netloc}" if referer.scheme and referer.netloc else None
 
 
 def require_same_origin(request: Request) -> None:
-    """Anti-CSRF en plus de `SameSite=Strict` : une requête venue d'un autre site est refusée avant tout traitement.
+    """Anti-CSRF en plus de `SameSite=Strict`, avant tout traitement.
 
-    L'Origin doit figurer dans `player_origins` (obligatoire en production) ; sans liste, en développement, elle
-    doit désigner l'hôte de la requête. Les navigateurs récents signalent aussi un appel inter-sites par `Sec-Fetch-Site`.
+    - Une écriture doit annoncer son origine (`Origin` ou `Referer`) : sans elle, refus.
+    - Cette origine doit figurer dans `player_origins` (obligatoire en production) ; sans liste, en développement,
+      elle doit désigner l'hôte de la requête (proxy Vite, même origine).
+    - `Sec-Fetch-Site: cross-site` est toujours refusé, lecture comprise.
+    L'app joueur envoie bien son origine : sa politique de référent est `same-origin`, pas `no-referrer`
+    (qui ferait envoyer `Origin: null`).
     """
-    origin = request.headers.get("origin")
+    if request.headers.get("sec-fetch-site") == "cross-site":
+        raise _FOREIGN_ORIGIN
+    if request.method in _SAFE_METHODS:
+        return
+    origin = _request_origin(request)
     allowed = get_settings().player_origins_set
-    same_origin = origin is None or (
-        origin.rstrip("/") in allowed if allowed else urlsplit(origin).netloc == request.headers.get("host")
-    )
-    if not same_origin or request.headers.get("sec-fetch-site") == "cross-site":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origine de la requête refusée.")
+    if origin is None or not (origin in allowed if allowed else urlsplit(origin).netloc == request.headers.get("host")):
+        raise _FOREIGN_ORIGIN
 
 
 async def _read_bounded_body(request: Request, limit: int) -> bytes:

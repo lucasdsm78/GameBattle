@@ -9,7 +9,7 @@ from typing import Optional, TypeGuard
 
 from application.accounts.account_commands import CredentialsCommand
 from application.accounts.account_unit_of_work import AccountUnitOfWork
-from application.accounts.attempt_counter import AttemptLimit
+from application.accounts.attempt_counter import AttemptLimit, enforce
 from application.shared.command_usecase import wall_clock_ms
 from domain.accounts.models.password_policy import check_password, normalize_password
 from domain.accounts.models.player_account import PlayerAccount
@@ -52,15 +52,16 @@ class SignedIn:
 
 @dataclass(frozen=True, slots=True)
 class AccountLimits:
-    """Freins contre le forçage : par adresse IP (tous les essais) et par pseudo (les échecs de connexion)."""
+    """Freins contre le forçage. Chaque essai est réservé dès sa réception, avant toute validation et avant
+    Argon2 : refusé, invalide ou réussi, il compte. Une connexion réussie remet à zéro le compteur du pseudo."""
 
     attempts_per_ip: AttemptLimit = AttemptLimit("ip", limit=30, window_ms=15 * _MINUTE_MS)
-    failed_logins_per_pseudo: AttemptLimit = AttemptLimit("login", limit=5, window_ms=15 * _MINUTE_MS)
-    signups_per_ip: AttemptLimit = AttemptLimit("signup", limit=5, window_ms=60 * _MINUTE_MS)
+    login_attempts_per_pseudo: AttemptLimit = AttemptLimit("login", limit=5, window_ms=15 * _MINUTE_MS)
+    signup_attempts_per_ip: AttemptLimit = AttemptLimit("signup", limit=10, window_ms=60 * _MINUTE_MS)
 
     @property
     def longest_window_ms(self) -> int:
-        return max(limit.window_ms for limit in (self.attempts_per_ip, self.failed_logins_per_pseudo, self.signups_per_ip))
+        return max(limit.window_ms for limit in (self.attempts_per_ip, self.login_attempts_per_pseudo, self.signup_attempts_per_ip))
 
 
 def hash_session_token(token: str) -> str:
@@ -92,9 +93,9 @@ class AccountUseCase:
     async def register(self, command: CredentialsCommand, client_ip: str, replacing_token: Optional[str] = None) -> SignedIn:
         now = self._clock()
         async with self._unit_of_work() as uow:
-            await self._limits.attempts_per_ip.count_attempt(uow.attempts, client_ip, now)
-            await self._limits.signups_per_ip.ensure_allowed(uow.attempts, client_ip, now)
-            await uow.commit()  # l'essai compte même si la demande est refusée ensuite
+            await self._reserve_attempt(
+                uow, now, (self._limits.attempts_per_ip, client_ip), (self._limits.signup_attempts_per_ip, client_ip)
+            )
             pseudo = Pseudo.parse(command.pseudo)
             check_pseudo_is_not_reserved(pseudo)
             password = normalize_password(command.password)
@@ -106,7 +107,6 @@ class AccountUseCase:
         async with self._unit_of_work() as uow:
             await uow.accounts.add(account)  # l'index unique tranche une inscription simultanée du même pseudo
             signed_in = await self._open_session(uow, account, now, replacing_token)
-            await self._limits.signups_per_ip.record(uow.attempts, client_ip, now)
             await uow.commit()
         return signed_in
 
@@ -117,27 +117,25 @@ class AccountUseCase:
         except InvalidAccountError:
             pseudo = None  # un pseudo impossible ne peut pas exister, mais la réponse reste la même
         pseudo_key = pseudo.key if pseudo else command.pseudo.casefold()
+        # 1. Réserver l'essai (adresse et pseudo), validé en base avant le calcul : la limite tient sous concurrence.
         async with self._unit_of_work() as uow:
-            await self._limits.attempts_per_ip.count_attempt(uow.attempts, client_ip, now)
-            await self._limits.failed_logins_per_pseudo.ensure_allowed(uow.attempts, pseudo_key, now)
-            await uow.commit()
+            await self._reserve_attempt(
+                uow, now, (self._limits.attempts_per_ip, client_ip), (self._limits.login_attempts_per_pseudo, pseudo_key)
+            )
             account = await uow.accounts.find_by_pseudo(pseudo) if pseudo else None
 
+        # 2. Authentifier, hors transaction.
         password = normalize_password(command.password)
         if not await self._hasher.verify(account.password_hash if account else None, password) or account is None:
-            async with self._unit_of_work() as uow:
-                await self._limits.failed_logins_per_pseudo.record(uow.attempts, pseudo_key, now)
-                await uow.commit()
             raise InvalidCredentialsError("Pseudo ou mot de passe incorrect.")
-
         upgraded_hash = await self._hasher.hash(password) if self._hasher.needs_rehash(account.password_hash) else None
+
+        # 3. Ouvrir la session.
         async with self._unit_of_work() as uow:
-            await self._limits.failed_logins_per_pseudo.reset(uow.attempts, pseudo_key)
+            await self._limits.login_attempts_per_pseudo.reset(uow.attempts, pseudo_key)
             if upgraded_hash:
                 account = account.with_password_hash(upgraded_hash)
                 await uow.accounts.save_password_hash(account)
-            await uow.sessions.delete_expired(now)
-            await uow.attempts.purge(started_before_ms=now - self._limits.longest_window_ms)
             signed_in = await self._open_session(uow, account, now, replacing_token)
             await uow.commit()
         return signed_in
@@ -171,6 +169,23 @@ class AccountUseCase:
             await uow.sessions.save_expiry(renewed)
             await uow.commit()
         return CurrentPlayer(view, renewed_until_ms=renewed.expires_at_ms)
+
+    async def purge_expired(self) -> None:
+        """Ménage périodique : sessions expirées et compteurs d'essais dont la fenêtre est close."""
+        now = self._clock()
+        async with self._unit_of_work() as uow:
+            await uow.sessions.delete_expired(now)
+            await uow.attempts.purge(started_before_ms=now - self._limits.longest_window_ms)
+            await uow.commit()
+
+    async def _reserve_attempt(self, uow: AccountUnitOfWork, now_ms: int, *limits: tuple[AttemptLimit, str]) -> None:
+        """Compte l'essai dans chaque limite et le valide en base, puis refuse si l'une est dépassée.
+
+        La validation précède le refus : une requête bloquée compte aussi, et une rafale ne se recharge pas.
+        """
+        reservations = [await limit.reserve(uow.attempts, subject, now_ms) for limit, subject in limits]
+        await uow.commit()
+        enforce(now_ms, *reservations)
 
     async def _open_session(
         self, uow: AccountUnitOfWork, account: PlayerAccount, now_ms: int, replacing_token: Optional[str]
