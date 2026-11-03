@@ -47,9 +47,13 @@ async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(fallback, response.status);
 }
 
+/** Une réponse sans pseudo valide est une erreur : jamais de joueur « connecté » sans nom. */
 async function readAccount(response: Response): Promise<Account> {
-  const body = (await response.json()) as { pseudo?: unknown };
-  return { pseudo: String(body.pseudo ?? '') };
+  const body: unknown = await response.json().catch(() => null);
+  if (body && typeof body === 'object' && 'pseudo' in body && typeof body.pseudo === 'string' && body.pseudo.length > 0) {
+    return { pseudo: body.pseudo };
+  }
+  throw new ApiError('Réponse inattendue du serveur. Réessaie dans un instant.', response.status);
 }
 
 const post = (path: string, body?: Credentials) => send(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });

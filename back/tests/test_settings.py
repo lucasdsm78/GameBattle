@@ -22,9 +22,23 @@ def test_production_accepts_custom_security_tokens() -> None:
         controller_token="controller-token-secret",
         display_token="display-token-secret",
         hardware_token="hardware-token-secret",
+        player_origins="https://jeu.exemple.fr/",
     )
 
     assert settings.is_production is True
     assert settings.controller_token == "controller-token-secret"
+    assert settings.player_origins_set == {"https://jeu.exemple.fr"}
+    assert settings.creates_schema_on_startup is False  # en production, seules les migrations font évoluer le schéma
+
+
+def test_production_requires_the_player_app_origin() -> None:
+    with pytest.raises(ValidationError, match="player_origins"):
+        Settings(
+            environment="production",
+            controller_token="controller-token-secret",
+            display_token="display-token-secret",
+            hardware_token="hardware-token-secret",
+            player_origins="",
+        )
 
 

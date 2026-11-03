@@ -470,7 +470,8 @@ button:disabled {
   text-underline-offset: 3px;
 }
 
-/* --- Joueur connecté --- */
+/* --- Joueur connecté, serveur injoignable --- */
+.status-card,
 .welcome-card {
   display: grid;
   gap: 14px;
@@ -501,6 +502,17 @@ button:disabled {
   line-height: 1.05;
   text-transform: uppercase;
   overflow-wrap: anywhere;
+}
+
+.status-title {
+  margin: 0;
+  padding-top: 0.1em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.8rem, 9vw, 2.3rem);
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: var(--gold);
 }
 
 .welcome-title span {

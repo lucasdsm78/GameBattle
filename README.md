@@ -162,6 +162,10 @@ back/
 
 - `POST /register`, `POST /login`, `POST /logout`, `GET /me`. Domaine dans `back/domain/accounts/`
   (pseudo, règles du mot de passe, compte, session), cas d'usage dans `back/application/accounts/`.
+- Unité de travail `AccountUnitOfWork` : compte, session et compteurs d'essais partagent une transaction.
+  Une inscription crée le compte et sa session ensemble ou pas du tout. Une reconnexion révoque l'ancienne
+  session dans la même transaction. Le hachage Argon2 a lieu entre deux transactions : aucune connexion à
+  la base n'est retenue pendant le calcul.
 - Pseudo de 3 à 20 caractères (lettres, accents compris, chiffres, `-`, `_`), unique sans tenir compte de
   la casse. Les noms qui imitent l'équipe (« admin », « modo », « gamebattle »…) sont refusés à l'inscription.
 - Mot de passe de 8 à 128 caractères, normalisé en NFKC (un « é » tapé sur n'importe quel clavier reste le
@@ -177,13 +181,27 @@ back/
   même navigateur révoque la session précédente.
 - Le corps des requêtes de connexion est lu par morceaux et borné à 2 Ko, même sans `Content-Length`.
 - L'app joueur de production embarque une CSP stricte (tout depuis la même origine, aucun script inline).
-- Une requête dont l'en-tête `Origin` n'est pas celui du serveur est refusée (403).
+- Anti-CSRF en plus de `SameSite=Strict` : l'en-tête `Origin` doit figurer dans
+  `GAMEBATTLE_PLAYER_ORIGINS` (obligatoire en production), ou désigner l'hôte de la requête en
+  développement. `Sec-Fetch-Site: cross-site` est toujours refusé (403).
 - Un mauvais mot de passe et un pseudo inconnu donnent la même réponse, dans le même temps.
-- Freins en mémoire : 5 échecs par pseudo puis 30 essais par adresse IP sur 15 minutes, 5 comptes par
-  IP et par heure. Les réponses 429 portent un en-tête `Retry-After`. Derrière un proxy (Caddy), lancer
-  uvicorn avec `--proxy-headers` pour que l'adresse comptée soit celle du joueur.
-- L'app joueur appelle l'API sur sa propre origine : proxy Vite en développement, et en production le même
-  domaine derrière Caddy. Aucune requête n'est donc cross-origin.
+- Freins persistés en base (table `auth_attempts`, fenêtres fixes, un `INSERT … ON CONFLICT DO UPDATE`
+  atomique par essai) : 5 échecs par pseudo et 30 essais par adresse IP sur 15 minutes, 5 comptes par IP et
+  par heure. Les compteurs survivent à un redémarrage et seraient partagés entre plusieurs processus. Les clés
+  sont des empreintes SHA-256 (ni IP ni pseudo en clair) et sont purgées après une heure. Les réponses 429
+  portent un en-tête `Retry-After`.
+
+#### Déploiement : décisions imposées
+
+- **Même origine.** L'app joueur et l'API sont servies sur le même domaine, derrière Caddy (`/api/*` vers
+  uvicorn, le reste vers les fichiers de `app-joueur/dist`). L'app appelle des chemins relatifs, le cookie
+  reste `SameSite=Strict`, et CORS n'autorise jamais les cookies. Un déploiement sur deux domaines n'est pas
+  prévu : il affaiblirait ces protections.
+- **Adresse des joueurs.** uvicorn ne lit `X-Forwarded-For` que pour les connexions venant des adresses de
+  `FORWARDED_ALLOW_IPS`. En production, cette variable doit contenir l'adresse de Caddy et elle seule. Sans
+  elle, tous les joueurs partageraient l'adresse de Caddy, et donc la même limite. Avec `*`, n'importe qui
+  pourrait forger son adresse.
+- **Schéma.** En production, le schéma n'évolue que par les migrations Alembic (voir plus bas).
 
 ---
 
@@ -201,6 +219,7 @@ Variables principales :
 - `GAMEBATTLE_ALLOWED_ORIGINS`
 - `GAMEBATTLE_DATABASE_URL`
 - `GAMEBATTLE_BLINDTEST_PLAYLIST_URL` (playlist importée automatiquement en blindtest)
+- `GAMEBATTLE_PLAYER_ORIGINS` (origine exacte de l’app joueur, obligatoire en production)
 - `PEXELS_API_KEY` pour rechercher automatiquement les photos sources
 - `OPENAI_API_KEY` pour analyser et retoucher les objets réels
 
@@ -254,6 +273,22 @@ gamebattlecontroller://spotify-auth
 cd /Users/lucasdasilvamarques/GameBattle
 bash scripts/dev-back.sh
 ```
+
+### Migrations de la base (Alembic)
+
+En développement et dans les tests, l'API crée elle-même les tables manquantes au démarrage. En
+production (`GAMEBATTLE_ENVIRONMENT=production`), elle ne touche jamais au schéma : il faut migrer avant de
+démarrer.
+
+```bash
+cd back
+.venv/bin/alembic upgrade head           # base vide ou déjà suivie par Alembic
+.venv/bin/alembic stamp head             # base créée par l'API en développement : la marquer, une seule fois
+.venv/bin/alembic revision -m "…"        # nouvelle migration, à écrire dans migrations/versions/
+```
+
+Un test (`test_migrations_build_exactly_the_schema_of_the_models`) vérifie que les migrations produisent
+exactement le schéma des modèles SQLAlchemy : une table ajoutée sans migration fait échouer la suite.
 
 ### Web écran
 

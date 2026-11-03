@@ -11,13 +11,10 @@ from application.use_cases import GameUseCases
 from infrastructure.config import Settings
 from infrastructure.database.database import Database
 from infrastructure.extern.spotify import SpotifyPlaylistService
+from infrastructure.repositories.account_unit_of_work import SqlAccountUnitOfWork
 from infrastructure.repositories.cached_game_config import CachedGameConfigRepository
 from infrastructure.repositories.postgresql_game_config import (
     PostgreSQLGameConfigRepository,
-)
-from infrastructure.repositories.postgresql_player_account import (
-    PostgreSQLPlayerAccountRepository,
-    PostgreSQLPlayerSessionRepository,
 )
 from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
 from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher
@@ -79,11 +76,7 @@ def game_night_query_usecase() -> GameNightQueryUseCase:
 
 @lru_cache
 def account_usecase() -> AccountUseCase:
-    return AccountUseCase(
-        PostgreSQLPlayerAccountRepository(database()),
-        PostgreSQLPlayerSessionRepository(database()),
-        Argon2PasswordHasher(),
-    )
+    return AccountUseCase(lambda: SqlAccountUnitOfWork(database()), Argon2PasswordHasher())
 
 
 def game_deadline_worker() -> GameDeadlineWorker:

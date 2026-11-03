@@ -27,6 +27,10 @@ class Database:
     async def dispose(self) -> None:
         await self._engine.dispose()
 
+    def new_session(self) -> AsyncSession:
+        """Session sans transaction automatique : c'est l'unité de travail qui valide ou annule."""
+        return self._sessions()
+
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
         """Transaction : validée en sortie normale, annulée sur exception."""

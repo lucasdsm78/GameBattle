@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     database_url: str = Field(default="postgresql+asyncpg://gamebattle:gamebattle@localhost:5432/gamebattle", min_length=1)
     blindtest_playlist_url: str = ""
     docs_enabled: bool = True
+    # Origines exactes de l'app joueur (`https://jeu.exemple.fr`), seules autorisées à écrire sur /api/accounts.
+    # Vide en développement : on compare alors l'Origin à l'hôte de la requête (proxy Vite, même origine).
+    player_origins: str = ""
 
     @field_validator("environment")
     @classmethod
@@ -44,6 +47,8 @@ class Settings(BaseSettings):
             for field_name, default_value in default_tokens.items():
                 if getattr(self, field_name) == default_value:
                     raise ValueError(f"{field_name} doit être changé en production.")
+            if not self.player_origins_set:
+                raise ValueError("player_origins doit lister l'origine de l'app joueur en production.")
         return self
 
     @property
@@ -55,6 +60,15 @@ class Settings(BaseSettings):
         if self.docs_enabled:
             return {"docs_url": "/docs", "redoc_url": "/redoc", "openapi_url": "/openapi.json"}
         return {"docs_url": None, "redoc_url": None, "openapi_url": None}
+
+    @property
+    def player_origins_set(self) -> frozenset[str]:
+        return frozenset(origin.strip().rstrip("/") for origin in self.player_origins.split(",") if origin.strip())
+
+    @property
+    def creates_schema_on_startup(self) -> bool:
+        """En production, le schéma n'évolue que par les migrations Alembic (`alembic upgrade head`)."""
+        return not self.is_production
 
     @property
     def is_production(self) -> bool:

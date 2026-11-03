@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable
 from typing import Annotated, Optional
 from urllib.parse import urlsplit
 
@@ -9,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import ValidationError
 
 from application.accounts.account_commands import CredentialsCommand
-from application.accounts.account_usecase import AccountUseCase, SignedIn
+from application.accounts.account_usecase import SignedIn
 from domain.accounts.models.player_session import SESSION_TTL_MS
 from exceptions import InvalidCommandPayloadError
 from interface.dependencies import AccountUseCaseDep
@@ -24,9 +23,17 @@ _TOO_LARGE = HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
 
 
 def require_same_origin(request: Request) -> None:
-    """Anti-CSRF en plus de `SameSite=Strict` : une requête venue d'un autre site est refusée avant tout traitement."""
+    """Anti-CSRF en plus de `SameSite=Strict` : une requête venue d'un autre site est refusée avant tout traitement.
+
+    L'Origin doit figurer dans `player_origins` (obligatoire en production) ; sans liste, en développement, elle
+    doit désigner l'hôte de la requête. Les navigateurs récents signalent aussi un appel inter-sites par `Sec-Fetch-Site`.
+    """
     origin = request.headers.get("origin")
-    if origin is not None and urlsplit(origin).netloc != request.headers.get("host"):
+    allowed = get_settings().player_origins_set
+    same_origin = origin is None or (
+        origin.rstrip("/") in allowed if allowed else urlsplit(origin).netloc == request.headers.get("host")
+    )
+    if not same_origin or request.headers.get("sec-fetch-site") == "cross-site":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origine de la requête refusée.")
 
 
@@ -65,7 +72,8 @@ def _session_token(request: Request) -> Optional[str]:
 
 
 def _client_ip(request: Request) -> str:
-    # Derrière Caddy, uvicorn doit tourner avec `--proxy-headers` pour que ce soit l'adresse du joueur.
+    # Derrière Caddy, uvicorn ne lit `X-Forwarded-For` que si la connexion vient d'une adresse listée dans
+    # `FORWARDED_ALLOW_IPS` (celle de Caddy, et elle seule) : sinon c'est l'adresse du proxy, jamais un en-tête forgé.
     return request.client.host if request.client else "inconnue"
 
 
@@ -81,23 +89,20 @@ def _set_session_cookie(response: Response, token: str) -> None:
     )
 
 
-async def _sign_in(request: Request, response: Response, accounts: AccountUseCase, opening: Awaitable[SignedIn]) -> AccountResponse:
-    """Ouvre la nouvelle session, puis révoque celle que ce navigateur avait peut-être encore."""
-    previous_token = _session_token(request)
-    signed_in = await opening
-    await accounts.logout(previous_token)
+def _signed_in(response: Response, signed_in: SignedIn) -> AccountResponse:
     _set_session_cookie(response, signed_in.token)
     return AccountResponse(pseudo=signed_in.account.pseudo)
 
 
+# La session que ce navigateur avait encore est révoquée dans la même transaction que l'ouverture de la nouvelle.
 @router.post("/register", status_code=status.HTTP_201_CREATED, summary="Créer un compte joueur et se connecter")
 async def register(credentials: Credentials, request: Request, response: Response, accounts: AccountUseCaseDep) -> AccountResponse:
-    return await _sign_in(request, response, accounts, accounts.register(credentials, _client_ip(request)))
+    return _signed_in(response, await accounts.register(credentials, _client_ip(request), _session_token(request)))
 
 
 @router.post("/login", summary="Se connecter avec son pseudo et son mot de passe")
 async def login(credentials: Credentials, request: Request, response: Response, accounts: AccountUseCaseDep) -> AccountResponse:
-    return await _sign_in(request, response, accounts, accounts.login(credentials, _client_ip(request)))
+    return _signed_in(response, await accounts.login(credentials, _client_ip(request), _session_token(request)))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, summary="Se déconnecter")

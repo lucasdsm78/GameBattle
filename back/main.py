@@ -29,7 +29,8 @@ def build_lifespan(settings: Settings):
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings
-        await database().create_schema()
+        if settings.creates_schema_on_startup:
+            await database().create_schema()
         game_config_repository().clear()
         deadline_worker = game_deadline_worker()
         await deadline_worker.start()
