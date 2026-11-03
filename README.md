@@ -197,10 +197,10 @@ back/
   uvicorn, le reste vers les fichiers de `app-joueur/dist`). L'app appelle des chemins relatifs, le cookie
   reste `SameSite=Strict`, et CORS n'autorise jamais les cookies. Un déploiement sur deux domaines n'est pas
   prévu : il affaiblirait ces protections.
-- **Adresse des joueurs.** uvicorn ne lit `X-Forwarded-For` que pour les connexions venant des adresses de
-  `FORWARDED_ALLOW_IPS`. En production, cette variable doit contenir l'adresse de Caddy et elle seule. Sans
-  elle, tous les joueurs partageraient l'adresse de Caddy, et donc la même limite. Avec `*`, n'importe qui
-  pourrait forger son adresse.
+- **Adresse des joueurs.** uvicorn tourne avec `--no-proxy-headers` : c'est l'application qui détermine
+  l'adresse (`interface/client_address.py`). Elle ne lit `X-Forwarded-For` que si la connexion vient d'un
+  proxy listé dans `GAMEBATTLE_TRUSTED_PROXIES`, et garde la dernière adresse qui n'est pas un proxy de
+  confiance. Caddy a une adresse fixe (`172.30.0.10`) et remplace tout `X-Forwarded-For` envoyé par le client.
 - **Schéma.** En production, le schéma n'évolue que par les migrations Alembic (voir plus bas).
 
 ---
@@ -220,6 +220,7 @@ Variables principales :
 - `GAMEBATTLE_DATABASE_URL`
 - `GAMEBATTLE_BLINDTEST_PLAYLIST_URL` (playlist importée automatiquement en blindtest)
 - `GAMEBATTLE_PLAYER_ORIGINS` (origine exacte de l’app joueur, obligatoire en production)
+- `GAMEBATTLE_TRUSTED_PROXIES` (adresses des reverse proxies de confiance pour `X-Forwarded-For`)
 - `PEXELS_API_KEY` pour rechercher automatiquement les photos sources
 - `OPENAI_API_KEY` pour analyser et retoucher les objets réels
 
@@ -273,6 +274,24 @@ gamebattlecontroller://spotify-auth
 cd /Users/lucasdasilvamarques/GameBattle
 bash scripts/dev-back.sh
 ```
+
+### Production (VPS)
+
+La stack `deploy/` contient trois services : Caddy (HTTPS automatique, app joueur et API sur le même domaine),
+le backend et PostgreSQL. Seul Caddy est exposé. La base est sur un réseau interne, sans accès à Internet. Les
+conteneurs tournent sans privilèges, et le backend en lecture seule. Au démarrage, le backend applique les
+migrations Alembic avant d'ouvrir son port.
+
+```bash
+cp deploy/.env.example deploy/.env      # domaine, origine, secrets (openssl rand -hex 32)
+docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
+```
+
+Ce déploiement a été vérifié en local (`GAMEBATTLE_DOMAIN=localhost`, ports 8080/8443) :
+- en-têtes de sécurité et CSP, cookie `__Host-gb_session` `Secure` en HTTPS ;
+- origines étrangères refusées ;
+- `X-Forwarded-For` forgé sans effet sur les limites, alors qu'un second client est bien compté à part ;
+- parcours complet dans un navigateur, coupures réseau comprises.
 
 ### Migrations de la base (Alembic)
 
