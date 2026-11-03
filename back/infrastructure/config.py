@@ -10,6 +10,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 IpNetwork = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+# Seuls environnements « locaux » : tout autre nom (staging, recette, production…) est un déploiement, avec les
+# mêmes exigences. Une faute de frappe dans GAMEBATTLE_ENVIRONMENT durcit la configuration au lieu de l'affaiblir.
+LOCAL_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
 
 
 class Settings(BaseSettings):
@@ -37,7 +40,7 @@ class Settings(BaseSettings):
     # que pour une connexion venant de l'un d'eux ; vide (développement), l'en-tête est ignoré.
     trusted_proxies: str = ""
     # Clé HMAC des compteurs d'essais (`auth_attempts`), propre à cet usage : jamais un jeton d'authentification.
-    # Obligatoire en production ; en développement, une clé aléatoire par processus suffit.
+    # Obligatoire dès qu'on est déployé (`openssl rand -hex 32`) ; en local, une clé aléatoire par processus suffit.
     rate_limit_secret: str = ""
 
     @field_validator("environment")
@@ -52,25 +55,37 @@ class Settings(BaseSettings):
             ipaddress.ip_network(entry, strict=False)  # une adresse invalide arrête le démarrage, pas une requête
         return value
 
+    @field_validator("rate_limit_secret")
+    @classmethod
+    def validate_rate_limit_secret(cls, value: str) -> str:
+        # Un espace ou un retour à la ligne collé par erreur changerait la clé sans que rien ne le signale.
+        if any(character.isspace() for character in value):
+            raise ValueError("rate_limit_secret ne doit contenir aucun espace : générez-le avec `openssl rand -hex 32`.")
+        return value
+
     @model_validator(mode="after")
-    def validate_production_secrets(self) -> Settings:
-        if self.is_production:
-            default_tokens = {
-                "controller_token": "change-me-controller",
-                "display_token": "change-me-display",
-                "hardware_token": "change-me-hardware",
-            }
-            for field_name, default_value in default_tokens.items():
-                if getattr(self, field_name) == default_value:
-                    raise ValueError(f"{field_name} doit être changé en production.")
-            if not self.player_origins_set:
-                raise ValueError("player_origins doit lister l'origine de l'app joueur en production.")
-            if len(self.rate_limit_secret) < 32:
-                raise ValueError("rate_limit_secret doit faire au moins 32 caractères en production.")
-            if self.rate_limit_secret in {self.controller_token, self.display_token, self.hardware_token}:
-                raise ValueError("rate_limit_secret doit être un secret dédié, distinct des jetons.")
-        elif not self.rate_limit_secret:
-            self.rate_limit_secret = secrets.token_hex(32)
+    def validate_deployment_secrets(self) -> Settings:
+        if not self.is_deployed:
+            if not self.rate_limit_secret:
+                self.rate_limit_secret = secrets.token_hex(32)
+            return self
+        where = f"en environnement « {self.environment} »"
+        default_tokens = {
+            "controller_token": "change-me-controller",
+            "display_token": "change-me-display",
+            "hardware_token": "change-me-hardware",
+        }
+        for field_name, default_value in default_tokens.items():
+            if getattr(self, field_name) == default_value:
+                raise ValueError(f"{field_name} doit être changé {where}.")
+        if not self.player_origins_set:
+            raise ValueError(f"player_origins doit lister l'origine de l'app joueur {where}.")
+        if not self.trusted_proxy_networks:
+            raise ValueError(f"trusted_proxies doit désigner le reverse proxy {where} : sinon tous les joueurs partagent son adresse.")
+        if len(self.rate_limit_secret) < 32:
+            raise ValueError(f"rate_limit_secret doit faire au moins 32 caractères {where}.")
+        if self.rate_limit_secret in {self.controller_token, self.display_token, self.hardware_token}:
+            raise ValueError("rate_limit_secret doit être un secret dédié, distinct des jetons.")
         return self
 
     @property
@@ -93,8 +108,13 @@ class Settings(BaseSettings):
 
     @property
     def creates_schema_on_startup(self) -> bool:
-        """En production, le schéma n'évolue que par les migrations Alembic (`alembic upgrade head`)."""
-        return not self.is_production
+        """Une fois déployé, le schéma n'évolue que par les migrations Alembic (`alembic upgrade head`)."""
+        return not self.is_deployed
+
+    @property
+    def is_deployed(self) -> bool:
+        """Staging, recette, production… : tout ce qui n'est pas explicitement local (HTTPS, secrets obligatoires)."""
+        return self.environment not in LOCAL_ENVIRONMENTS
 
     @property
     def is_production(self) -> bool:

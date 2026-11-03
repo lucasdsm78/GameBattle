@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import logging
 from collections.abc import Sequence
 from typing import Optional
 
@@ -9,7 +10,10 @@ from fastapi import Request
 from infrastructure.config import IpNetwork
 from interface.dependencies.container import get_settings
 
+logger = logging.getLogger(__name__)
 UNKNOWN_ADDRESS = "inconnue"
+MAX_REPORTED_PEERS = 256
+_reported_peers: set[str] = set()
 
 
 def _parse(address: str) -> Optional[ipaddress.IPv4Address | ipaddress.IPv6Address]:
@@ -33,7 +37,11 @@ def resolve_client_address(peer: Optional[str], forwarded_for: Optional[str], pr
     peer_address = _parse(peer or "")
     if peer_address is None:
         return UNKNOWN_ADDRESS
-    if not _trusted(peer_address, proxies) or not forwarded_for:
+    if not forwarded_for:
+        return str(peer_address)
+    if not _trusted(peer_address, proxies):
+        if proxies:
+            _report_untrusted_forwarding(str(peer_address))
         return str(peer_address)
     for hop in reversed(forwarded_for.split(",")):
         address = _parse(hop)
@@ -42,6 +50,20 @@ def resolve_client_address(peer: Optional[str], forwarded_for: Optional[str], pr
         if not _trusted(address, proxies):
             return str(address)
     return str(peer_address)
+
+
+def _report_untrusted_forwarding(peer: str) -> None:
+    """Un `X-Forwarded-For` arrivé d'un pair inconnu alors que des proxies sont configurés : soit un client qui
+    tente de forger son adresse, soit l'adresse du proxy a changé (réseau Docker modifié). Signalé une fois par pair."""
+    if peer in _reported_peers or len(_reported_peers) >= MAX_REPORTED_PEERS:
+        return
+    _reported_peers.add(peer)
+    logger.warning("client_address.untrusted_forwarded_for peer=%s", peer, extra={"peer": peer})
+
+
+def came_through_trusted_proxy(request: Request) -> bool:
+    peer = _parse(request.client.host if request.client else "")
+    return _trusted(peer, get_settings().trusted_proxy_networks)
 
 
 def client_address(request: Request) -> str:

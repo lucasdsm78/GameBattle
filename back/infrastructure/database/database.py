@@ -3,7 +3,12 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncConnection,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -26,6 +31,14 @@ class Database:
 
     async def dispose(self) -> None:
         await self._engine.dispose()
+
+    @property
+    def dialect_name(self) -> str:
+        return self._engine.dialect.name
+
+    async def connect(self) -> AsyncConnection:
+        """Connexion dédiée, hors des sessions : pour un verrou tenu toute la vie du processus."""
+        return await self._engine.connect()
 
     def new_session(self) -> AsyncSession:
         """Session sans transaction automatique : c'est l'unité de travail qui valide ou annule."""

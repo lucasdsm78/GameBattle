@@ -2,6 +2,10 @@
 # Seul Caddy est exposé ; la base et le backend restent sur des réseaux internes.
 name: gamebattle-prod # distinct du projet de développement (`gamebattle`)
 
+# Adresse de Caddy : définie une seule fois, utilisée pour son réseau ET comme seul proxy de confiance du backend.
+# Si elle dérive, le contrôle de santé de Caddy échoue (le backend ne le reconnaît plus) : `up --wait` s'arrête.
+x-caddy-address: &caddy_address 172.30.0.10
+
 services:
   db:
     image: postgres:15-alpine
@@ -27,7 +31,7 @@ services:
       GAMEBATTLE_DATABASE_URL: postgresql+asyncpg://gamebattle:${GAMEBATTLE_DB_PASSWORD}@db:5432/gamebattle
       GAMEBATTLE_PLAYER_ORIGINS: ${GAMEBATTLE_PLAYER_ORIGINS:?origine exacte de l'app joueur, ex. https://jeu.exemple.fr}
       GAMEBATTLE_ALLOWED_ORIGINS: ${GAMEBATTLE_PLAYER_ORIGINS}
-      GAMEBATTLE_TRUSTED_PROXIES: 172.30.0.10 # Caddy, et lui seul
+      GAMEBATTLE_TRUSTED_PROXIES: *caddy_address # Caddy, et lui seul
       GAMEBATTLE_CONTROLLER_TOKEN: ${GAMEBATTLE_CONTROLLER_TOKEN:?}
       GAMEBATTLE_DISPLAY_TOKEN: ${GAMEBATTLE_DISPLAY_TOKEN:?}
       GAMEBATTLE_HARDWARE_TOKEN: ${GAMEBATTLE_HARDWARE_TOKEN:?}
@@ -60,7 +64,14 @@ services:
     depends_on: [backend]
     networks:
       web:
-        ipv4_address: 172.30.0.10 # adresse fixe : c'est la seule que le backend croit pour X-Forwarded-For
+        ipv4_address: *caddy_address
+    healthcheck:
+      # Passe par Caddy jusqu'au backend : sain seulement si le backend répond ET reconnaît Caddy comme proxy.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health | grep -q '\"via_trusted_proxy\":true'"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE]
     security_opt: ["no-new-privileges:true"]
@@ -71,7 +82,7 @@ networks:
   web:
     ipam:
       config:
-        - subnet: 172.30.0.0/24
+        - subnet: 172.30.0.0/24 # doit contenir l'adresse de Caddy ci-dessus
 
 volumes:
   db_data:
