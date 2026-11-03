@@ -11,7 +11,8 @@
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
-		Referrer-Policy "no-referrer"
+		# `same-origin` et non `no-referrer` : avec ce dernier, les POST de l’app partiraient avec `Origin: null`.
+		Referrer-Policy "same-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		Cross-Origin-Opener-Policy "same-origin"
 		-Server

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import secrets
 from pathlib import Path
 from typing import Optional, Union
 
@@ -35,6 +36,9 @@ class Settings(BaseSettings):
     # Adresses (ou réseaux CIDR) des reverse proxies de confiance, Caddy en production. `X-Forwarded-For` n'est lu
     # que pour une connexion venant de l'un d'eux ; vide (développement), l'en-tête est ignoré.
     trusted_proxies: str = ""
+    # Clé HMAC des compteurs d'essais (`auth_attempts`), propre à cet usage : jamais un jeton d'authentification.
+    # Obligatoire en production ; en développement, une clé aléatoire par processus suffit.
+    rate_limit_secret: str = ""
 
     @field_validator("environment")
     @classmethod
@@ -61,6 +65,12 @@ class Settings(BaseSettings):
                     raise ValueError(f"{field_name} doit être changé en production.")
             if not self.player_origins_set:
                 raise ValueError("player_origins doit lister l'origine de l'app joueur en production.")
+            if len(self.rate_limit_secret) < 32:
+                raise ValueError("rate_limit_secret doit faire au moins 32 caractères en production.")
+            if self.rate_limit_secret in {self.controller_token, self.display_token, self.hardware_token}:
+                raise ValueError("rate_limit_secret doit être un secret dédié, distinct des jetons.")
+        elif not self.rate_limit_secret:
+            self.rate_limit_secret = secrets.token_hex(32)
         return self
 
     @property

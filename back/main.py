@@ -15,6 +15,7 @@ from interface.api.hardware import router as hardware_router
 from interface.api.media import router as media_router
 from interface.api.realtime import router as realtime_router
 from interface.dependencies.container import (
+    account_janitor,
     database,
     game_config_repository,
     game_deadline_worker,
@@ -32,12 +33,14 @@ def build_lifespan(settings: Settings):
         if settings.creates_schema_on_startup:
             await database().create_schema()
         game_config_repository().clear()
-        deadline_worker = game_deadline_worker()
-        await deadline_worker.start()
+        workers = (game_deadline_worker(), account_janitor())
+        for worker in workers:
+            await worker.start()
         try:
             yield
         finally:
-            await deadline_worker.stop()
+            for worker in workers:
+                await worker.stop()
             await spotify_playlist_service().aclose()
             await database().dispose()
 

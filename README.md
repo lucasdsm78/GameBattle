@@ -181,15 +181,24 @@ back/
   même navigateur révoque la session précédente.
 - Le corps des requêtes de connexion est lu par morceaux et borné à 2 Ko, même sans `Content-Length`.
 - L'app joueur de production embarque une CSP stricte (tout depuis la même origine, aucun script inline).
-- Anti-CSRF en plus de `SameSite=Strict` : l'en-tête `Origin` doit figurer dans
-  `GAMEBATTLE_PLAYER_ORIGINS` (obligatoire en production), ou désigner l'hôte de la requête en
-  développement. `Sec-Fetch-Site: cross-site` est toujours refusé (403).
+- Anti-CSRF en plus de `SameSite=Strict` :
+  - toute écriture doit annoncer son origine (`Origin`, sinon `Referer`) ; `Origin: null` est refusé ;
+  - l'origine doit figurer dans `GAMEBATTLE_PLAYER_ORIGINS` (obligatoire en production), ou désigner l'hôte de
+    la requête en développement ;
+  - `Sec-Fetch-Site: cross-site` est toujours refusé (403) ;
+  - l'app joueur a la politique de référent `same-origin` : avec `no-referrer`, ses POST partiraient avec
+    `Origin: null`.
 - Un mauvais mot de passe et un pseudo inconnu donnent la même réponse, dans le même temps.
-- Freins persistés en base (table `auth_attempts`, fenêtres fixes, un `INSERT … ON CONFLICT DO UPDATE`
-  atomique par essai) : 5 échecs par pseudo et 30 essais par adresse IP sur 15 minutes, 5 comptes par IP et
-  par heure. Les compteurs survivent à un redémarrage et seraient partagés entre plusieurs processus. Les clés
-  sont des empreintes SHA-256 (ni IP ni pseudo en clair) et sont purgées après une heure. Les réponses 429
-  portent un en-tête `Retry-After`.
+- Freins persistés en base (table `auth_attempts`, fenêtres fixes) :
+  - limites : 30 essais par adresse IP et 5 connexions par pseudo sur 15 minutes, 10 inscriptions par IP et
+    par heure ; une connexion réussie remet le compteur du pseudo à zéro ;
+  - chaque essai est réservé dès sa réception, avant toute validation et avant Argon2, par un seul
+    `INSERT … ON CONFLICT DO UPDATE … RETURNING` atomique. Il n'y a jamais de lecture séparée : des requêtes
+    simultanées ne peuvent pas dépasser la limite, et une requête refusée compte aussi ;
+  - les clés sont des HMAC-SHA256 à clé dédiée (`GAMEBATTLE_RATE_LIMIT_SECRET`) : ni IP ni pseudo en clair, et
+    rien à retrouver par énumération. Changer la clé remet simplement les compteurs à zéro ;
+  - le nettoyeur `AccountJanitor` purge toutes les 10 minutes les compteurs périmés et les sessions expirées ;
+  - les réponses 429 portent un en-tête `Retry-After`.
 
 #### Déploiement : décisions imposées
 
@@ -221,6 +230,7 @@ Variables principales :
 - `GAMEBATTLE_BLINDTEST_PLAYLIST_URL` (playlist importée automatiquement en blindtest)
 - `GAMEBATTLE_PLAYER_ORIGINS` (origine exacte de l’app joueur, obligatoire en production)
 - `GAMEBATTLE_TRUSTED_PROXIES` (adresses des reverse proxies de confiance pour `X-Forwarded-For`)
+- `GAMEBATTLE_RATE_LIMIT_SECRET` (clé HMAC dédiée des compteurs d'essais, obligatoire en production)
 - `PEXELS_API_KEY` pour rechercher automatiquement les photos sources
 - `OPENAI_API_KEY` pour analyser et retoucher les objets réels
 
