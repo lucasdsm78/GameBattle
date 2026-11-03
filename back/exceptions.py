@@ -32,3 +32,41 @@ class CommandNotAllowedError(ApplicationError):
 
 class InvalidCommandPayloadError(ApplicationError):
     """Les données de la commande sont invalides."""
+
+
+class InvalidAccountError(DomainError):
+    """Le pseudo ou le mot de passe ne respecte pas les règles des comptes.
+
+    `field` désigne le champ fautif : l'app joueur affiche le message sous ce champ.
+    """
+
+    field: str = ""
+
+
+class InvalidPseudoError(InvalidAccountError):
+    field = "pseudo"
+
+
+class InvalidPasswordError(InvalidAccountError):
+    field = "password"
+
+
+class PseudoAlreadyTakenError(InvalidPseudoError):
+    """Un autre joueur porte déjà ce pseudo."""
+
+
+class InvalidCredentialsError(ApplicationError):
+    """Pseudo ou mot de passe incorrect, sans dire lequel des deux."""
+
+
+class NotAuthenticatedError(ApplicationError):
+    """Aucune session de joueur valide."""
+
+
+class TooManyAttemptsError(ApplicationError):
+    """Trop d'essais rapprochés : on attend `retry_after_seconds` avant de réessayer."""
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        minutes = max(1, -(-retry_after_seconds // 60))
+        super().__init__(f"Trop de tentatives. Réessaie dans {minutes} min.")
+        self.retry_after_seconds = retry_after_seconds

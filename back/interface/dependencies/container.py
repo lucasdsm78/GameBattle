@@ -4,6 +4,7 @@ import secrets
 from functools import lru_cache
 from typing import Optional
 
+from application.accounts.account_usecase import AccountUseCase
 from application.blindtest.playlist_service import BlindtestPlaylistService
 from application.game_night.game_night_query_usecase import GameNightQueryUseCase
 from application.use_cases import GameUseCases
@@ -14,7 +15,12 @@ from infrastructure.repositories.cached_game_config import CachedGameConfigRepos
 from infrastructure.repositories.postgresql_game_config import (
     PostgreSQLGameConfigRepository,
 )
+from infrastructure.repositories.postgresql_player_account import (
+    PostgreSQLPlayerAccountRepository,
+    PostgreSQLPlayerSessionRepository,
+)
 from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
+from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher
 from interface.realtime.deadline_worker import GameDeadlineWorker
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.hub import WebSocketHub
@@ -71,6 +77,15 @@ def game_night_query_usecase() -> GameNightQueryUseCase:
     return GameNightQueryUseCase(unit_of_work())
 
 
+@lru_cache
+def account_usecase() -> AccountUseCase:
+    return AccountUseCase(
+        PostgreSQLPlayerAccountRepository(database()),
+        PostgreSQLPlayerSessionRepository(database()),
+        Argon2PasswordHasher(),
+    )
+
+
 def game_deadline_worker() -> GameDeadlineWorker:
     return GameDeadlineWorker(game_use_cases().game_night)
 
@@ -102,5 +117,6 @@ def reset_dependency_caches() -> None:
         game_use_cases,
         realtime_dispatcher,
         game_night_query_usecase,
+        account_usecase,
     ):
         factory.cache_clear()
