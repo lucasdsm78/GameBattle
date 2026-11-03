@@ -103,8 +103,12 @@ def test_the_shared_kernel_depends_on_no_other_domain_module() -> None:
     assert _domain_dependencies("shared") <= {"shared"}
 
 
+def test_player_accounts_are_independent_of_the_games() -> None:
+    assert _domain_dependencies("accounts") <= {"accounts"}
+
+
 def test_every_domain_module_follows_the_same_layout() -> None:
-    expected = {"game_night", "shared", *GAME_MODULES}
+    expected = {"game_night", "shared", "accounts", *GAME_MODULES}
     modules = {path.name for path in (BACK_DIR / "domain").iterdir() if path.is_dir() and path.name != "__pycache__"}
 
     assert modules == expected

@@ -4,21 +4,27 @@ import secrets
 from functools import lru_cache
 from typing import Optional
 
+from application.accounts.account_maintenance import AccountMaintenance
+from application.accounts.account_usecase import AccountUseCase
 from application.blindtest.playlist_service import BlindtestPlaylistService
 from application.game_night.game_night_query_usecase import GameNightQueryUseCase
 from application.use_cases import GameUseCases
 from infrastructure.config import Settings
 from infrastructure.database.database import Database
+from infrastructure.database.single_instance_lock import SingleInstanceLock
 from infrastructure.extern.spotify import SpotifyPlaylistService
+from infrastructure.repositories.account_unit_of_work import SqlAccountUnitOfWork
 from infrastructure.repositories.cached_game_config import CachedGameConfigRepository
 from infrastructure.repositories.postgresql_game_config import (
     PostgreSQLGameConfigRepository,
 )
 from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
+from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher
 from interface.realtime.deadline_worker import GameDeadlineWorker
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.hub import WebSocketHub
 from interface.realtime.routes import ROUTES
+from interface.workers.account_janitor import AccountJanitor
 
 
 @lru_cache
@@ -29,6 +35,11 @@ def get_settings() -> Settings:
 @lru_cache
 def database() -> Database:
     return Database(get_settings().database_url)
+
+
+@lru_cache
+def single_instance_lock() -> SingleInstanceLock:
+    return SingleInstanceLock(database())
 
 
 @lru_cache
@@ -71,6 +82,19 @@ def game_night_query_usecase() -> GameNightQueryUseCase:
     return GameNightQueryUseCase(unit_of_work())
 
 
+def account_unit_of_work() -> SqlAccountUnitOfWork:
+    return SqlAccountUnitOfWork(database(), get_settings().rate_limit_secret.encode("utf-8"))
+
+
+@lru_cache
+def account_usecase() -> AccountUseCase:
+    return AccountUseCase(account_unit_of_work, Argon2PasswordHasher())
+
+
+def account_janitor() -> AccountJanitor:
+    return AccountJanitor(AccountMaintenance(account_unit_of_work))
+
+
 def game_deadline_worker() -> GameDeadlineWorker:
     return GameDeadlineWorker(game_use_cases().game_night)
 
@@ -94,6 +118,7 @@ def reset_dependency_caches() -> None:
     for factory in (
         get_settings,
         database,
+        single_instance_lock,
         game_config_repository,
         unit_of_work,
         websocket_hub,
@@ -102,5 +127,6 @@ def reset_dependency_caches() -> None:
         game_use_cases,
         realtime_dispatcher,
         game_night_query_usecase,
+        account_usecase,
     ):
         factory.cache_clear()

@@ -1,0 +1,7 @@
+# Contexte = racine du dépôt : on n'envoie au build que l'app joueur (sans ses dépendances locales) et le Caddyfile.
+*
+!app-joueur
+app-joueur/node_modules
+app-joueur/dist
+app-joueur/*.tsbuildinfo
+!deploy/Caddyfile

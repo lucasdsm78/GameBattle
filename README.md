@@ -59,6 +59,7 @@ Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop 
 
 - `back/` : backend FastAPI (`domain` / `application` / `infrastructure` / `presentation`)
 - `app-presentateur/` : app React TypeScript affichée à l'écran
+- `app-joueur/` : app React TypeScript des joueurs en ligne (compte par pseudo et mot de passe)
 - `mobile/` : app React Native Expo pour le présentateur
 - `scripts/` : scripts simples de démarrage et de validation
 
@@ -155,7 +156,72 @@ back/
   reçoit jamais les réponses, mots secrets ni descriptions de différences.
 - Messages WebSocket limités à 64 Ko, débit limité par connexion, entrées validées strictement.
 - Les jetons passés en query string sont masqués dans les logs uvicorn.
-- L'API tourne en un seul processus (verrou, cache et hub en mémoire) : ne pas lancer plusieurs workers.
+- L'API tourne en un seul processus : l'état des parties, le hub WebSocket, les verrous et les minuteurs sont
+  en mémoire. C'est imposé, pas seulement recommandé : au démarrage, l'API prend un verrou consultatif
+  PostgreSQL (`SingleInstanceLock`), tenu toute la vie du processus. Une seconde instance sur la même base
+  (`--workers 2`, une réplique…) s'arrête avec un message explicite. PostgreSQL libère le verrou si le
+  processus meurt.
+- Environnements : `development`, `dev`, `local` et `test` sont locaux. Tout autre nom (`staging`, `recette`,
+  `production`, ou une faute de frappe) est traité comme un déploiement : secrets, origine de l'app joueur et
+  proxy de confiance obligatoires, cookies `Secure`, schéma par migrations seulement.
+- Tâches de fond (`infrastructure/runtime/periodic_task.py`) : minuteur des jeux et ménage des comptes. Après
+  une erreur, elles réessaient vite (1 s, 2 s, 4 s…, plafonné à leur intervalle), avec le nombre d'échecs
+  d'affilée dans le journal.
+
+### Comptes joueurs (`/api/accounts`)
+
+- `POST /register`, `POST /login`, `POST /logout`, `GET /me`. Domaine dans `back/domain/accounts/`
+  (pseudo, règles du mot de passe, compte, session), cas d'usage dans `back/application/accounts/`.
+- Unité de travail `AccountUnitOfWork` : compte, session et compteurs d'essais partagent une transaction.
+  Une inscription crée le compte et sa session ensemble ou pas du tout. Une reconnexion révoque l'ancienne
+  session dans la même transaction. Le hachage Argon2 a lieu entre deux transactions : aucune connexion à
+  la base n'est retenue pendant le calcul.
+- Pseudo de 3 à 20 caractères (lettres, accents compris, chiffres, `-`, `_`), unique sans tenir compte de
+  la casse. Les noms qui imitent l'équipe (« admin », « modo », « gamebattle »…) sont refusés à l'inscription.
+- Mot de passe de 8 à 128 caractères, normalisé en NFKC (un « é » tapé sur n'importe quel clavier reste le
+  même), refusé s'il est très répandu ou contient le pseudo.
+- Une erreur de règle indique le champ fautif (`{"detail": …, "field": "pseudo" | "password"}`) : l'app
+  l'affiche sous ce champ.
+- Mots de passe hachés en Argon2id (`argon2-cffi`, paramètres RFC 9106) dans un thread, au plus deux à la
+  fois : la boucle d'événements des parties ne bloque jamais. Les anciens hachages sont mis à niveau à la
+  connexion suivante.
+- La session est un jeton aléatoire de 256 bits, dans un cookie `HttpOnly`, `SameSite=Strict`, valable
+  30 jours (`__Host-gb_session` avec `Secure` en production). La base n'en garde que l'empreinte SHA-256.
+  Elle glisse : un joueur qui revient après plus de 15 jours repart pour 30 jours. Se reconnecter dans le
+  même navigateur révoque la session précédente.
+- Le corps des requêtes de connexion est lu par morceaux et borné à 2 Ko, même sans `Content-Length`.
+- L'app joueur de production embarque une CSP stricte (tout depuis la même origine, aucun script inline).
+- Anti-CSRF en plus de `SameSite=Strict` :
+  - toute écriture doit annoncer son origine (`Origin`, sinon `Referer`) ; `Origin: null` est refusé ;
+  - l'origine doit figurer dans `GAMEBATTLE_PLAYER_ORIGINS` (obligatoire une fois déployé), ou désigner l'hôte de
+    la requête en développement ;
+  - `Sec-Fetch-Site: cross-site` est toujours refusé (403) ;
+  - l'app joueur a la politique de référent `same-origin` : avec `no-referrer`, ses POST partiraient avec
+    `Origin: null`.
+- Un mauvais mot de passe et un pseudo inconnu donnent la même réponse, dans le même temps.
+- Freins persistés en base (table `auth_attempts`, fenêtres fixes) :
+  - limites : 30 essais par adresse IP et 5 connexions par pseudo sur 15 minutes, 10 inscriptions par IP et
+    par heure ; une connexion réussie remet le compteur du pseudo à zéro ;
+  - chaque essai est réservé dès sa réception, avant toute validation et avant Argon2, par un seul
+    `INSERT … ON CONFLICT DO UPDATE … RETURNING` atomique. Il n'y a jamais de lecture séparée : des requêtes
+    simultanées ne peuvent pas dépasser la limite, et une requête refusée compte aussi ;
+  - les clés sont des HMAC-SHA256 à clé dédiée (`GAMEBATTLE_RATE_LIMIT_SECRET`) : ni IP ni pseudo en clair, et
+    rien à retrouver par énumération. Changer la clé remet simplement les compteurs à zéro ;
+  - le nettoyeur `AccountJanitor` (`interface/workers/`) déclenche toutes les 10 minutes `AccountMaintenance`,
+    qui purge les compteurs périmés et les sessions expirées ;
+  - les réponses 429 portent un en-tête `Retry-After`.
+
+#### Déploiement : décisions imposées
+
+- **Même origine.** L'app joueur et l'API sont servies sur le même domaine, derrière Caddy (`/api/*` vers
+  uvicorn, le reste vers les fichiers de `app-joueur/dist`). L'app appelle des chemins relatifs, le cookie
+  reste `SameSite=Strict`, et CORS n'autorise jamais les cookies. Un déploiement sur deux domaines n'est pas
+  prévu : il affaiblirait ces protections.
+- **Adresse des joueurs.** uvicorn tourne avec `--no-proxy-headers` : c'est l'application qui détermine
+  l'adresse (`interface/client_address.py`). Elle ne lit `X-Forwarded-For` que si la connexion vient d'un
+  proxy listé dans `GAMEBATTLE_TRUSTED_PROXIES`, et garde la dernière adresse qui n'est pas un proxy de
+  confiance. Caddy a une adresse fixe (`172.30.0.10`) et remplace tout `X-Forwarded-For` envoyé par le client.
+- **Schéma.** En production, le schéma n'évolue que par les migrations Alembic (voir plus bas).
 
 ---
 
@@ -173,6 +239,10 @@ Variables principales :
 - `GAMEBATTLE_ALLOWED_ORIGINS`
 - `GAMEBATTLE_DATABASE_URL`
 - `GAMEBATTLE_BLINDTEST_PLAYLIST_URL` (playlist importée automatiquement en blindtest)
+- `GAMEBATTLE_PLAYER_ORIGINS` (origine exacte de l’app joueur, obligatoire une fois déployé)
+- `GAMEBATTLE_TRUSTED_PROXIES` (adresses des reverse proxies de confiance pour `X-Forwarded-For`)
+- `GAMEBATTLE_RATE_LIMIT_SECRET` (clé HMAC dédiée des compteurs d'essais, obligatoire une fois déployé ; sans espace,
+  générée par `openssl rand -hex 32`)
 - `PEXELS_API_KEY` pour rechercher automatiquement les photos sources
 - `OPENAI_API_KEY` pour analyser et retoucher les objets réels
 
@@ -227,12 +297,72 @@ cd /Users/lucasdasilvamarques/GameBattle
 bash scripts/dev-back.sh
 ```
 
+### Production (VPS)
+
+La stack `deploy/` contient trois services : Caddy (HTTPS automatique, app joueur et API sur le même domaine),
+le backend et PostgreSQL. Seul Caddy est exposé. La base est sur un réseau interne, sans accès à Internet. Les
+conteneurs tournent sans privilèges, et le backend en lecture seule. Au démarrage, le backend applique les
+migrations Alembic avant d'ouvrir son port.
+
+```bash
+cp deploy/.env.example deploy/.env      # domaine, origine, secrets (openssl rand -hex 32)
+docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
+```
+
+L'adresse de Caddy (`172.30.0.10`) est définie une seule fois dans le compose : elle sert à son réseau et comme
+seul proxy de confiance du backend. Le contrôle de santé de Caddy passe par lui-même jusqu'au backend (port
+interne 8081, jamais publié). Il n'est sain que si le backend le reconnaît comme proxy : si l'adresse dérive,
+`up --wait` échoue et Caddy reste *unhealthy*. Un `X-Forwarded-For` reçu d'un pair inconnu est aussi signalé dans
+les journaux (`client_address.untrusted_forwarded_for peer=…`).
+
+Après chaque déploiement, vérifier le contrat avec :
+
+```bash
+deploy/verify.sh https://jeu.exemple.fr
+```
+
+Le script n'écrit rien : aucun compte créé, aucun essai consommé. Il contrôle les en-têtes de sécurité et la CSP,
+l'API sur la même origine, la reconnaissance du proxy, les refus anti-CSRF et l'absence de cookies CORS.
+
+Ce déploiement a été vérifié en local (`GAMEBATTLE_DOMAIN=localhost`, ports 8080/8443) :
+- `deploy/verify.sh` passe sans échec ; cookie `__Host-gb_session` `Secure` en HTTPS ;
+- un `X-Forwarded-For` forgé n'a aucun effet sur les limites, alors qu'un second client est bien compté à part ;
+- cinq connexions simultanées sur le dernier essai donnent un seul 401 et quatre 429 ;
+- une seconde instance du backend refuse de démarrer ; une adresse de proxy qui dérive fait échouer `up --wait` ;
+- parcours complet dans un navigateur, coupures réseau comprises.
+
+### Migrations de la base (Alembic)
+
+En développement et dans les tests, l'API crée elle-même les tables manquantes au démarrage. En
+production (`GAMEBATTLE_ENVIRONMENT=production`), elle ne touche jamais au schéma : il faut migrer avant de
+démarrer.
+
+```bash
+cd back
+.venv/bin/alembic upgrade head           # base vide ou déjà suivie par Alembic
+.venv/bin/alembic stamp head             # base créée par l'API en développement : la marquer, une seule fois
+.venv/bin/alembic revision -m "…"        # nouvelle migration, à écrire dans migrations/versions/
+```
+
+Un test (`test_migrations_build_exactly_the_schema_of_the_models`) vérifie que les migrations produisent
+exactement le schéma des modèles SQLAlchemy : une table ajoutée sans migration fait échouer la suite.
+
 ### Web écran
 
 ```bash
 cd /Users/lucasdasilvamarques/GameBattle
 bash scripts/dev-web.sh
 ```
+
+### App joueur
+
+```bash
+cd /Users/lucasdasilvamarques/GameBattle
+bash scripts/dev-joueur.sh
+```
+
+Ouvre <http://127.0.0.1:5174>. Le proxy Vite renvoie `/api` vers le backend sur `http://127.0.0.1:8000`
+(ou vers `GAMEBATTLE_API_URL`).
 
 ### Mobile
 
