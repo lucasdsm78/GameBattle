@@ -12,7 +12,7 @@ from domain.accounts.repositories.player_account_repository import (
     PlayerAccountRepository,
 )
 from exceptions import PseudoAlreadyTakenError
-from infrastructure.database.models.accounts.player_account_model import (
+from infrastructure.database.accounts.player_account_model import (
     PlayerAccountModel,
 )
 

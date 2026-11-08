@@ -193,9 +193,10 @@ def test_each_module_holds_one_main_class() -> None:
     assert set(crowded) <= set(SEVERAL_MAIN_CLASSES_ALLOWED), {key: crowded[key] for key in set(crowded) - set(SEVERAL_MAIN_CLASSES_ALLOWED)}
 
 
-# Monolithe modulaire : la persistance est rangée par module. Les comptes dans `database/models/accounts/`, la partie
-# commune dans `database/game_sessions/`, chaque jeu dans `database/games/<jeu>/` (table, mapper, dépôt). Un fichier
-# n'utilise que les tables des modules que le sien peut connaître ; un autre module passe par un contrat applicatif.
+# Monolithe modulaire : la persistance est rangée par bounded context, pas par technologie. Les comptes dans
+# `database/accounts/`, la partie commune dans `database/game_sessions/`, chaque jeu dans `database/games/<jeu>/`
+# (table, mapper, dépôt). Un fichier n'utilise que les tables des modules que le sien peut connaître ; un autre module
+# passe par un contrat applicatif.
 DATABASE_PACKAGE = "infrastructure.database."
 ALL_MODELS = "infrastructure.database.all_models"
 SCHEMA_ENTRY_POINTS = {"infrastructure/database/database.py", "infrastructure/database/all_models.py"}
@@ -214,11 +215,17 @@ def _imported_names(path: Path) -> set[str]:
     return names
 
 
+DATABASE_MODULE_DIRS = {"accounts": "accounts", "game_sessions": "game_night"}  # dossier -> module du domaine
+DATABASE_TECHNICAL_FILES = {
+    "__init__.py", "all_models.py", "database.py", "dataclass_codec.py", "json_document.py", "single_instance_lock.py", "upsert.py",
+}
+
+
 def _module_of(parts: tuple[str, ...]) -> str | None:
-    """Module propriétaire d'un chemin sous `infrastructure/database` (`models/<m>`, `games/<m>`, `game_sessions`)."""
-    if parts[:1] == ("game_sessions",):
-        return "game_night"
-    if len(parts) >= 2 and parts[0] in {"models", "games"}:
+    """Module propriétaire d'un chemin sous `infrastructure/database` (`accounts`, `game_sessions`, `games/<jeu>`)."""
+    if parts[:1] and parts[0] in DATABASE_MODULE_DIRS:
+        return DATABASE_MODULE_DIRS[parts[0]]
+    if len(parts) >= 2 and parts[0] == "games":
         return parts[1]
     return None
 
@@ -269,9 +276,8 @@ def test_only_the_schema_uses_the_aggregate_of_all_models() -> None:
 
 
 def test_persistence_is_grouped_by_module() -> None:
-    accounts = {path.name for path in (DATABASE_DIR / "models" / "accounts").glob("*_model.py")}
+    accounts = {path.name for path in (DATABASE_DIR / "accounts").glob("*_model.py")}
 
-    assert not (DATABASE_DIR / "models.py").exists()
     assert accounts == {"player_account_model.py", "player_session_model.py", "auth_attempt_model.py"}
     assert (DATABASE_DIR / "game_sessions" / "game_session_model.py").is_file()
     games = {path.name for path in (DATABASE_DIR / "games").iterdir() if path.is_dir() and path.name not in {"shared", "__pycache__"}}
@@ -279,6 +285,15 @@ def test_persistence_is_grouped_by_module() -> None:
     for game in GAME_MODULES:
         files = {path.name for path in (DATABASE_DIR / "games" / game).glob("*.py")}
         assert files == {"__init__.py", f"{game}_game_model.py", f"{game}_mapper.py", f"{game}_repository.py"}, game
+
+
+def test_the_database_package_holds_only_module_folders_and_technical_files() -> None:
+    # Ni dossier central `models/`, ni modèle posé à la racine : chaque table vit dans le dossier de son module.
+    folders = {path.name for path in DATABASE_DIR.iterdir() if path.is_dir() and path.name != "__pycache__"}
+    files = {path.name for path in DATABASE_DIR.glob("*.py")}
+
+    assert folders == {*DATABASE_MODULE_DIRS, "games"}
+    assert files <= DATABASE_TECHNICAL_FILES
 
 
 def test_every_game_mapper_converts_to_its_own_domain_state() -> None:

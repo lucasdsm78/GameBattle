@@ -3,6 +3,13 @@ lire `Base.metadata`. Ce n'est pas un point d'accès métier : le code d'un modu
 jamais ce fichier (règle vérifiée par `tests/test_architecture.py`).
 """
 
+from infrastructure.database.accounts.auth_attempt_model import AuthAttemptModel
+from infrastructure.database.accounts.player_account_model import (
+    PlayerAccountModel,
+)
+from infrastructure.database.accounts.player_session_model import (
+    PlayerSessionModel,
+)
 from infrastructure.database.game_sessions.game_session_model import GameSessionModel
 from infrastructure.database.games.auction.auction_game_model import AuctionGameModel
 from infrastructure.database.games.blindtest.blindtest_game_model import (
@@ -34,13 +41,6 @@ from infrastructure.database.games.stopchrono.stopchrono_game_model import (
 )
 from infrastructure.database.games.vanishing_word.vanishing_word_game_model import (
     VanishingWordGameModel,
-)
-from infrastructure.database.models.accounts.auth_attempt_model import AuthAttemptModel
-from infrastructure.database.models.accounts.player_account_model import (
-    PlayerAccountModel,
-)
-from infrastructure.database.models.accounts.player_session_model import (
-    PlayerSessionModel,
 )
 
 __all__ = [

@@ -49,11 +49,11 @@ from infrastructure.config import Settings
 from infrastructure.database import (
     all_models,  # noqa: F401  (toutes les tables, pour comparer les migrations)
 )
-from infrastructure.database.database import Base, Database
-from infrastructure.database.models.accounts.auth_attempt_model import AuthAttemptModel
-from infrastructure.database.models.accounts.player_account_model import (
+from infrastructure.database.accounts.auth_attempt_model import AuthAttemptModel
+from infrastructure.database.accounts.player_account_model import (
     PlayerAccountModel,
 )
+from infrastructure.database.database import Base, Database
 from infrastructure.repositories.accounts.account_unit_of_work import (
     SqlAccountUnitOfWork,
 )
