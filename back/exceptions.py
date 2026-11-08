@@ -70,3 +70,10 @@ class TooManyAttemptsError(ApplicationError):
         minutes = max(1, -(-retry_after_seconds // 60))
         super().__init__(f"Trop de tentatives. Réessaie dans {minutes} min.")
         self.retry_after_seconds = retry_after_seconds
+
+
+class ConcurrentModificationError(ApplicationError):
+    """Verrou optimiste : la partie a été écrite entre notre lecture et notre écriture ; rien n'a été écrasé."""
+
+    def __init__(self) -> None:
+        super().__init__("La partie vient d'être modifiée en même temps : l'action n'a pas été appliquée, réessaie.")

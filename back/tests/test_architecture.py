@@ -193,11 +193,13 @@ def test_each_module_holds_one_main_class() -> None:
     assert set(crowded) <= set(SEVERAL_MAIN_CLASSES_ALLOWED), {key: crowded[key] for key in set(crowded) - set(SEVERAL_MAIN_CLASSES_ALLOWED)}
 
 
-# Monolithe modulaire : les modèles ORM sont rangés par module (`infrastructure/database/models/<module>`). Un fichier
-# n'utilise les tables que d'un seul module ; un autre module passe par un contrat applicatif, jamais par sa table.
-MODELS_PACKAGE = "infrastructure.database.models."
+# Monolithe modulaire : la persistance est rangée par module. Les comptes dans `database/models/accounts/`, la partie
+# commune dans `database/game_sessions/`, chaque jeu dans `database/games/<jeu>/` (table, mapper, dépôt). Un fichier
+# n'utilise que les tables des modules que le sien peut connaître ; un autre module passe par un contrat applicatif.
+DATABASE_PACKAGE = "infrastructure.database."
 ALL_MODELS = "infrastructure.database.all_models"
 SCHEMA_ENTRY_POINTS = {"infrastructure/database/database.py", "infrastructure/database/all_models.py"}
+DATABASE_DIR = BACK_DIR / "infrastructure" / "database"
 
 
 def _imported_names(path: Path) -> set[str]:
@@ -212,24 +214,38 @@ def _imported_names(path: Path) -> set[str]:
     return names
 
 
+def _module_of(parts: tuple[str, ...]) -> str | None:
+    """Module propriétaire d'un chemin sous `infrastructure/database` (`models/<m>`, `games/<m>`, `game_sessions`)."""
+    if parts[:1] == ("game_sessions",):
+        return "game_night"
+    if len(parts) >= 2 and parts[0] in {"models", "games"}:
+        return parts[1]
+    return None
+
+
 def _model_modules(path: Path) -> set[str]:
-    return {name.removeprefix(MODELS_PACKAGE).split(".")[0] for name in _imported_names(path) if name.startswith(MODELS_PACKAGE)}
+    modules = set()
+    for name in _imported_names(path):
+        if name.startswith(DATABASE_PACKAGE) and (module := _module_of(tuple(name.removeprefix(DATABASE_PACKAGE).split(".")))):
+            modules.add(module)
+    return modules
 
 
 def _layer_files() -> list[Path]:
     return [path for layer in ("domain", "application", "infrastructure", "interface") for path in (BACK_DIR / layer).rglob("*.py")]
 
 
-PERSISTENCE_DIRS = (BACK_DIR / "infrastructure" / "database" / "models", BACK_DIR / "infrastructure" / "repositories")
-
-
 def _allowed_modules(module: str) -> set[str]:
-    """Même direction que le domaine : un jeu ne connaît que lui (et le noyau partagé) ; la soirée compose les jeux."""
+    """Même direction que le domaine : un jeu ne connaît que lui (et le noyau partagé) ; la partie compose les jeux."""
     return {module, "shared"} | (set(GAME_MODULES) if module == "game_night" else set())
 
 
 def _owning_module(path: Path) -> str | None:
-    return next((path.relative_to(root).parts[0] for root in PERSISTENCE_DIRS if root in path.parents), None)
+    if DATABASE_DIR in path.parents:
+        return _module_of(path.relative_to(DATABASE_DIR).parts[:-1] or ("",))
+    if (BACK_DIR / "infrastructure" / "repositories") in path.parents:
+        return path.relative_to(BACK_DIR / "infrastructure" / "repositories").parts[0]
+    return None
 
 
 def test_a_file_only_uses_the_orm_models_its_module_may_know() -> None:
@@ -252,15 +268,29 @@ def test_only_the_schema_uses_the_aggregate_of_all_models() -> None:
     assert users <= SCHEMA_ENTRY_POINTS
 
 
-def test_models_are_grouped_by_module() -> None:
-    models_dir = BACK_DIR / "infrastructure" / "database" / "models"
-    accounts = {path.name for path in (models_dir / "accounts").glob("*_model.py")}
+def test_persistence_is_grouped_by_module() -> None:
+    accounts = {path.name for path in (DATABASE_DIR / "models" / "accounts").glob("*_model.py")}
 
-    assert not (BACK_DIR / "infrastructure" / "database" / "models.py").exists()
+    assert not (DATABASE_DIR / "models.py").exists()
     assert accounts == {"player_account_model.py", "player_session_model.py", "auth_attempt_model.py"}
-    assert (models_dir / "game_night" / "game_night_model.py").is_file()
+    assert (DATABASE_DIR / "game_sessions" / "game_session_model.py").is_file()
+    games = {path.name for path in (DATABASE_DIR / "games").iterdir() if path.is_dir() and path.name not in {"shared", "__pycache__"}}
+    assert games == set(GAME_MODULES)
     for game in GAME_MODULES:
-        assert (models_dir / game / f"{game}_game_model.py").is_file(), f"{game} doit avoir sa table dans models/{game}/"
+        files = {path.name for path in (DATABASE_DIR / "games" / game).glob("*.py")}
+        assert files == {"__init__.py", f"{game}_game_model.py", f"{game}_mapper.py", f"{game}_repository.py"}, game
+
+
+def test_every_game_mapper_converts_to_its_own_domain_state() -> None:
+    from infrastructure.repositories.game_night.game_state_repositories import (
+        GAME_STATE_REPOSITORIES,
+    )
+
+    assert set(GAME_STATE_REPOSITORIES) == set(GAME_STATE_TYPES)
+    for game, repository in GAME_STATE_REPOSITORIES.items():
+        assert repository.mapper.state_type is GAME_STATE_TYPES[game], game
+        assert repository.model.__tablename__ == f"{game}_games", game
+        assert type(repository).__module__ == f"infrastructure.database.games.{game}.{game}_repository", game
 
 
 REPOSITORIES_DIR = BACK_DIR / "infrastructure" / "repositories"
