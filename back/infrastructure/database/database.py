@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
@@ -31,6 +32,10 @@ class Database:
 
     async def dispose(self) -> None:
         await self._engine.dispose()
+
+    @property
+    def engine(self) -> AsyncEngine:
+        return self._engine
 
     @property
     def dialect_name(self) -> str:

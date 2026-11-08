@@ -100,10 +100,12 @@ back/
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
 │   ├── database/            # Moteur SQLAlchemy, verrou d'instance unique
-│   │   ├── models/          # Tables rangées par module : game_config_model.py, accounts/ (une table par fichier)
+│   │   ├── models/          # Tables rangées par module, une par fichier : game_night/ (la soirée),
+│   │   │                    # <jeu>/<jeu>_game_model.py (l'état d'un jeu), accounts/, shared/ (colonnes communes)
 │   │   └── all_models.py    # Agrégat de toutes les tables, réservé au schéma (Alembic, create_all)
 │   ├── repositories/        # Un dossier par domaine, comme domain/ :
-│   │   ├── game_night/      # Unit of Work de la soirée, dépôt PostgreSQL, cache mémoire, mapper de persistance
+│   │   ├── game_night/      # Unit of Work de la soirée, dépôt PostgreSQL, cache mémoire, mapper, tables des jeux
+│   │   ├── bombe/ memory/ fair_price/   # Mise à niveau des états anciens de ces jeux
 │   │   └── accounts/        # Unit of Work des comptes, dépôts comptes et sessions, compteur d'essais
 │   └── extern/              # Spotify, bridge buzzers USB
 ├── interface/
@@ -127,6 +129,15 @@ back/
 - La forme persistée est produite par l'infrastructure (`game_config_to_payload` /
   `game_config_from_payload` dans `infrastructure/repositories/game_night/game_config_mapper.py`) : l'état brut de
   l'agrégat, sans vue client ni événement.
+- En base, la soirée suit les bounded contexts :
+  - **`game_nights`** porte le cycle de vie commun en colonnes : statut, configuration, manches, vainqueurs,
+    ouverture, et une `revision` incrémentée à chaque écriture.
+  - **Une table par jeu** (`blindtest_games`, `fair_price_games`…), propre à son module, contient `night_id`,
+    l'état en JSONB et un `schema_version`. Une règle de jeu modifiée ne demande aucune migration. Chaque jeu
+    met à niveau ses propres états anciens (`infrastructure/repositories/<jeu>/<jeu>_state_upgrade.py`).
+  - **Écritures :** une action n'écrit que ce qui a changé, en pratique la ligne commune et la table du jeu en
+    cours, dans une seule transaction.
+  - **Garde-fou :** un champ ajouté à `GameSession` sans colonne fait échouer `test_game_night_persistence.py`.
 - Chaque jeu a son use case d'écriture (`application/<jeu>/<jeu>_command_usecase.py`), avec une méthode typée par
   action (`await auction.select_bid(command)`). La classe de base `CommandUseCase` applique la
   transition sous verrou, persiste puis diffuse ; une action sans effet n'écrit ni ne diffuse rien.
@@ -170,7 +181,8 @@ back/
   proxy de confiance obligatoires, cookies `Secure`, schéma par migrations seulement.
 - Tâches de fond (`infrastructure/runtime/periodic_task.py`) : minuteur des jeux et ménage des comptes. Après
   une erreur, elles réessaient vite (1 s, 2 s, 4 s…, plafonné à leur intervalle), avec le nombre d'échecs
-  d'affilée dans le journal.
+  d'affilée dans le journal. L'arrêt est gracieux : le passage en cours se termine, une transaction n'est
+  jamais coupée en deux.
 
 ### Comptes joueurs (`/api/accounts`)
 
@@ -347,6 +359,11 @@ cd back
 .venv/bin/alembic stamp head             # base créée par l'API en développement : la marquer, une seule fois
 .venv/bin/alembic revision -m "…"        # nouvelle migration, à écrire dans migrations/versions/
 ```
+
+La migration `0003` remplace l'ancien document unique (`game_config_state`) par `game_nights` et les tables de
+jeu, en recopiant les données ; la descente refait le document. Une base créée par l'API en développement
+(sans Alembic) importe une fois l'ancien document au premier démarrage et le laisse en place ; une fois
+vérifié, il peut être supprimé (`DROP TABLE game_config_state`).
 
 Un test (`test_migrations_build_exactly_the_schema_of_the_models`) vérifie que les migrations produisent
 exactement le schéma des modèles SQLAlchemy : une table ajoutée sans migration fait échouer la suite.

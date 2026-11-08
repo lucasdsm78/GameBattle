@@ -220,14 +220,30 @@ def _layer_files() -> list[Path]:
     return [path for layer in ("domain", "application", "infrastructure", "interface") for path in (BACK_DIR / layer).rglob("*.py")]
 
 
-def test_a_file_only_uses_the_orm_models_of_one_module() -> None:
-    mixed = {
-        str(path.relative_to(BACK_DIR)): modules
-        for path in _layer_files()
-        if str(path.relative_to(BACK_DIR)) not in SCHEMA_ENTRY_POINTS and len(modules := _model_modules(path)) > 1
-    }
+PERSISTENCE_DIRS = (BACK_DIR / "infrastructure" / "database" / "models", BACK_DIR / "infrastructure" / "repositories")
 
-    assert mixed == {}
+
+def _allowed_modules(module: str) -> set[str]:
+    """Même direction que le domaine : un jeu ne connaît que lui (et le noyau partagé) ; la soirée compose les jeux."""
+    return {module, "shared"} | (set(GAME_MODULES) if module == "game_night" else set())
+
+
+def _owning_module(path: Path) -> str | None:
+    return next((path.relative_to(root).parts[0] for root in PERSISTENCE_DIRS if root in path.parents), None)
+
+
+def test_a_file_only_uses_the_orm_models_its_module_may_know() -> None:
+    violations = {}
+    for path in _layer_files():
+        relative = str(path.relative_to(BACK_DIR))
+        used = _model_modules(path) - {"shared"}
+        if relative in SCHEMA_ENTRY_POINTS or not used:
+            continue
+        module = _owning_module(path)
+        if (module is None and len(used) > 1) or (module is not None and not used <= _allowed_modules(module)):
+            violations[relative] = sorted(used)
+
+    assert violations == {}
 
 
 def test_only_the_schema_uses_the_aggregate_of_all_models() -> None:
@@ -242,7 +258,9 @@ def test_models_are_grouped_by_module() -> None:
 
     assert not (BACK_DIR / "infrastructure" / "database" / "models.py").exists()
     assert accounts == {"player_account_model.py", "player_session_model.py", "auth_attempt_model.py"}
-    assert (models_dir / "game_config_model.py").is_file()
+    assert (models_dir / "game_night" / "game_night_model.py").is_file()
+    for game in GAME_MODULES:
+        assert (models_dir / game / f"{game}_game_model.py").is_file(), f"{game} doit avoir sa table dans models/{game}/"
 
 
 REPOSITORIES_DIR = BACK_DIR / "infrastructure" / "repositories"
@@ -259,7 +277,7 @@ def test_repositories_are_grouped_by_domain() -> None:
     assert misplaced == []
 
 
-def test_a_domain_repository_never_imports_another_domain_repository() -> None:
+def test_a_domain_repository_only_imports_the_repositories_its_module_may_know() -> None:
     crossing = {
         str(path.relative_to(REPOSITORIES_DIR)): sorted(foreign)
         for path in REPOSITORIES_DIR.rglob("*.py")
@@ -267,8 +285,9 @@ def test_a_domain_repository_never_imports_another_domain_repository() -> None:
             foreign := {
                 name.split(".")[2]
                 for name in _imported_names(path)
-                if name.startswith("infrastructure.repositories.") and name.split(".")[2] != path.parent.name
+                if name.startswith("infrastructure.repositories.")
             }
+            - _allowed_modules(path.parent.name)
         )
     }
 

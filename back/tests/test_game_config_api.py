@@ -23,6 +23,7 @@ os.environ["GAMEBATTLE_DISPLAY_TOKEN"] = "display-test-token"
 os.environ["GAMEBATTLE_ALLOWED_ORIGINS"] = "http://localhost:5173,http://localhost:8081"
 os.environ["GAMEBATTLE_HARDWARE_TOKEN"] = "hardware-test-token"
 
+from domain.game_night.models.game_registry import GAME_STATE_TYPES
 from interface.dependencies.container import game_use_cases
 from main import app  # noqa: E402
 
@@ -33,12 +34,15 @@ def setup_function() -> None:
     if not TEST_DB_PATH.exists():
         return
 
+    # La soirée et l'état de chaque jeu, plus l'ancien document unique d'éventuelles bases plus anciennes.
+    tables = ["game_nights", *(f"{key}_games" for key in GAME_STATE_TYPES), "game_config_state"]
     connection = sqlite3.connect(TEST_DB_PATH)
     try:
-        connection.execute("DELETE FROM game_config_state")
+        existing = {name for (name,) in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        for table in tables:
+            if table in existing:
+                connection.execute(f"DELETE FROM {table}")
         connection.commit()
-    except sqlite3.OperationalError:
-        connection.rollback()
     finally:
         connection.close()
 

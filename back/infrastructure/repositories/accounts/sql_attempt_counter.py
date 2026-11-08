@@ -4,15 +4,11 @@ import hashlib
 import hmac
 
 from sqlalchemy import case, delete
-from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.accounts.attempt_counter import AttemptCounter, AttemptWindow
 from infrastructure.database.models.accounts.auth_attempt_model import AuthAttemptModel
-
-# `INSERT … ON CONFLICT DO UPDATE` existe sous la même forme dans les deux moteurs : PostgreSQL en production,
-# SQLite pour les tests.
-_UPSERTS = {"postgresql": postgresql.insert, "sqlite": sqlite.insert}
+from infrastructure.database.upsert import upsert_insert
 
 
 class SqlAttemptCounter(AttemptCounter):
@@ -31,7 +27,7 @@ class SqlAttemptCounter(AttemptCounter):
         return hmac.new(self._secret, f"{scope}:{subject}".encode("utf-8"), hashlib.sha256).hexdigest()
 
     async def hit(self, scope: str, subject: str, now_ms: int, window_ms: int) -> AttemptWindow:
-        insert = _UPSERTS[self._session.bind.dialect.name](AuthAttemptModel).values(
+        insert = upsert_insert(self._session, AuthAttemptModel).values(
             key=self._key(scope, subject), window_start_ms=now_ms, count=1
         )
         expired = AuthAttemptModel.window_start_ms + window_ms <= insert.excluded.window_start_ms

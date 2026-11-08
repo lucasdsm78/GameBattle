@@ -113,3 +113,28 @@ def test_forwarding_from_an_unknown_peer_is_reported_once(caplog: pytest.LogCapt
 
     reports = [record for record in caplog.records if record.message.startswith("client_address.untrusted_forwarded_for")]
     assert [record.message for record in reports] == ["client_address.untrusted_forwarded_for peer=172.30.0.99"]
+
+
+class SlowTask(PeriodicTask):
+    name = "test.slow"
+
+    def __init__(self) -> None:
+        super().__init__(interval_seconds=600)
+        self.started = asyncio.Event()
+        self.finished = False
+
+    async def run_once(self) -> None:
+        self.started.set()
+        await asyncio.sleep(0.05)  # une transaction en cours
+        self.finished = True
+
+
+def test_stopping_lets_the_current_pass_finish_instead_of_cutting_it() -> None:
+    async def scenario() -> SlowTask:
+        task = SlowTask()
+        await task.start()
+        await task.started.wait()
+        await task.stop()  # arrivé en plein passage : il doit se terminer, pas être annulé
+        return task
+
+    assert asyncio.run(scenario()).finished is True
