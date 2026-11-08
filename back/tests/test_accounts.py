@@ -21,12 +21,8 @@ from application.accounts.account_commands import CredentialsCommand
 from application.accounts.account_maintenance import AccountMaintenance
 from application.accounts.account_unit_of_work import AccountUnitOfWork
 from application.accounts.account_usecase import AccountUseCase, hash_session_token
-from application.accounts.attempt_counter import (
-    AttemptCounter,
-    AttemptLimit,
-    AttemptWindow,
-    enforce,
-)
+from application.accounts.attempt_counter import AttemptCounter, AttemptWindow
+from application.accounts.attempt_limit import AttemptLimit, enforce
 from domain.accounts.models.password_policy import check_password, normalize_password
 from domain.accounts.models.player_account import PlayerAccount
 from domain.accounts.models.player_session import (
@@ -53,7 +49,7 @@ from infrastructure.config import Settings
 from infrastructure.database.database import Base, Database
 from infrastructure.database.models import AuthAttemptModel, PlayerAccountModel
 from infrastructure.repositories.account_unit_of_work import SqlAccountUnitOfWork
-from infrastructure.repositories.postgresql_player_account import (
+from infrastructure.repositories.postgresql_player_session_repository import (
     PostgreSQLPlayerSessionRepository,
 )
 from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher

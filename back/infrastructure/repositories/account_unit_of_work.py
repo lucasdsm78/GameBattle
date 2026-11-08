@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.accounts.account_unit_of_work import AccountUnitOfWork
 from infrastructure.database.database import Database
-from infrastructure.repositories.postgresql_player_account import (
+from infrastructure.repositories.postgresql_player_account_repository import (
     PostgreSQLPlayerAccountRepository,
+)
+from infrastructure.repositories.postgresql_player_session_repository import (
     PostgreSQLPlayerSessionRepository,
 )
 from infrastructure.repositories.sql_attempt_counter import SqlAttemptCounter

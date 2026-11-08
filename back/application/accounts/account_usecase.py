@@ -8,8 +8,9 @@ from dataclasses import dataclass
 from typing import Optional, TypeGuard
 
 from application.accounts.account_commands import CredentialsCommand
+from application.accounts.account_limits import AccountLimits
 from application.accounts.account_unit_of_work import AccountUnitOfWork
-from application.accounts.attempt_counter import AttemptLimit, enforce
+from application.accounts.attempt_limit import AttemptLimit, enforce
 from application.shared.command_usecase import wall_clock_ms
 from domain.accounts.models.password_policy import check_password, normalize_password
 from domain.accounts.models.player_account import PlayerAccount
@@ -25,7 +26,6 @@ from exceptions import (
 
 SESSION_TOKEN_BYTES = 32
 MAX_SESSION_TOKEN_LENGTH = 128
-_MINUTE_MS = 60_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,20 +48,6 @@ class SignedIn:
     account: AccountView
     token: str
     expires_at_ms: int
-
-
-@dataclass(frozen=True, slots=True)
-class AccountLimits:
-    """Freins contre le forçage. Chaque essai est réservé dès sa réception, avant toute validation et avant
-    Argon2 : refusé, invalide ou réussi, il compte. Une connexion réussie remet à zéro le compteur du pseudo."""
-
-    attempts_per_ip: AttemptLimit = AttemptLimit("ip", limit=30, window_ms=15 * _MINUTE_MS)
-    login_attempts_per_pseudo: AttemptLimit = AttemptLimit("login", limit=5, window_ms=15 * _MINUTE_MS)
-    signup_attempts_per_ip: AttemptLimit = AttemptLimit("signup", limit=10, window_ms=60 * _MINUTE_MS)
-
-    @property
-    def longest_window_ms(self) -> int:
-        return max(limit.window_ms for limit in (self.attempts_per_ip, self.login_attempts_per_pseudo, self.signup_attempts_per_ip))
 
 
 def hash_session_token(token: str) -> str:

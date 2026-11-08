@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from application.accounts.account_limits import AccountLimits
 from application.accounts.account_unit_of_work import AccountUnitOfWork
-from application.accounts.account_usecase import AccountLimits
 from application.shared.command_usecase import wall_clock_ms
 
 
