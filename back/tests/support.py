@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from application.shared.snapshot import ClientRole, GameConfigSnapshot
 from application.use_cases import GameUseCases
 from domain.game_night.models.game_config import GameConfig, build_default_game_config
 from domain.game_night.repositories.game_config_repository import GameConfigRepository
-from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
+from infrastructure.repositories.game_night.game_config_unit_of_work import (
+    GameConfigUnitOfWork,
+)
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.routes import ROUTES
+
+BACK_DIR = Path(__file__).resolve().parents[1]  # le dossier `back/`, quel que soit le sous-dossier du test
 
 
 def started_config(game_key: str, *, teams: list[str] | None = None, total_rounds: int = 1) -> GameConfig:

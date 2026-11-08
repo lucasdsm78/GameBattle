@@ -1,0 +1,48 @@
+# GameBattle en production : un seul domaine pour l'app joueur et l'API.
+# Même origine = cookie de session SameSite=Strict, aucun CORS avec cookies, aucune requête cross-origin.
+{
+	admin off
+}
+
+{$GAMEBATTLE_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		# `same-origin` et non `no-referrer` : avec ce dernier, les POST de l’app partiraient avec `Origin: null`.
+		Referrer-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		-Server
+	}
+
+	# Backend. Caddy remplace tout X-Forwarded-For reçu du client par l'adresse réelle de la connexion :
+	# le backend ne fait confiance qu'à Caddy (GAMEBATTLE_TRUSTED_PROXIES) pour la lire.
+	@backend path /api/* /ws/* /media/* /health
+	handle @backend {
+		reverse_proxy backend:8000
+	}
+
+	# App joueur (build Vite). La CSP du HTML est complétée ici par `frame-ancestors`, qu'une balise meta ne peut pas porter.
+	handle {
+		root * /srv/joueur
+		header Content-Security-Policy "frame-ancestors 'none'"
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		header / Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Contrôle de santé interne, sur un port jamais publié : le backend y confirme qu'il reconnaît Caddy comme proxy.
+http://:8081 {
+	handle /health {
+		reverse_proxy backend:8000
+	}
+	handle {
+		respond 404
+	}
+}
