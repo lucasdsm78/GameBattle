@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from support import BACK_DIR
+
 import asyncio
 import json
 import tempfile
@@ -34,7 +36,6 @@ from infrastructure.repositories.game_night.postgresql_game_config import (
     PostgreSQLGameConfigRepository,
 )
 
-BACK_DIR = Path(__file__).resolve().parents[1]
 START_MS = 1_000
 GAME_TABLES = [f"{key}_games" for key in GAME_STATE_TYPES]
 

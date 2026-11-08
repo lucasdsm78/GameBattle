@@ -69,7 +69,7 @@ Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop 
 
 Le backend suit l'architecture DDD décrite dans
 [Implementing Domain-Driven Design with FastAPI](https://medium.com/delivus/implementing-domain-driven-design-with-fastapi-6aed788779af).
-Chaque couche ne dépend que des couches internes (vérifié par `tests/test_architecture.py`) :
+Chaque couche ne dépend que des couches internes (vérifié par `tests/architecture/`) :
 
 ```text
 back/
@@ -388,7 +388,7 @@ bash scripts/test-migrations-postgres.sh   # Docker requis : conteneur postgres:
 Le script migre depuis `0002` avec des données réelles, puis compare les contraintes, index et colonnes à une base
 construite depuis les modèles. Il vérifie aussi les clés étrangères (`ON DELETE CASCADE` vers `game_sessions`),
 le verrou optimiste et la conservation des données, et redescend jusqu'à `0002`. Sans PostgreSQL, ces tests
-(`tests/test_migrations_postgres.py`) sont ignorés.
+(`tests/infrastructure/test_migrations_postgres.py`) sont ignorés.
 
 Un test (`test_migrations_build_exactly_the_schema_of_the_models`) vérifie que les migrations produisent
 exactement le schéma des modèles SQLAlchemy : une table ajoutée sans migration fait échouer la suite.
@@ -621,6 +621,23 @@ Pour un buzzer USB plus avancé qui n'émule pas un clavier, utilise le bridge l
 - module Python : `back/infrastructure/extern/usb_buzzer_bridge.py`
 
 ---
+
+### Organisation des tests
+
+Les tests suivent les modules métier, pas les couches :
+
+| Dossier | Ce qu'il teste |
+| --- | --- |
+| `tests/architecture/` | Dépendances entre couches (`test_imports.py`), frontières entre modules (`test_module_boundaries.py`), rangement des fichiers (`test_file_responsibilities.py`) |
+| `tests/accounts/` | Règles des comptes, cas d'usage, limites d'essais, dépôts, hachage, ménage, API |
+| `tests/game_night/` | Soirée : API, persistance des parties, unité de travail, manches, ouverture, événements |
+| `tests/games/<jeu>/` | Chaque jeu ; `tests/games/shared/` pour le flux de buzz commun |
+| `tests/interface/` | Adresse du client, hub WebSocket, messages et routes temps réel |
+| `tests/infrastructure/` | Configuration, tâches de fond, migrations (SQLite et PostgreSQL) |
+
+`tests/support.py` (soirée de test, `BACK_DIR`), `tests/account_support.py` et `tests/architecture_support.py`
+regroupent ce que plusieurs fichiers partagent. La configuration de pytest est dans `back/pyproject.toml` (mode
+`importlib`, pas de `__init__.py` dans les dossiers de tests).
 
 ## Validations exécutées
 
