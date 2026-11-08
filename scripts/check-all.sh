@@ -9,6 +9,9 @@ cd "$ROOT/back"
 cd "$ROOT/app-presentateur"
 npm run build
 
+cd "$ROOT/app-joueur"
+npm run build
+
 cd "$ROOT/mobile"
 npx tsc --noEmit
 

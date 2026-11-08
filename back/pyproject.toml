@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+# Tests rangés par module (tests/accounts, tests/games/<jeu>…), sans __init__.py : le mode importlib évite les
+# collisions de noms entre dossiers ; `tests` est sur le chemin pour les modules de support partagés.
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+addopts = "--import-mode=importlib"

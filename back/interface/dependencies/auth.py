@@ -4,10 +4,12 @@ from typing import Annotated, Optional
 
 from fastapi import Depends, Header, HTTPException, status
 
+from application.accounts.account_usecase import AccountUseCase
 from application.blindtest.blindtest_command_usecase import BlindtestCommandUseCase
 from application.game_night.game_night_command_usecase import GameNightCommandUseCase
 from application.game_night.game_night_query_usecase import GameNightQueryUseCase
 from interface.dependencies.container import (
+    account_usecase,
     authorize_client,
     authorize_hardware_token,
     game_night_query_usecase,
@@ -20,7 +22,6 @@ from interface.realtime.hub import WebSocketHub
 
 CONTROLLER_TOKEN_HEADER = "X-GameBattle-Controller-Token"
 HARDWARE_TOKEN_HEADER = "X-GameBattle-Hardware-Token"
-
 
 
 def game_night_use_case() -> GameNightCommandUseCase:
@@ -36,6 +37,7 @@ BlindtestUseCaseDep = Annotated[BlindtestCommandUseCase, Depends(blindtest_use_c
 DispatcherDep = Annotated[RealtimeDispatcher, Depends(realtime_dispatcher)]
 GameNightQueryDep = Annotated[GameNightQueryUseCase, Depends(game_night_query_usecase)]
 WebSocketHubDep = Annotated[WebSocketHub, Depends(websocket_hub)]
+AccountUseCaseDep = Annotated[AccountUseCase, Depends(account_usecase)]
 OptionalControllerToken = Annotated[Optional[str], Header(alias=CONTROLLER_TOKEN_HEADER)]
 
 

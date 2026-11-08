@@ -1,0 +1,90 @@
+# Production sur un VPS : `docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build`
+# Seul Caddy est exposé ; la base et le backend restent sur des réseaux internes.
+name: gamebattle-prod # distinct du projet de développement (`gamebattle`)
+
+# Adresse de Caddy : définie une seule fois, utilisée pour son réseau ET comme seul proxy de confiance du backend.
+# Si elle dérive, le contrôle de santé de Caddy échoue (le backend ne le reconnaît plus) : `up --wait` s'arrête.
+x-caddy-address: &caddy_address 172.30.0.10
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gamebattle
+      POSTGRES_PASSWORD: ${GAMEBATTLE_DB_PASSWORD:?à définir dans deploy/.env}
+      POSTGRES_DB: gamebattle
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gamebattle -d gamebattle"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ../back
+    restart: unless-stopped
+    environment:
+      GAMEBATTLE_ENVIRONMENT: production
+      GAMEBATTLE_DATABASE_URL: postgresql+asyncpg://gamebattle:${GAMEBATTLE_DB_PASSWORD}@db:5432/gamebattle
+      GAMEBATTLE_PLAYER_ORIGINS: ${GAMEBATTLE_PLAYER_ORIGINS:?origine exacte de l'app joueur, ex. https://jeu.exemple.fr}
+      GAMEBATTLE_ALLOWED_ORIGINS: ${GAMEBATTLE_PLAYER_ORIGINS}
+      GAMEBATTLE_TRUSTED_PROXIES: *caddy_address # Caddy, et lui seul
+      GAMEBATTLE_CONTROLLER_TOKEN: ${GAMEBATTLE_CONTROLLER_TOKEN:?}
+      GAMEBATTLE_DISPLAY_TOKEN: ${GAMEBATTLE_DISPLAY_TOKEN:?}
+      GAMEBATTLE_HARDWARE_TOKEN: ${GAMEBATTLE_HARDWARE_TOKEN:?}
+      GAMEBATTLE_RATE_LIMIT_SECRET: ${GAMEBATTLE_RATE_LIMIT_SECRET:?clé HMAC dédiée des compteurs d'essais}
+      GAMEBATTLE_BLINDTEST_PLAYLIST_URL: ${GAMEBATTLE_BLINDTEST_PLAYLIST_URL:-}
+      GAMEBATTLE_DOCS_ENABLED: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [data, web]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/caddy.Dockerfile
+    restart: unless-stopped
+    environment:
+      GAMEBATTLE_DOMAIN: ${GAMEBATTLE_DOMAIN:?nom de domaine, ex. jeu.exemple.fr}
+    ports:
+      - "${GAMEBATTLE_HTTP_PORT:-80}:80"
+      - "${GAMEBATTLE_HTTPS_PORT:-443}:443"
+      - "${GAMEBATTLE_HTTPS_PORT:-443}:443/udp" # HTTP/3
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [backend]
+    networks:
+      web:
+        ipv4_address: *caddy_address
+    healthcheck:
+      # Passe par Caddy jusqu'au backend : sain seulement si le backend répond ET reconnaît Caddy comme proxy.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health | grep -q '\"via_trusted_proxy\":true'"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+
+networks:
+  data:
+    internal: true # la base n'a aucun accès à Internet, et Internet aucun accès à elle
+  web:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24 # doit contenir l'adresse de Caddy ci-dessus
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:
