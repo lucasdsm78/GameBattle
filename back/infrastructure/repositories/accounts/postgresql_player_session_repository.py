@@ -9,7 +9,9 @@ from domain.accounts.models.player_session import PlayerSession
 from domain.accounts.repositories.player_session_repository import (
     PlayerSessionRepository,
 )
-from infrastructure.database.models import PlayerSessionModel
+from infrastructure.database.models.accounts.player_session_model import (
+    PlayerSessionModel,
+)
 
 
 class PostgreSQLPlayerSessionRepository(PlayerSessionRepository):

@@ -10,7 +10,7 @@ from domain.culture.events import CultureAnswerRevealed, CultureTiebreakStarted
 from domain.culture.models.culture_state import CULTURE_QUESTIONS_PER_ROUND
 from domain.shared.events import AnswerJudged
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )

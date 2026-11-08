@@ -8,7 +8,7 @@ from application.game_night.game_config_presenter import present_game_config
 from domain.game_night.models.game_config import build_default_game_config
 from domain.game_night.services.round_sequence import build_round_sequence
 from exceptions import InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import game_config_to_payload
+from infrastructure.repositories.game_night.game_config_mapper import game_config_to_payload
 
 
 def test_random_round_sequence_is_balanced_and_has_expected_length() -> None:

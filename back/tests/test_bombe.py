@@ -14,7 +14,7 @@ from domain.bombe.models.bombe_state import (
 )
 from domain.game_night.models.game_config import build_default_game_config
 from exceptions import InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )

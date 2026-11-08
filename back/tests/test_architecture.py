@@ -191,3 +191,85 @@ def test_each_module_holds_one_main_class() -> None:
     }
 
     assert set(crowded) <= set(SEVERAL_MAIN_CLASSES_ALLOWED), {key: crowded[key] for key in set(crowded) - set(SEVERAL_MAIN_CLASSES_ALLOWED)}
+
+
+# Monolithe modulaire : les modèles ORM sont rangés par module (`infrastructure/database/models/<module>`). Un fichier
+# n'utilise les tables que d'un seul module ; un autre module passe par un contrat applicatif, jamais par sa table.
+MODELS_PACKAGE = "infrastructure.database.models."
+ALL_MODELS = "infrastructure.database.all_models"
+SCHEMA_ENTRY_POINTS = {"infrastructure/database/database.py", "infrastructure/database/all_models.py"}
+
+
+def _imported_names(path: Path) -> set[str]:
+    """Modules importés, y compris `paquet.nom` pour `from paquet import nom` (un sous-module peut s'importer ainsi)."""
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            names.add(node.module)
+            names.update(f"{node.module}.{alias.name}" for alias in node.names)
+        elif isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+    return names
+
+
+def _model_modules(path: Path) -> set[str]:
+    return {name.removeprefix(MODELS_PACKAGE).split(".")[0] for name in _imported_names(path) if name.startswith(MODELS_PACKAGE)}
+
+
+def _layer_files() -> list[Path]:
+    return [path for layer in ("domain", "application", "infrastructure", "interface") for path in (BACK_DIR / layer).rglob("*.py")]
+
+
+def test_a_file_only_uses_the_orm_models_of_one_module() -> None:
+    mixed = {
+        str(path.relative_to(BACK_DIR)): modules
+        for path in _layer_files()
+        if str(path.relative_to(BACK_DIR)) not in SCHEMA_ENTRY_POINTS and len(modules := _model_modules(path)) > 1
+    }
+
+    assert mixed == {}
+
+
+def test_only_the_schema_uses_the_aggregate_of_all_models() -> None:
+    users = {str(path.relative_to(BACK_DIR)) for path in _layer_files() if ALL_MODELS in _imported_names(path)}
+
+    assert users <= SCHEMA_ENTRY_POINTS
+
+
+def test_models_are_grouped_by_module() -> None:
+    models_dir = BACK_DIR / "infrastructure" / "database" / "models"
+    accounts = {path.name for path in (models_dir / "accounts").glob("*_model.py")}
+
+    assert not (BACK_DIR / "infrastructure" / "database" / "models.py").exists()
+    assert accounts == {"player_account_model.py", "player_session_model.py", "auth_attempt_model.py"}
+    assert (models_dir / "game_config_model.py").is_file()
+
+
+REPOSITORIES_DIR = BACK_DIR / "infrastructure" / "repositories"
+
+
+def test_repositories_are_grouped_by_domain() -> None:
+    domain_modules = {path.name for path in (BACK_DIR / "domain").iterdir() if path.is_dir() and path.name != "__pycache__"}
+    misplaced = [
+        str(path.relative_to(REPOSITORIES_DIR))
+        for path in REPOSITORIES_DIR.rglob("*.py")
+        if len(path.relative_to(REPOSITORIES_DIR).parts) != 2 or path.parent.name not in domain_modules
+    ]
+
+    assert misplaced == []
+
+
+def test_a_domain_repository_never_imports_another_domain_repository() -> None:
+    crossing = {
+        str(path.relative_to(REPOSITORIES_DIR)): sorted(foreign)
+        for path in REPOSITORIES_DIR.rglob("*.py")
+        if (
+            foreign := {
+                name.split(".")[2]
+                for name in _imported_names(path)
+                if name.startswith("infrastructure.repositories.") and name.split(".")[2] != path.parent.name
+            }
+        )
+    }
+
+    assert crossing == {}

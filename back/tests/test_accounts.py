@@ -46,10 +46,18 @@ from exceptions import (
     TooManyAttemptsError,
 )
 from infrastructure.config import Settings
+from infrastructure.database import (
+    all_models,  # noqa: F401  (toutes les tables, pour comparer les migrations)
+)
 from infrastructure.database.database import Base, Database
-from infrastructure.database.models import AuthAttemptModel, PlayerAccountModel
-from infrastructure.repositories.account_unit_of_work import SqlAccountUnitOfWork
-from infrastructure.repositories.postgresql_player_session_repository import (
+from infrastructure.database.models.accounts.auth_attempt_model import AuthAttemptModel
+from infrastructure.database.models.accounts.player_account_model import (
+    PlayerAccountModel,
+)
+from infrastructure.repositories.accounts.account_unit_of_work import (
+    SqlAccountUnitOfWork,
+)
+from infrastructure.repositories.accounts.postgresql_player_session_repository import (
     PostgreSQLPlayerSessionRepository,
 )
 from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher

@@ -12,7 +12,7 @@ from domain.seven_differences.models.seven_differences_state import (
 )
 from domain.shared.services.scoring import TIE_LABEL
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )

@@ -13,12 +13,18 @@ from infrastructure.config import Settings
 from infrastructure.database.database import Database
 from infrastructure.database.single_instance_lock import SingleInstanceLock
 from infrastructure.extern.spotify import SpotifyPlaylistService
-from infrastructure.repositories.account_unit_of_work import SqlAccountUnitOfWork
-from infrastructure.repositories.cached_game_config import CachedGameConfigRepository
-from infrastructure.repositories.postgresql_game_config import (
+from infrastructure.repositories.accounts.account_unit_of_work import (
+    SqlAccountUnitOfWork,
+)
+from infrastructure.repositories.game_night.cached_game_config import (
+    CachedGameConfigRepository,
+)
+from infrastructure.repositories.game_night.game_config_unit_of_work import (
+    GameConfigUnitOfWork,
+)
+from infrastructure.repositories.game_night.postgresql_game_config import (
     PostgreSQLGameConfigRepository,
 )
-from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
 from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher
 from interface.realtime.deadline_worker import GameDeadlineWorker
 from interface.realtime.dispatcher import RealtimeDispatcher

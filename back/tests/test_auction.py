@@ -18,7 +18,7 @@ from exceptions import (
     InvalidGameConfigError,
     UnknownCommandError,
 )
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )

@@ -8,7 +8,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.accounts.attempt_counter import AttemptCounter, AttemptWindow
-from infrastructure.database.models import AuthAttemptModel
+from infrastructure.database.models.accounts.auth_attempt_model import AuthAttemptModel
 
 # `INSERT … ON CONFLICT DO UPDATE` existe sous la même forme dans les deux moteurs : PostgreSQL en production,
 # SQLite pour les tests.
