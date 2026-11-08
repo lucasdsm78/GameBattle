@@ -162,3 +162,32 @@ def test_the_configuration_accepts_every_supported_game_at_once() -> None:
     }
 
     assert len(GameConfigUpsertModel.model_validate(payload).to_domain().games) == len(SUPPORTED_GAME_KEYS)
+
+
+# Un fichier = une responsabilité : au plus une classe « principale » (au moins deux méthodes) par module. Les petits
+# types liés (valeurs, DTO, événements) peuvent l'accompagner. Exceptions assumées, un seul concept chacune :
+SEVERAL_MAIN_CLASSES_ALLOWED = {
+    "interface/realtime/hub.py": "ClientChannel est la file d'envoi propre au hub de diffusion",
+    "infrastructure/extern/usb_buzzer_bridge.py": "script autonome : configuration et pont USB forment un tout",
+}
+
+
+def _main_classes(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return [
+        node.name
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+        and sum(isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)) for member in node.body) >= 2
+    ]
+
+
+def test_each_module_holds_one_main_class() -> None:
+    crowded = {
+        str(path.relative_to(BACK_DIR)): classes
+        for layer in ("domain", "application", "infrastructure", "interface")
+        for path in (BACK_DIR / layer).rglob("*.py")
+        if len(classes := _main_classes(path)) > 1
+    }
+
+    assert set(crowded) <= set(SEVERAL_MAIN_CLASSES_ALLOWED), {key: crowded[key] for key in set(crowded) - set(SEVERAL_MAIN_CLASSES_ALLOWED)}
