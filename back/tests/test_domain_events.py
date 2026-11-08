@@ -32,7 +32,7 @@ from domain.seven_differences.models.seven_differences_state import (
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
 from domain.stopchrono.events import ChronoStarted, ChronoStopped
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )

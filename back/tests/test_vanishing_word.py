@@ -24,7 +24,7 @@ from domain.vanishing_word.services.vanishing_word_catalog import (
     WORDS_PER_LIST,
 )
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )

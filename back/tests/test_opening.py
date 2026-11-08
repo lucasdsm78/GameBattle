@@ -16,7 +16,7 @@ from domain.game_night.models.game_config import (
 )
 from domain.game_night.models.game_registry import GAME_STATE_TYPES
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )

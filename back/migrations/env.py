@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from infrastructure.config import Settings
 from infrastructure.database import (
-    models,  # noqa: F401  (enregistre les tables sur Base.metadata)
+    all_models,  # noqa: F401  (enregistre toutes les tables sur Base.metadata)
 )
 from infrastructure.database.database import Base
 

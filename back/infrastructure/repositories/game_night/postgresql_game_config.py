@@ -10,8 +10,8 @@ from sqlalchemy import select, update
 from domain.game_night.models.game_config import GameConfig, build_default_game_config
 from domain.game_night.repositories.game_config_repository import GameConfigRepository
 from infrastructure.database.database import Database
-from infrastructure.database.models import GameConfigStateModel
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.database.models.game_config_model import GameConfigStateModel
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )

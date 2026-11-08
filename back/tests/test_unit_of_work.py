@@ -8,7 +8,7 @@ import pytest
 from application.game_night.game_night_query_usecase import GameNightQueryUseCase
 from domain.forbidden_word.events import TurnStarted, WordFound
 from domain.game_night.models.game_config import GameConfig
-from infrastructure.repositories.unit_of_work import GameConfigUnitOfWork
+from infrastructure.repositories.game_night.game_config_unit_of_work import GameConfigUnitOfWork
 from support import GameHarness, InMemoryRepository, started_config
 
 

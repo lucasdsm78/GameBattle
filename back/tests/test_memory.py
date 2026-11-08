@@ -10,7 +10,7 @@ from domain.game_night.models.game_config import build_default_game_config
 from domain.memory.models.memory_state import MEMORY_CHAIN_LENGTH
 from domain.shared.models.culture_question import CultureQuestion
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )

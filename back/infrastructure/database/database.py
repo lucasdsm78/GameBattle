@@ -23,7 +23,7 @@ class Database:
 
     async def create_schema(self) -> None:
         from infrastructure.database import (
-            models,  # noqa: F401  (enregistre les tables sur Base.metadata)
+            all_models,  # noqa: F401  (enregistre toutes les tables sur Base.metadata)
         )
 
         async with self._engine.begin() as connection:

@@ -99,8 +99,12 @@ back/
 │   │                        # (+ <jeu>_commands.py pour ses schémas)
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
-│   ├── database/            # Moteur SQLAlchemy et tables
-│   ├── repositories/        # Unit of Work, dépôt PostgreSQL, cache mémoire, mapper de persistance
+│   ├── database/            # Moteur SQLAlchemy, verrou d'instance unique
+│   │   ├── models/          # Tables rangées par module : game_config_model.py, accounts/ (une table par fichier)
+│   │   └── all_models.py    # Agrégat de toutes les tables, réservé au schéma (Alembic, create_all)
+│   ├── repositories/        # Un dossier par domaine, comme domain/ :
+│   │   ├── game_night/      # Unit of Work de la soirée, dépôt PostgreSQL, cache mémoire, mapper de persistance
+│   │   └── accounts/        # Unit of Work des comptes, dépôts comptes et sessions, compteur d'essais
 │   └── extern/              # Spotify, bridge buzzers USB
 ├── interface/
 │   ├── api/                 # Routeurs HTTP et WebSocket
@@ -121,7 +125,7 @@ back/
   (`internal_fields`), ajoute les valeurs calculées (`extras`) et masque les secrets de l'écran public
   (`display_view`). `application/game_night/game_config_presenter.py` assemble la soirée complète.
 - La forme persistée est produite par l'infrastructure (`game_config_to_payload` /
-  `game_config_from_payload` dans `infrastructure/repositories/game_config_mapper.py`) : l'état brut de
+  `game_config_from_payload` dans `infrastructure/repositories/game_night/game_config_mapper.py`) : l'état brut de
   l'agrégat, sans vue client ni événement.
 - Chaque jeu a son use case d'écriture (`application/<jeu>/<jeu>_command_usecase.py`), avec une méthode typée par
   action (`await auction.select_bid(command)`). La classe de base `CommandUseCase` applique la
@@ -140,7 +144,7 @@ back/
   de soirée, révélation du classement). Ils s'accumulent dans `GameConfig.pending_events`, ne sont
   jamais persistés et ne transportent aucun secret.
 - L'**Unit of Work** (`application/shared/unit_of_work.py`, implémentée dans
-  `infrastructure/repositories/unit_of_work.py`) encadre chaque commande : transaction exclusive,
+  `infrastructure/repositories/game_night/game_config_unit_of_work.py`) encadre chaque commande : transaction exclusive,
   `add()` puis `commit()` qui persiste l'agrégat et remet ses événements ; sans `commit()` (ou sur
   exception), rien n'est écrit.
 - Les événements ne sont publiés qu'après une écriture réussie, avec le nouvel état :

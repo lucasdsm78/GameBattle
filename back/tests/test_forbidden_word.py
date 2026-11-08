@@ -20,7 +20,7 @@ from domain.forbidden_word.services.forbidden_word_catalog import FORBIDDEN_WORD
 from domain.game_night.models.game_config import GameConfig, build_default_game_config
 from domain.shared.services.scoring import TIE_LABEL
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
-from infrastructure.repositories.game_config_mapper import (
+from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
