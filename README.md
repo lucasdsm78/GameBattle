@@ -100,10 +100,10 @@ back/
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
 │   ├── database/            # Moteur SQLAlchemy, verrou d'instance unique
+│   │   ├── accounts/        # Tables des comptes joueurs : comptes, sessions, compteurs d'essais
 │   │   ├── game_sessions/   # game_session_model.py : la table commune des parties
 │   │   ├── games/           # Un dossier par jeu : <jeu>_game_model.py, <jeu>_mapper.py, <jeu>_repository.py
 │   │   │   └── shared/      # Colonnes communes, mapper versionné, dépôt à verrouillage optimiste
-│   │   ├── models/accounts/ # Tables des comptes joueurs, une par fichier
 │   │   └── all_models.py    # Agrégat de toutes les tables, réservé au schéma (Alembic, create_all)
 │   ├── repositories/        # Un dossier par domaine, comme domain/ :
 │   │   ├── game_night/      # Unit of Work de la partie, dépôt qui compose les jeux, cache mémoire, mapper

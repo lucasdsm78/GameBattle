@@ -9,7 +9,7 @@ from domain.accounts.models.player_session import PlayerSession
 from domain.accounts.repositories.player_session_repository import (
     PlayerSessionRepository,
 )
-from infrastructure.database.models.accounts.player_session_model import (
+from infrastructure.database.accounts.player_session_model import (
     PlayerSessionModel,
 )
 
