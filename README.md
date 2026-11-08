@@ -375,6 +375,21 @@ jeu en cours. Une base créée par l'API en développement
 (sans Alembic) importe une fois l'ancien document au premier démarrage et le laisse en place ; une fois
 vérifié, il peut être supprimé (`DROP TABLE game_config_state`).
 
+La migration `0005` aligne sur PostgreSQL les noms de contraintes que les renommages de `0004` laissaient
+derrière eux (`game_nights_pkey`, `<jeu>_games_night_id_fkey`), pour qu'une base migrée et une base créée depuis
+les modèles soient identiques.
+
+Les migrations sont testées sur un vrai PostgreSQL, jetable, avant toute mise en production :
+
+```bash
+bash scripts/test-migrations-postgres.sh   # Docker requis : conteneur postgres:15 créé puis supprimé
+```
+
+Le script migre depuis `0002` avec des données réelles, puis compare les contraintes, index et colonnes à une base
+construite depuis les modèles. Il vérifie aussi les clés étrangères (`ON DELETE CASCADE` vers `game_sessions`),
+le verrou optimiste et la conservation des données, et redescend jusqu'à `0002`. Sans PostgreSQL, ces tests
+(`tests/test_migrations_postgres.py`) sont ignorés.
+
 Un test (`test_migrations_build_exactly_the_schema_of_the_models`) vérifie que les migrations produisent
 exactement le schéma des modèles SQLAlchemy : une table ajoutée sans migration fait échouer la suite.
 
