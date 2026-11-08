@@ -4,6 +4,7 @@ from typing import Optional
 
 from domain.game_night.models.game_config import GameConfig
 from domain.game_night.repositories.game_config_repository import GameConfigRepository
+from exceptions import ConcurrentModificationError
 
 
 class CachedGameConfigRepository(GameConfigRepository):
@@ -22,7 +23,11 @@ class CachedGameConfigRepository(GameConfigRepository):
         return self._current
 
     async def save(self, game_config: GameConfig) -> GameConfig:
-        self._current = await self._inner.save(game_config)
+        try:
+            self._current = await self._inner.save(game_config)
+        except ConcurrentModificationError:
+            self._current = None  # la base a changé sans nous : la prochaine lecture la recharge
+            raise
         return self._current
 
     def clear(self) -> None:

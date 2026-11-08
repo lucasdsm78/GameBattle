@@ -16,6 +16,7 @@ from infrastructure.extern.spotify import (
 )
 
 TEST_DB_PATH = Path(tempfile.gettempdir()) / "gamebattle_test.db"
+TEST_DB_PATH.unlink(missing_ok=True)  # base neuve à chaque lancement : son schéma suit toujours les modèles
 
 os.environ["GAMEBATTLE_DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 os.environ["GAMEBATTLE_CONTROLLER_TOKEN"] = "controller-test-token"
@@ -34,8 +35,7 @@ def setup_function() -> None:
     if not TEST_DB_PATH.exists():
         return
 
-    # La soirée et l'état de chaque jeu, plus l'ancien document unique d'éventuelles bases plus anciennes.
-    tables = ["game_nights", *(f"{key}_games" for key in GAME_STATE_TYPES), "game_config_state"]
+    tables = ["game_sessions", *(f"{key}_games" for key in GAME_STATE_TYPES)]
     connection = sqlite3.connect(TEST_DB_PATH)
     try:
         existing = {name for (name,) in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}

@@ -100,12 +100,13 @@ back/
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
 │   ├── database/            # Moteur SQLAlchemy, verrou d'instance unique
-│   │   ├── models/          # Tables rangées par module, une par fichier : game_night/ (la soirée),
-│   │   │                    # <jeu>/<jeu>_game_model.py (l'état d'un jeu), accounts/, shared/ (colonnes communes)
+│   │   ├── game_sessions/   # game_session_model.py : la table commune des parties
+│   │   ├── games/           # Un dossier par jeu : <jeu>_game_model.py, <jeu>_mapper.py, <jeu>_repository.py
+│   │   │   └── shared/      # Colonnes communes, mapper versionné, dépôt à verrouillage optimiste
+│   │   ├── models/accounts/ # Tables des comptes joueurs, une par fichier
 │   │   └── all_models.py    # Agrégat de toutes les tables, réservé au schéma (Alembic, create_all)
 │   ├── repositories/        # Un dossier par domaine, comme domain/ :
-│   │   ├── game_night/      # Unit of Work de la soirée, dépôt PostgreSQL, cache mémoire, mapper, tables des jeux
-│   │   ├── bombe/ memory/ fair_price/   # Mise à niveau des états anciens de ces jeux
+│   │   ├── game_night/      # Unit of Work de la partie, dépôt qui compose les jeux, cache mémoire, mapper
 │   │   └── accounts/        # Unit of Work des comptes, dépôts comptes et sessions, compteur d'essais
 │   └── extern/              # Spotify, bridge buzzers USB
 ├── interface/
@@ -129,15 +130,22 @@ back/
 - La forme persistée est produite par l'infrastructure (`game_config_to_payload` /
   `game_config_from_payload` dans `infrastructure/repositories/game_night/game_config_mapper.py`) : l'état brut de
   l'agrégat, sans vue client ni événement.
-- En base, la soirée suit les bounded contexts :
-  - **`game_nights`** porte le cycle de vie commun en colonnes : statut, configuration, manches, vainqueurs,
-    ouverture, et une `revision` incrémentée à chaque écriture.
-  - **Une table par jeu** (`blindtest_games`, `fair_price_games`…), propre à son module, contient `night_id`,
-    l'état en JSONB et un `schema_version`. Une règle de jeu modifiée ne demande aucune migration. Chaque jeu
-    met à niveau ses propres états anciens (`infrastructure/repositories/<jeu>/<jeu>_state_upgrade.py`).
+- En base, la partie suit les bounded contexts :
+  - **`game_sessions`** porte le cycle de vie commun en colonnes : statut, jeu de la manche en cours
+    (`active_game_key`), manches, vainqueurs, ouverture, configuration, dates de création et d'écriture.
+  - **Une table par jeu** (`blindtest_games`, `fair_price_games`…) contient `session_id`, l'état en JSONB,
+    `schema_version` et `version`. Chaque jeu possède son dossier `infrastructure/database/games/<jeu>/` : sa
+    table, son mapper (document JSONB vers état typé ; le domaine ne voit jamais le dictionnaire) et son dépôt.
+  - **Versions de document :** une règle de jeu modifiée ne demande aucune migration Alembic. Si le format d'un
+    document change, on monte `schema_version` dans le mapper et on ajoute `migrations[n]` (de `n` à `n + 1`) :
+    les anciens documents sont mis à niveau étape par étape au chargement. `repair` corrige les données encore au
+    bon format mais devenues invalides (objet retiré d'un catalogue…).
+  - **Verrou optimiste :** la ligne commune et chaque ligne de jeu ont une `version`, et une écriture ne passe que
+    si la version n'a pas changé depuis la lecture (`UPDATE … WHERE version = :attendue`). Sinon, rien n'est
+    écrasé : `ConcurrentModificationError` (409 en HTTP), puis le cache et le dépôt relisent la base.
   - **Écritures :** une action n'écrit que ce qui a changé, en pratique la ligne commune et la table du jeu en
     cours, dans une seule transaction.
-  - **Garde-fou :** un champ ajouté à `GameSession` sans colonne fait échouer `test_game_night_persistence.py`.
+  - **Garde-fou :** un champ ajouté à `GameSession` sans colonne fait échouer `test_game_session_persistence.py`.
 - Chaque jeu a son use case d'écriture (`application/<jeu>/<jeu>_command_usecase.py`), avec une méthode typée par
   action (`await auction.select_bid(command)`). La classe de base `CommandUseCase` applique la
   transition sous verrou, persiste puis diffuse ; une action sans effet n'écrit ni ne diffuse rien.
@@ -361,7 +369,9 @@ cd back
 ```
 
 La migration `0003` remplace l'ancien document unique (`game_config_state`) par `game_nights` et les tables de
-jeu, en recopiant les données ; la descente refait le document. Une base créée par l'API en développement
+jeu, en recopiant les données ; la descente refait le document. La migration `0004` renomme `game_nights` en
+`game_sessions` (et `night_id` en `session_id`), puis ajoute les versions du verrou optimiste, les dates et le
+jeu en cours. Une base créée par l'API en développement
 (sans Alembic) importe une fois l'ancien document au premier démarrage et le laisse en place ; une fois
 vérifié, il peut être supprimé (`DROP TABLE game_config_state`).
 

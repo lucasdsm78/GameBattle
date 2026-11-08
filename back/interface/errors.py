@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from exceptions import (
     ApplicationError,
     CommandNotAllowedError,
+    ConcurrentModificationError,
     DomainError,
     GameConfigurationNotReadyError,
     InvalidCommandPayloadError,
@@ -25,6 +26,7 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     InvalidCredentialsError: status.HTTP_401_UNAUTHORIZED,
     NotAuthenticatedError: status.HTTP_401_UNAUTHORIZED,
     TooManyAttemptsError: status.HTTP_429_TOO_MANY_REQUESTS,
+    ConcurrentModificationError: status.HTTP_409_CONFLICT,
 }
 
 
