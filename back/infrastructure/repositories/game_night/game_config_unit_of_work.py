@@ -13,8 +13,8 @@ from domain.shared.events.domain_event import DomainEvent
 class GameConfigUnitOfWork(UnitOfWork):
     """Unité de travail mono-processus : un verrou asyncio sérialise les transactions.
 
-    L'agrégat tient en une ligne : `repository.save` est déjà atomique, l'unité de travail garantit
-    l'exclusivité, l'annulation de ce qui n'est pas validé et la remise des événements après l'écriture.
+    `repository.save` écrit la soirée en une transaction (ligne commune + lignes des jeux modifiés) ; l'unité de
+    travail garantit l'exclusivité, l'annulation de ce qui n'est pas validé et la remise des événements après l'écriture.
     """
 
     def __init__(self, repository: GameConfigRepository) -> None:

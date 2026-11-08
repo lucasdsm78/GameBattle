@@ -1,0 +1,1 @@
+"""Table du jeu « Blindtest »."""

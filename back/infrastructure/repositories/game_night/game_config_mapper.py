@@ -1,18 +1,33 @@
 from __future__ import annotations
 
-from dataclasses import asdict, fields, is_dataclass
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, fields, is_dataclass
 from functools import cache
 from types import NoneType, UnionType
 from typing import Any, Union, get_args, get_origin, get_type_hints
 
-from domain.fair_price.models.fair_price_state import FairPriceState
-from domain.fair_price.services.fair_price_catalog import PRICE_BANDS_BY_ID
 from domain.game_night.models.game_config import GameConfig
-from domain.memory.models.memory_state import MEMORY_RULES_VERSION
+from domain.game_night.models.game_registry import GAME_STATE_TYPES
+from domain.game_night.models.session import GameSession
+from infrastructure.repositories.bombe.bombe_state_upgrade import upgrade_bombe_state
+from infrastructure.repositories.fair_price.fair_price_state_upgrade import (
+    upgrade_fair_price_state,
+)
+from infrastructure.repositories.memory.memory_state_upgrade import upgrade_memory_state
+
+StateUpgrade = Callable[[dict[str, Any], list[str]], dict[str, Any]]
+
+# Chaque jeu met à niveau ses propres états anciens (dans son dossier) ; la soirée ne fait que les appeler.
+GAME_STATE_UPGRADES: dict[str, StateUpgrade] = {
+    "bombe": upgrade_bombe_state,
+    "memory": upgrade_memory_state,
+    "fair_price": upgrade_fair_price_state,
+}
+NIGHT_FIELDS = ("status", "updated_at", "settings", "games", "rounds")
 
 
 def game_config_to_payload(config: GameConfig) -> dict[str, Any]:
-    """Forme persistée : l'état brut de l'agrégat, sans vue client ni événement en attente."""
+    """Forme sérialisée de l'agrégat : l'état brut, sans vue client ni événement en attente."""
     return {
         "settings": asdict(config.settings),
         "games": [asdict(game) for game in config.games],
@@ -24,9 +39,42 @@ def game_config_to_payload(config: GameConfig) -> dict[str, Any]:
 
 
 def game_config_from_payload(payload: dict[str, Any]) -> GameConfig:
-    config = _decode(GameConfig, _upgrade_legacy_payload(payload))
+    config = _decode(GameConfig, _upgrade_game_states(payload))
     config.validate()
     return config
+
+
+@dataclass(frozen=True, slots=True)
+class GameNightRecord:
+    """Forme rangée en base : la ligne commune de la soirée et l'état de chaque jeu, chacun dans sa table."""
+
+    night: dict[str, Any]
+    game_states: dict[str, dict[str, Any]]
+
+
+@cache
+def common_session_fields() -> tuple[str, ...]:
+    """Champs de `GameSession` qui ne sont pas l'état d'un jeu : le cycle de vie commun, en colonnes."""
+    return tuple(name for name, _ in _init_fields(GameSession) if name not in GAME_STATE_TYPES)
+
+
+def split_payload(payload: dict[str, Any]) -> GameNightRecord:
+    session = payload["session"]
+    night = {name: payload[name] for name in NIGHT_FIELDS}
+    night.update({_column(name): session[name] for name in common_session_fields()})
+    return GameNightRecord(night=night, game_states={key: session[key] for key in GAME_STATE_TYPES})
+
+
+def join_payload(record: GameNightRecord) -> dict[str, Any]:
+    """Inverse de `split_payload`. Un jeu sans ligne (ajouté depuis) reprend son état par défaut."""
+    session = {name: record.night[_column(name)] for name in common_session_fields() if _column(name) in record.night}
+    session.update(record.game_states)
+    return {**{name: record.night[name] for name in NIGHT_FIELDS}, "session": session}
+
+
+def _column(session_field: str) -> str:
+    # `GameSession.updated_at` et `GameConfig.updated_at` coexistent sur la même ligne.
+    return "session_updated_at" if session_field == "updated_at" else session_field
 
 
 @cache
@@ -53,56 +101,10 @@ def _decode(annotation: Any, value: Any) -> Any:
     return value
 
 
-def _upgrade_legacy_payload(payload: dict[str, Any]) -> dict[str, Any]:
+def _upgrade_game_states(payload: dict[str, Any]) -> dict[str, Any]:
     session = dict(payload.get("session") or {})
     teams = list(payload["settings"].get("teams", []))
-    if "bombe" in session:
-        session["bombe"] = _upgrade_bombe(session["bombe"], teams)
-    if "memory" in session:
-        session["memory"] = _upgrade_memory(session["memory"], teams)
-    if "fair_price" in session:
-        session["fair_price"] = _upgrade_fair_price(session["fair_price"], teams)
+    for game_key, upgrade in GAME_STATE_UPGRADES.items():
+        if game_key in session:
+            session[game_key] = upgrade(session[game_key], teams)
     return {**payload, "session": session}
-
-
-def _upgrade_bombe(bombe: dict[str, Any], teams: list[str]) -> dict[str, Any]:
-    """Les anciennes parties en cours n'enregistraient ni pénalités ni équipes en lice."""
-    phase = bombe.get("phase", "idle")
-    if phase == "idle":
-        return bombe
-    upgraded = dict(bombe)
-    if not bombe.get("scores"):
-        upgraded["scores"] = {team: 0 for team in teams}
-    if not bombe.get("eligible_team_indices") and phase in {"awaiting_roll", "rolling", "running"}:
-        upgraded["eligible_team_indices"] = list(range(len(teams)))
-    return upgraded
-
-
-def _upgrade_memory(memory: dict[str, Any], teams: list[str]) -> dict[str, Any]:
-    """Les règles v1 ne sont pas rejouables : on ne conserve qu'un éventuel vainqueur."""
-    if memory.get("rules_version") == MEMORY_RULES_VERSION:
-        return memory
-    winner = memory.get("winner_team")
-    if memory.get("phase") == "finished" and winner in teams:
-        winner_index = teams.index(winner)
-        return {
-            "phase": "finished",
-            "current_team_index": winner_index,
-            "qualified_team_indices": [winner_index],
-            "disqualified_teams": [team for team in teams if team != winner],
-            "winner_team": winner,
-        }
-    return {}
-
-
-def _upgrade_fair_price(fair_price: dict[str, Any], teams: list[str]) -> dict[str, Any]:
-    """Objets retirés du catalogue : la manche en cours est retirée, une manche finie est vidée (vainqueur conservé)."""
-    if fair_price.get("phase", "idle") == "idle":
-        return fair_price
-    band = PRICE_BANDS_BY_ID.get(fair_price.get("band_id", ""))
-    known_ids = {item.id for item in band.items} if band else set()
-    if set(fair_price.get("item_ids") or ()) <= known_ids and band is not None:
-        return fair_price
-    if fair_price.get("phase") == "finished":
-        return {}
-    return asdict(FairPriceState.for_new_manche(teams, round_id=""))
