@@ -21,4 +21,4 @@ PORT="$(docker port "$NAME" 5432/tcp | head -n1 | awk -F: '{print $NF}')"
 
 cd "$ROOT/back"
 GAMEBATTLE_TEST_POSTGRES_URL="postgresql+asyncpg://gamebattle:${PASSWORD}@127.0.0.1:${PORT}/migrations" \
-  ./.venv/bin/python -m pytest tests/test_migrations_postgres.py -v "$@"
+  ./.venv/bin/python -m pytest tests/infrastructure/test_migrations_postgres.py -v "$@"

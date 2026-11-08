@@ -22,7 +22,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
-from support import started_config
+from support import BACK_DIR, started_config
 
 from domain.game_night.models.game_registry import GAME_STATE_TYPES
 from exceptions import ConcurrentModificationError
@@ -102,7 +102,7 @@ def databases() -> Iterator[tuple[str, str]]:
 
 
 def _alembic(url: str) -> Config:
-    config = Config("alembic.ini")
+    config = Config(str(BACK_DIR / "alembic.ini"))
     config.attributes.update(database_url=url, configure_logging=False)
     return config
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from support import BACK_DIR
+
 import importlib.util
 import json
 from io import BytesIO
@@ -12,7 +14,7 @@ from domain.seven_differences.services.seven_differences_catalog import (
     load_seven_differences_catalog,
 )
 
-SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "generate-seven-differences.py"
+SCRIPT_PATH = BACK_DIR.parent / "scripts" / "generate-seven-differences.py"
 SPEC = importlib.util.spec_from_file_location("generate_seven_differences", SCRIPT_PATH)
 assert SPEC and SPEC.loader
 GENERATOR = importlib.util.module_from_spec(SPEC)
