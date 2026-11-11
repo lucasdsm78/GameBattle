@@ -1,1 +1,1 @@
-"""Tables du module comptes joueurs : comptes, sessions, compteurs d'essais."""
+"""Tables du module comptes joueurs : comptes et sessions."""

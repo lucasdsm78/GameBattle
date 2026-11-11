@@ -4,8 +4,12 @@ import react from '@vitejs/plugin-react';
 // L'API est servie sous la même origine que l'app (proxy ici, Caddy en production) : le cookie de session
 // reste `SameSite=Strict` et aucune requête n'est cross-origin.
 const apiTarget = process.env.GAMEBATTLE_API_URL ?? 'http://127.0.0.1:8000';
-// `changeOrigin: false` garde l'en-tête Host : le backend vérifie que l'Origin de la requête est bien la sienne.
-const proxy = { '/api': { target: apiTarget, changeOrigin: false } };
+// `changeOrigin: false` garde l'en-tête Host : le backend vérifie que l'Origin de la requête est bien la sienne
+// (requêtes HTTP comme poignée de main WebSocket des salons).
+const proxy = {
+  '/api': { target: apiTarget, changeOrigin: false },
+  '/ws': { target: apiTarget, changeOrigin: false, ws: true },
+};
 
 // Tout vient du même domaine : aucun script, style ou police tiers, aucun script inline.
 // `frame-ancestors` ne vaut qu'en en-tête HTTP : il sera posé par Caddy au déploiement.

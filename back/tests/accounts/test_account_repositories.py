@@ -14,7 +14,7 @@ from account_support import (
 from sqlalchemy import func, select
 
 from application.accounts.account_usecase import AccountUseCase
-from application.accounts.attempt_counter import AttemptWindow
+from application.shared.attempt_counter import AttemptWindow
 from domain.accounts.models.player_account import PlayerAccount
 from domain.accounts.models.player_session import (
     SESSION_TTL_MS,
@@ -24,7 +24,7 @@ from domain.accounts.models.pseudo import Pseudo
 from exceptions import (
     PseudoAlreadyTakenError,
 )
-from infrastructure.database.accounts.auth_attempt_model import AuthAttemptModel
+from infrastructure.database.rate_limiting.attempt_model import AuthAttemptModel
 from infrastructure.database.accounts.player_account_model import (
     PlayerAccountModel,
 )

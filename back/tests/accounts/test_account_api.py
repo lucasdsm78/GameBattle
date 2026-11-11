@@ -15,6 +15,7 @@ from domain.accounts.models.player_session import (
     SESSION_TTL_MS,
 )
 from infrastructure.config import Settings
+from interface import http_session
 from interface.api import accounts as accounts_api
 from interface.dependencies.container import account_usecase
 
@@ -38,7 +39,8 @@ def _client_with_state(
         trusted_proxies="10.0.0.1",
         rate_limit_secret="r" * 64,
     )
-    monkeypatch.setattr(accounts_api, "get_settings", lambda: settings)
+    for module in (accounts_api, http_session):  # cookie et contrôle d'origine lisent la configuration de l'app de test
+        monkeypatch.setattr(module, "get_settings", lambda: settings)
     app = create_app(settings)
     use_case, store, clock = build_use_case()
     app.dependency_overrides[account_usecase] = lambda: use_case

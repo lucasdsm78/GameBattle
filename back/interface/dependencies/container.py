@@ -8,9 +8,11 @@ from application.accounts.account_maintenance import AccountMaintenance
 from application.accounts.account_usecase import AccountUseCase
 from application.blindtest.playlist_service import BlindtestPlaylistService
 from application.game_night.game_night_query_usecase import GameNightQueryUseCase
+from application.rooms.room_usecase import RoomUseCase
 from application.use_cases import GameUseCases
 from infrastructure.config import Settings
 from infrastructure.database.database import Database
+from infrastructure.database.outbox.outbox_store import OutboxStore
 from infrastructure.database.single_instance_lock import SingleInstanceLock
 from infrastructure.extern.spotify import SpotifyPlaylistService
 from infrastructure.repositories.accounts.account_unit_of_work import (
@@ -25,12 +27,18 @@ from infrastructure.repositories.game_night.game_config_unit_of_work import (
 from infrastructure.repositories.game_night.postgresql_game_config import (
     PostgreSQLGameConfigRepository,
 )
+from infrastructure.repositories.rooms.room_unit_of_work import SqlRoomUnitOfWork
 from infrastructure.security.argon2_password_hasher import Argon2PasswordHasher
 from interface.realtime.deadline_worker import GameDeadlineWorker
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.hub import WebSocketHub
+from interface.realtime.room_broadcaster import RoomBroadcaster
+from interface.realtime.room_hub import RoomHub
 from interface.realtime.routes import ROUTES
 from interface.workers.account_janitor import AccountJanitor
+from interface.workers.outbox_relay import OutboxRelay
+from interface.workers.relay_notifier import RelayNotifier
+from interface.workers.room_janitor import RoomJanitor
 
 
 @lru_cache
@@ -97,6 +105,39 @@ def account_usecase() -> AccountUseCase:
     return AccountUseCase(account_unit_of_work, Argon2PasswordHasher())
 
 
+def room_unit_of_work() -> SqlRoomUnitOfWork:
+    return SqlRoomUnitOfWork(database(), get_settings().rate_limit_secret.encode("utf-8"))
+
+
+@lru_cache
+def room_usecase() -> RoomUseCase:
+    return RoomUseCase(room_unit_of_work, notifier=RelayNotifier(outbox_relay))
+
+
+@lru_cache
+def room_hub() -> RoomHub:
+    return RoomHub()
+
+
+@lru_cache
+def room_broadcaster() -> RoomBroadcaster:
+    return RoomBroadcaster(room_usecase(), room_hub())
+
+
+@lru_cache
+def outbox_store() -> OutboxStore:
+    return OutboxStore(database())
+
+
+@lru_cache
+def outbox_relay() -> OutboxRelay:
+    return OutboxRelay(outbox_store(), room_broadcaster())
+
+
+def room_janitor() -> RoomJanitor:
+    return RoomJanitor(room_usecase(), outbox_store())
+
+
 def account_janitor() -> AccountJanitor:
     return AccountJanitor(AccountMaintenance(account_unit_of_work))
 
@@ -134,5 +175,10 @@ def reset_dependency_caches() -> None:
         realtime_dispatcher,
         game_night_query_usecase,
         account_usecase,
+        room_usecase,
+        room_hub,
+        room_broadcaster,
+        outbox_store,
+        outbox_relay,
     ):
         factory.cache_clear()

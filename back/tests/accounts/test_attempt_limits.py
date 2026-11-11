@@ -16,7 +16,7 @@ from account_support import (
 )
 
 from application.accounts.account_usecase import AccountUseCase
-from application.accounts.attempt_limit import AttemptLimit, enforce
+from application.shared.attempt_limit import AttemptLimit, enforce
 from exceptions import (
     InvalidAccountError,
     InvalidCredentialsError,

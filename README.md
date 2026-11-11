@@ -59,7 +59,7 @@ Cette version fournit un moteur multi-jeux synchronisé : **Blindtest**, **Stop 
 
 - `back/` : backend FastAPI (`domain` / `application` / `infrastructure` / `presentation`)
 - `app-presentateur/` : app React TypeScript affichée à l'écran
-- `app-joueur/` : app React TypeScript des joueurs en ligne (compte par pseudo et mot de passe)
+- `app-joueur/` : app React TypeScript des joueurs en ligne (compte, création et entrée dans un salon, salle d'attente en direct)
 - `mobile/` : app React Native Expo pour le présentateur
 - `scripts/` : scripts simples de démarrage et de validation
 
@@ -100,20 +100,26 @@ back/
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
 │   ├── database/            # Moteur SQLAlchemy, verrou d'instance unique
-│   │   ├── accounts/        # Tables des comptes joueurs : comptes, sessions, compteurs d'essais
+│   │   ├── accounts/        # Tables des comptes joueurs : comptes et sessions
+│   │   ├── rooms/           # Salons en ligne et leurs membres
+│   │   ├── rate_limiting/   # Compteurs d'essais (partagés : comptes, invitations, créations de salons)
+│   │   ├── outbox/          # Outbox transactionnelle : écriture, lecture par le relais, purge
+│   │   ├── sql_unit_of_work.py  # Base des unités de travail SQL (une session, rollback par défaut)
 │   │   ├── game_sessions/   # game_session_model.py : la table commune des parties
 │   │   ├── games/           # Un dossier par jeu : <jeu>_game_model.py, <jeu>_mapper.py, <jeu>_repository.py
 │   │   │   └── shared/      # Colonnes communes, mapper versionné, dépôt à verrouillage optimiste
 │   │   └── all_models.py    # Agrégat de toutes les tables, réservé au schéma (Alembic, create_all)
 │   ├── repositories/        # Un dossier par domaine, comme domain/ :
 │   │   ├── game_night/      # Unit of Work de la partie, dépôt qui compose les jeux, cache mémoire, mapper
-│   │   └── accounts/        # Unit of Work des comptes, dépôts comptes et sessions, compteur d'essais
+│   │   ├── accounts/        # Unit of Work des comptes, dépôts comptes et sessions
+│   │   └── rooms/           # Unit of Work des salons (salon + outbox + compteurs), dépôt à verrou optimiste
 │   └── extern/              # Spotify, bridge buzzers USB
 ├── interface/
 │   ├── api/                 # Routeurs HTTP et WebSocket
 │   ├── schemas/             # Schémas de réponse et enveloppe des messages WebSocket
 │   ├── dependencies/        # Composition racine (container) et authentification
-│   └── realtime/            # Hub WebSocket, routes et dispatcher des messages, worker des chronos
+│   ├── realtime/            # Hub WebSocket, routes et dispatcher des messages ; hub et diffusion des salons
+│   └── workers/             # Tâches de fond : chronos, ménage des comptes et des salons, relais de l'outbox
 ├── exceptions.py            # DomainError / ApplicationError
 └── main.py                  # Application factory FastAPI
 ```
@@ -355,6 +361,50 @@ Ce déploiement a été vérifié en local (`GAMEBATTLE_DOMAIN=localhost`, ports
 - une seconde instance du backend refuse de démarrer ; une adresse de proxy qui dérive fait échouer `up --wait` ;
 - parcours complet dans un navigateur, coupures réseau comprises.
 
+### Salons en ligne (`/api/rooms`, `/ws/rooms/current`)
+
+Un joueur connecté crée une partie **publique** (listée pour tous) ou **privée** (accessible par son lien), en
+**1 contre 1** ou **en équipes** (2 à 4 équipes de 4 joueurs). À la création, un lien d'invitation
+`/rejoindre/<code>` est remis au joueur ; dans une partie privée en équipes, celui qui ouvre le lien choisit son
+équipe (et peut en changer dans la salle d'attente). Ailleurs, les équipes s'équilibrent seules. Lancer les jeux
+en ligne viendra ensuite : le bouton « Lancer la partie » est déjà en place, désactivé.
+
+- Domaine `back/domain/rooms/` : l'agrégat `Room` (immuable) porte toutes les règles. Un joueur n'est que dans un
+  salon à la fois. Entrer deux fois ne change rien. Un salon complet refuse les nouveaux. Quand l'hôte part, le
+  plus ancien membre prend la main, et le dernier départ ferme le salon. Chaque action produit ses événements
+  (`room.player_joined`, `room.team_changed`…).
+- HTTP : `POST /api/rooms`, `GET /current`, `GET /public`, `GET /invitations/{code}` (aperçu), `POST /invitations/{code}/join`,
+  `POST /{id}/join` (parties publiques seulement), `POST /current/team`, `POST /current/leave`. Toutes les routes exigent
+  la session et, pour les écritures, la même origine que les comptes. Aucune réponse ne contient d'identifiant de
+  compte : les joueurs se reconnaissent à leur pseudo.
+- Codes d'invitation :
+  - 10 caractères tirés de `secrets`, sans 0/O ni 1/I, soit environ 10^15 possibilités ;
+  - 30 consultations par IP par quart d'heure ;
+  - un salon privé ne se rejoint pas par son identifiant ;
+  - au plus 10 créations de salons par joueur et par heure.
+- **Verrou optimiste** : colonne `version`, `UPDATE … WHERE version = :lue`. En cas de conflit (deux joueurs qui
+  entrent au même instant), le cas d'usage relit l'état et rejoue, jusqu'à 3 fois. L'unicité de `room_members.account_id`
+  garantit « un salon par joueur » même en cas de course.
+- **Outbox transactionnelle** (`outbox_events`) : les événements sont écrits dans la même transaction que le salon.
+  Le relais `OutboxRelay` les publie dans l'ordre puis les marque publiés. Il est réveillé après chaque écriture
+  validée et repasse de toute façon chaque seconde. La livraison est « au moins une fois » : chaque message
+  porte l'état complet, donc un message rejoué est sans effet. `RoomJanitor` ferme les salons inactifs depuis
+  6 h et purge les événements publiés.
+- **WebSocket `/ws/rooms/current`** : flux du salon du joueur connecté.
+  - Poignée de main : l'origine est vérifiée avant `accept` (refus 1008), puis la session (cookie HttpOnly, sinon
+    4401) et l'appartenance à un salon (sinon 4404).
+  - Resynchronisation : `room.snapshot` à chaque connexion et sur demande (`resync`). Ensuite, `room.updated`
+    porte la vue complète propre à chaque joueur, avec la présence en ligne et les événements récents.
+  - Séparation public / privé : les événements privés (`audience`) ne partent qu'à leur destinataire.
+  - Heartbeat : ping toutes les 20 s ; une connexion muette est coupée au bout de 50 s (4408) ; la session est
+    revérifiée chaque minute.
+  - Débit limité à 2 messages par seconde, en rafale de 10, et 256 caractères au plus par message (4429). La
+    file d'envoi est bornée pour chaque connexion : un client lent est coupé, sans ralentir les autres.
+  - Au plus 3 onglets par joueur : le plus ancien est fermé (4000).
+  - `room.left` ou `room.closed` est envoyé avant la fermeture 4000.
+  - L'app joueur se reconnecte avec une attente exponentielle et aléatoire, et tout de suite au retour sur la
+    page ou du réseau. Elle ne se reconnecte jamais après 4000, 4401 ou 4404.
+
 ### Migrations de la base (Alembic)
 
 En développement et dans les tests, l'API crée elle-même les tables manquantes au démarrage. En
@@ -379,6 +429,8 @@ La migration `0005` aligne sur PostgreSQL les noms de contraintes que les renomm
 derrière eux (`game_nights_pkey`, `<jeu>_games_night_id_fkey`), pour qu'une base migrée et une base créée depuis
 les modèles soient identiques.
 
+La migration `0006` crée les salons (`rooms`, `room_members`) et l'outbox (`outbox_events`).
+
 Les migrations sont testées sur un vrai PostgreSQL, jetable, avant toute mise en production :
 
 ```bash
@@ -387,7 +439,8 @@ bash scripts/test-migrations-postgres.sh   # Docker requis : conteneur postgres:
 
 Le script migre depuis `0002` avec des données réelles, puis compare les contraintes, index et colonnes à une base
 construite depuis les modèles. Il vérifie aussi les clés étrangères (`ON DELETE CASCADE` vers `game_sessions`),
-le verrou optimiste et la conservation des données, et redescend jusqu'à `0002`. Sans PostgreSQL, ces tests
+le verrou optimiste et la conservation des données, et redescend jusqu'à `0002`. Pour les salons, il vérifie aussi
+la contrainte « un salon par joueur », la cascade à la suppression d'un compte et la descente de `0006`. Sans PostgreSQL, ces tests
 (`tests/infrastructure/test_migrations_postgres.py`) sont ignorés.
 
 Un test (`test_migrations_build_exactly_the_schema_of_the_models`) vérifie que les migrations produisent
@@ -407,8 +460,9 @@ cd /Users/lucasdasilvamarques/GameBattle
 bash scripts/dev-joueur.sh
 ```
 
-Ouvre <http://127.0.0.1:5174>. Le proxy Vite renvoie `/api` vers le backend sur `http://127.0.0.1:8000`
-(ou vers `GAMEBATTLE_API_URL`).
+Ouvre <http://127.0.0.1:5174>. Le proxy Vite renvoie `/api` et le WebSocket `/ws` vers le backend sur
+`http://127.0.0.1:8000` (ou vers `GAMEBATTLE_API_URL`). Pour essayer à plusieurs, ouvre une fenêtre privée par
+joueur et partage le lien d'invitation affiché dans la salle d'attente.
 
 ### Mobile
 
@@ -630,13 +684,16 @@ Les tests suivent les modules métier, pas les couches :
 | --- | --- |
 | `tests/architecture/` | Dépendances entre couches (`test_imports.py`), frontières entre modules (`test_module_boundaries.py`), rangement des fichiers (`test_file_responsibilities.py`) |
 | `tests/accounts/` | Règles des comptes, cas d'usage, limites d'essais, dépôts, hachage, ménage, API |
+| `tests/rooms/` | Règles des salons, cas d'usage (conflits, limites), dépôt SQL et outbox, API, WebSocket, relais |
 | `tests/game_night/` | Soirée : API, persistance des parties, unité de travail, manches, ouverture, événements |
 | `tests/games/<jeu>/` | Chaque jeu ; `tests/games/shared/` pour le flux de buzz commun |
 | `tests/interface/` | Adresse du client, hub WebSocket, messages et routes temps réel |
 | `tests/infrastructure/` | Configuration, tâches de fond, migrations (SQLite et PostgreSQL) |
 
-`tests/support.py` (soirée de test, `BACK_DIR`), `tests/account_support.py` et `tests/architecture_support.py`
-regroupent ce que plusieurs fichiers partagent. La configuration de pytest est dans `back/pyproject.toml` (mode
+`tests/support.py` (soirée de test, `BACK_DIR`), `tests/account_support.py`, `tests/room_support.py` (salons en
+mémoire, transactionnels), `tests/room_app_support.py` (app réduite avec le vrai relais et le vrai hub) et
+`tests/architecture_support.py` regroupent ce que plusieurs fichiers partagent. `tests/conftest.py` fournit une
+base SQLite jetable (`sqlite_database`). La configuration de pytest est dans `back/pyproject.toml` (mode
 `importlib`, pas de `__init__.py` dans les dossiers de tests).
 
 ## Validations exécutées
@@ -652,6 +709,13 @@ Web :
 
 ```bash
 cd /Users/lucasdasilvamarques/GameBattle/app-presentateur
+npm run build
+```
+
+App joueur :
+
+```bash
+cd /Users/lucasdasilvamarques/GameBattle/app-joueur
 npm run build
 ```
 

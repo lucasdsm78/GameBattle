@@ -10,8 +10,9 @@ from typing import Optional, TypeGuard
 from application.accounts.account_commands import CredentialsCommand
 from application.accounts.account_limits import AccountLimits
 from application.accounts.account_unit_of_work import AccountUnitOfWork
-from application.accounts.attempt_limit import AttemptLimit, enforce
+from application.shared.attempt_limit import AttemptLimit, enforce
 from application.shared.command_usecase import wall_clock_ms
+from application.shared.player_identity import PlayerIdentity
 from domain.accounts.models.password_policy import check_password, normalize_password
 from domain.accounts.models.player_account import PlayerAccount
 from domain.accounts.models.player_session import PlayerSession
@@ -31,6 +32,11 @@ MAX_SESSION_TOKEN_LENGTH = 128
 @dataclass(frozen=True, slots=True)
 class AccountView:
     pseudo: str
+    account_id: str = ""  # interne : jamais renvoyé par l'API, transmis aux autres modules via `PlayerIdentity`
+
+    @property
+    def identity(self) -> PlayerIdentity:
+        return PlayerIdentity(account_id=self.account_id, pseudo=self.pseudo)
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,7 +154,7 @@ class AccountUseCase:
             account = await uow.accounts.get(session.account_id) if session else None
             if session is None or account is None:
                 raise NotAuthenticatedError("Connecte-toi pour continuer.")
-            view = AccountView(pseudo=account.pseudo.value)
+            view = AccountView(pseudo=account.pseudo.value, account_id=account.id)
             if not session.needs_renewal(now):
                 return CurrentPlayer(view)
             renewed = session.renewed(now)
@@ -174,7 +180,9 @@ class AccountUseCase:
         token = secrets.token_urlsafe(SESSION_TOKEN_BYTES)
         session = PlayerSession.open(hash_session_token(token), account.id, now_ms)
         await uow.sessions.add(session)
-        return SignedIn(account=AccountView(pseudo=account.pseudo.value), token=token, expires_at_ms=session.expires_at_ms)
+        return SignedIn(
+            account=AccountView(pseudo=account.pseudo.value, account_id=account.id), token=token, expires_at_ms=session.expires_at_ms
+        )
 
 
 def _plausible_token(token: Optional[str]) -> TypeGuard[str]:

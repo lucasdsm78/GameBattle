@@ -22,11 +22,13 @@ class PeriodicTask(ABC):
     """
 
     name: ClassVar[str]
+    wakeable: ClassVar[bool] = False  # vrai : `wake()` relance un passage sans attendre la fin de l'intervalle
 
     def __init__(self, *, interval_seconds: float) -> None:
         self._interval_seconds = interval_seconds
         self._task: asyncio.Task[None] | None = None
         self._stopping: asyncio.Event | None = None
+        self._wakeup: asyncio.Event | None = None
         self.consecutive_failures = 0
 
     @abstractmethod
@@ -35,7 +37,12 @@ class PeriodicTask(ABC):
     async def start(self) -> None:
         if self._task is None or self._task.done():
             self._stopping = asyncio.Event()
+            self._wakeup = asyncio.Event() if self.wakeable else None
             self._task = asyncio.create_task(self._run(self._stopping), name=self.name)
+
+    def wake(self) -> None:
+        if self._wakeup is not None:
+            self._wakeup.set()
 
     async def stop(self) -> None:
         if self._task is None or self._stopping is None:
@@ -82,5 +89,15 @@ class PeriodicTask(ABC):
     async def _run(self, stopping: asyncio.Event) -> None:
         while not stopping.is_set():
             await self.tick()
+            await self._pause(stopping)
+
+    async def _pause(self, stopping: asyncio.Event) -> None:
+        if self._wakeup is None:
             with suppress(TimeoutError):
                 await asyncio.wait_for(stopping.wait(), self.next_delay_seconds())
+            return
+        waiters = {asyncio.ensure_future(stopping.wait()), asyncio.ensure_future(self._wakeup.wait())}
+        _, pending = await asyncio.wait(waiters, timeout=self.next_delay_seconds(), return_when=asyncio.FIRST_COMPLETED)
+        for waiter in pending:
+            waiter.cancel()
+        self._wakeup.clear()

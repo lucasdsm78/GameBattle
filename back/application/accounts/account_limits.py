@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from application.accounts.attempt_limit import AttemptLimit
+from application.shared.attempt_limit import AttemptLimit
 
 _MINUTE_MS = 60_000
 
