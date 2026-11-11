@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import unicodedata
 
+from domain.accounts.constants.account_credentials import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
 from domain.accounts.models.pseudo import Pseudo
 from exceptions import InvalidPasswordError
-
-PASSWORD_MIN_LENGTH = 8
-PASSWORD_MAX_LENGTH = 128  # au-delà, rien de plus sûr, seulement un hachage plus coûteux
 
 # Recommandation NIST 800-63B : une longueur minimale et le refus des mots de passe connus, sans règle de composition.
 _COMMON_PASSWORDS = frozenset({

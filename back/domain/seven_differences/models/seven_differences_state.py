@@ -3,20 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Optional
 
+from domain.seven_differences.constants.seven_differences_limits import DIFFERENCE_COUNT
+from domain.seven_differences.constants.seven_differences_phases import SEVEN_DIFFERENCES_PHASES
+from domain.seven_differences.constants.seven_differences_timing import SEVEN_DIFFERENCES_MEMORIZATION_MS
 from domain.seven_differences.events import DifferenceFound
 from domain.seven_differences.models.seven_difference import SevenDifference
 from domain.seven_differences.services.seven_differences_catalog import (
     pick_seven_differences_puzzle,
 )
+from domain.shared.constants.scoring import TIE_LABEL
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
-from domain.shared.services.scoring import TIE_LABEL, pick_round_winner, zero_scores
+from domain.shared.services.scoring import pick_round_winner, zero_scores
 from exceptions import InvalidGameConfigError
-
-SEVEN_DIFFERENCES_PHASES = frozenset({"idle", "memorizing", "open", "claimed", "finished"})
-SEVEN_DIFFERENCES_MEMORIZATION_MS = 25_000
-DIFFERENCE_COUNT = 7
 
 
 @dataclass(slots=True)

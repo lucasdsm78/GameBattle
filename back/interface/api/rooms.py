@@ -7,7 +7,7 @@ from fastapi import APIRouter, Body, Depends, Path, Request, Response, status
 from application.rooms.commands.change_team import ChangeTeamCommand
 from application.rooms.commands.create_room import CreateRoomCommand
 from application.rooms.commands.join_room import JoinRoomCommand
-from application.rooms.invitation_codes import CODE_ALPHABET, CODE_LENGTH
+from application.rooms.constants.invitations import CODE_ALPHABET, CODE_LENGTH
 from interface.client_address import client_address
 from interface.dependencies import CurrentPlayerDep, RoomCommandUseCaseDep, RoomQueryUseCaseDep
 from interface.http_session import require_same_origin

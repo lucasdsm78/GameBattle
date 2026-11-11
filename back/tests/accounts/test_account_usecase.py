@@ -7,10 +7,7 @@ import pytest
 from account_support import IP, PASSWORD, FakeHasher, build_accounts, make_credentials
 
 from application.accounts.session_tokens import hash_session_token
-from domain.accounts.models.player_session import (
-    SESSION_RENEW_AFTER_MS,
-    SESSION_TTL_MS,
-)
+from domain.accounts.constants.account_sessions import SESSION_RENEW_AFTER_MS, SESSION_TTL_MS
 from exceptions import (
     InvalidAccountError,
     InvalidCredentialsError,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-TIE_LABEL = "Égalité"
+from domain.shared.constants.scoring import TIE_LABEL
 
 
 def zero_scores(teams: list[str]) -> dict[str, int]:

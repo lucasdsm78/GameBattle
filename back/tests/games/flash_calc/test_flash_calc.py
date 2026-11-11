@@ -5,31 +5,22 @@ import random
 from dataclasses import replace
 
 import pytest
+from support import GameHarness, started_config
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import ClientRole
+from domain.flash_calc.constants.flash_calc_limits import CALCS_PER_LEVEL
 from domain.flash_calc.events import CalculationShown, FlashCalcLevelReached
-from domain.flash_calc.services.flash_calc_generator import (
-    CALCS_PER_LEVEL,
-    FLASH_CALC_LEVELS,
-    MAX_LEVEL,
-    display_ms_for,
-    generate_calculation,
-    level_for,
-)
+from domain.flash_calc.services.flash_calc_generator import FLASH_CALC_LEVELS, MAX_LEVEL, display_ms_for, generate_calculation, level_for
+from domain.shared.constants.buzz_stream_limits import BUZZ_STREAM_WINNING_SCORE
+from domain.shared.constants.buzz_stream_timing import BUZZ_STREAM_FEEDBACK_MS, BUZZ_STREAM_LOCK_MS
 from domain.shared.events import AnswerJudged, BuzzerPressed
-from domain.shared.models.buzz_stream_state import (
-    BUZZ_STREAM_FEEDBACK_MS,
-    BUZZ_STREAM_LOCK_MS,
-    BUZZ_STREAM_WINNING_SCORE,
-)
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 START_MS = 1_000

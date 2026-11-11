@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from application.accounts.account_maintenance import AccountMaintenance
 from infrastructure.runtime.periodic_task import PeriodicTask
-
-JANITOR_INTERVAL_SECONDS = 10 * 60
+from interface.workers.constants.worker_schedules import ACCOUNT_JANITOR_INTERVAL_SECONDS
 
 
 class AccountJanitor(PeriodicTask):
@@ -11,7 +10,7 @@ class AccountJanitor(PeriodicTask):
 
     name = "accounts.janitor"
 
-    def __init__(self, maintenance: AccountMaintenance, *, interval_seconds: float = JANITOR_INTERVAL_SECONDS) -> None:
+    def __init__(self, maintenance: AccountMaintenance, *, interval_seconds: float = ACCOUNT_JANITOR_INTERVAL_SECONDS) -> None:
         super().__init__(interval_seconds=interval_seconds)
         self._maintenance = maintenance
 

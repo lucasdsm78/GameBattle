@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import random
 
+from domain.vanishing_word.constants.vanishing_word_limits import WORDS_PER_LIST
+
 # Mots courts et faciles à visualiser : on retient mieux une image qu'une idée abstraite.
 VANISHING_WORDS: tuple[str, ...] = (
     # Sport & paris
@@ -27,8 +29,6 @@ VANISHING_WORDS: tuple[str, ...] = (
     # Personnages
     "Pirate", "Robot", "Fantôme", "Sorcière", "Dragon", "Licorne", "Chevalier", "Magicien", "Clown", "Astronaute",
 )
-
-WORDS_PER_LIST = 8
 
 
 def pick_vanishing_words(excluded: list[str] | set[str]) -> tuple[list[str], bool]:

@@ -6,10 +6,8 @@ from application.seven_differences.seven_differences_rules import (
     SEVEN_DIFFERENCES_RULES,
 )
 from application.shared.game_presenter import GamePresenter
-from domain.seven_differences.models.seven_differences_state import (
-    DIFFERENCE_COUNT,
-    SevenDifferencesState,
-)
+from domain.seven_differences.constants.seven_differences_limits import DIFFERENCE_COUNT
+from domain.seven_differences.models.seven_differences_state import SevenDifferencesState
 
 
 class SevenDifferencesPresenter(GamePresenter[SevenDifferencesState]):

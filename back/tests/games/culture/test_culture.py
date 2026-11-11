@@ -3,18 +3,18 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
+from support import GameHarness, started_config
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
+from domain.culture.constants.culture_limits import CULTURE_QUESTIONS_PER_ROUND
 from domain.culture.events import CultureAnswerRevealed, CultureTiebreakStarted
-from domain.culture.models.culture_state import CULTURE_QUESTIONS_PER_ROUND
 from domain.shared.events import AnswerJudged
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 

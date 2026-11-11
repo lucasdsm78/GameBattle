@@ -9,6 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 
+from domain.rooms.constants.room_formats import RoomFormat
+from domain.rooms.constants.room_statuses import RoomStatus
+from domain.rooms.constants.room_visibilities import RoomVisibility
 from domain.rooms.models.room import Room
 from domain.rooms.models.room_member import RoomMember
 from domain.rooms.repositories.room_repository import RoomRepository
@@ -27,15 +30,15 @@ def _room(row: Any, members: list[RoomMember]) -> Room:
     return Room(
         id=row.id,
         code=row.code,
-        visibility=row.visibility,
-        format=row.format,
+        visibility=RoomVisibility(row.visibility),
+        format=RoomFormat(row.format),
         teams=tuple(row.teams),
         max_players=row.max_players,
         host_account_id=row.host_account_id,
         members=tuple(sorted(members, key=lambda member: member.joined_at_ms)),
         created_at_ms=row.created_at_ms,
         updated_at_ms=row.updated_at_ms,
-        status=row.status,
+        status=RoomStatus(row.status),
         version=row.version,
     )
 
@@ -66,11 +69,11 @@ class PostgreSQLRoomRepository(RoomRepository):
 
     async def list_open_public(self, limit: int) -> list[Room]:
         return await self._many(
-            (ROOMS.c.visibility == "public") & (ROOMS.c.status == "lobby"), order_by=ROOMS.c.created_at_ms.desc(), limit=limit
+            (ROOMS.c.visibility == RoomVisibility.PUBLIC) & (ROOMS.c.status == RoomStatus.LOBBY), order_by=ROOMS.c.created_at_ms.desc(), limit=limit
         )
 
     async def list_inactive(self, updated_before_ms: int, limit: int) -> list[Room]:
-        return await self._many((ROOMS.c.status == "lobby") & (ROOMS.c.updated_at_ms < updated_before_ms), order_by=ROOMS.c.updated_at_ms, limit=limit)
+        return await self._many((ROOMS.c.status == RoomStatus.LOBBY) & (ROOMS.c.updated_at_ms < updated_before_ms), order_by=ROOMS.c.updated_at_ms, limit=limit)
 
     async def add(self, room: Room) -> Room:
         try:

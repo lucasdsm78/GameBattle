@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from domain.game_night.models.settings import SUPPORTED_GAME_KEYS
+from domain.game_night.constants.game_night_limits import SUPPORTED_GAME_KEYS
 from exceptions import InvalidGameConfigError
 
 

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 from application.shared.game_rules import GameRules, seconds
-from domain.auction.models.auction_state import (
-    AUCTION_DURATION_MS,
-    AUCTION_FAILURE_POINTS,
-    AUCTION_WINNING_SCORE,
-)
+from domain.auction.constants.auction_limits import AUCTION_FAILURE_POINTS, AUCTION_WINNING_SCORE
+from domain.auction.constants.auction_timing import AUCTION_DURATION_MS
 
 # Écran des règles affiché avant chaque manche de « L’Enchère ».
 AUCTION_RULES = GameRules(

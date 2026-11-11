@@ -4,8 +4,8 @@ from typing import Any
 
 from application.right_flag.right_flag_rules import RIGHT_FLAG_RULES
 from application.shared.buzz_stream_presenter import BuzzStreamPresenter
+from domain.right_flag.constants.right_flag_limits import FLAGS_PER_ROUND
 from domain.right_flag.models.right_flag_state import RightFlagState
-from domain.right_flag.services.flag_catalog import FLAGS_PER_ROUND
 
 
 class RightFlagPresenter(BuzzStreamPresenter[RightFlagState]):

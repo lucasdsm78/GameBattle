@@ -4,7 +4,8 @@ import pytest
 from room_support import ALICE, BOB, CHLOE
 
 from domain.rooms.events import HostChanged, PlayerJoined, PlayerLeft, RoomClosed, RoomOpened, TeamChanged
-from domain.rooms.models.room import PLAYERS_PER_TEAM, SOLO_MAX_PLAYERS, SOLO_MIN_PLAYERS, Room
+from domain.rooms.constants.room_limits import MAX_TEAMS, PLAYERS_PER_TEAM, SOLO_MAX_PLAYERS, SOLO_MIN_PLAYERS, TEAM_NAMES
+from domain.rooms.models.room import Room
 from exceptions import RoomFullError, RoomRuleError
 
 NOW = 1_000_000
@@ -142,3 +143,28 @@ def test_closing_for_inactivity_empties_the_room() -> None:
     closed = _open().join(BOB.account_id, BOB.pseudo, NOW + 1).close_for_inactivity(NOW + 2)
 
     assert closed.status == "closed" and closed.members == () and closed.pending_events[-1] == RoomClosed(reason="inactive")
+
+
+def test_there_is_a_team_name_for_every_allowed_team() -> None:
+    assert len(TEAM_NAMES) == MAX_TEAMS
+
+
+def test_create_command_accepts_exactly_the_domain_values() -> None:
+    from typing import get_args
+
+    from application.rooms.commands.create_room import CreateRoomCommand
+    from domain.rooms.constants.room_formats import RoomFormat
+    from domain.rooms.constants.room_visibilities import RoomVisibility
+
+    assert set(get_args(CreateRoomCommand.model_fields["visibility"].annotation)) == set(RoomVisibility)
+    assert set(get_args(CreateRoomCommand.model_fields["format"].annotation)) == set(RoomFormat)
+
+
+def test_statuses_and_formats_stay_plain_strings_for_clients() -> None:
+    import json
+
+    room = _open(visibility="public", format="solo", max_players=3)
+
+    assert json.loads(json.dumps({"status": room.status, "format": room.format, "visibility": room.visibility})) == {
+        "status": "lobby", "format": "solo", "visibility": "public",
+    }

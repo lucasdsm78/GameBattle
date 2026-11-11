@@ -6,12 +6,9 @@ from urllib.parse import urlsplit
 
 from fastapi import HTTPException, Request, status
 
+from interface.constants.http import SAFE_METHODS, SESSION_COOKIE_DEPLOYED, SESSION_COOKIE_LOCAL
 from interface.dependencies.container import get_settings
 
-# Déployé (HTTPS), le préfixe `__Host-` impose au navigateur Secure, Path=/ et aucun Domain : le cookie ne fuit vers aucun sous-domaine.
-SESSION_COOKIE_DEPLOYED = "__Host-gb_session"
-SESSION_COOKIE_LOCAL = "gb_session"
-SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 FOREIGN_ORIGIN = HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origine de la requête refusée.")
 
 

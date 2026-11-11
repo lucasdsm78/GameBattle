@@ -10,18 +10,14 @@ from typing import Any, Optional
 from fastapi import WebSocket
 
 from application.shared.snapshot import ClientRole, GameConfigSnapshot
+from interface.realtime.constants.realtime_limits import MAX_PENDING_EVENTS, MAX_PENDING_REPLIES
+from interface.realtime.constants.realtime_timing import SEND_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
-
-SEND_TIMEOUT_SECONDS = 5.0
-MAX_PENDING_REPLIES = 32
 
 
 def encode_message(message: dict[str, Any]) -> str:
     return json.dumps(message, ensure_ascii=False, separators=(",", ":"))
-
-
-MAX_PENDING_EVENTS = 200
 
 
 def encode_payload(snapshot: GameConfigSnapshot, role: ClientRole) -> str:

@@ -164,6 +164,30 @@ back/
   aux frontières (`application/<domaine>/<domaine>_commands.py` ou `application/<domaine>/commands/`, `interface/schemas/`).
   La base commune `InputModel` et les types partagés (`TeamName`…) sont dans `application/shared/commands/`.
 
+### Constantes
+
+Chaque constante publique vit dans le dossier `constants/` de son module et de sa couche. Il n'y a jamais de
+`constants.py` fourre-tout, et chaque constante s'importe par son fichier.
+
+- **Règles métier**, dans `domain/<module>/constants/` :
+  - `<jeu>_phases.py` : phases, en ensembles fermés ;
+  - `<jeu>_timing.py` : durées ;
+  - `<jeu>_limits.py` : scores et quantités ;
+  - pour les salons, des `StrEnum` (`RoomStatus`, `RoomVisibility`, `RoomFormat`) et `room_limits.py`.
+- **Réglages applicatifs**, dans `application/<module>/constants/` : format des codes d'invitation, masques des
+  réponses cachées…
+- **Réglages techniques**, près de leur code :
+  - `interface/realtime/constants/` : codes de fermeture WebSocket, délais, bornes ;
+  - `interface/constants/http.py` : cookies, en-têtes, bornes des requêtes ;
+  - `interface/workers/constants/` : cadence des tâches de fond ;
+  - `infrastructure/constants/`.
+- **Valeurs purement locales** : elles restent privées (`_NOM`) dans leur fichier.
+- **Catalogues de contenu** (`services/*_catalog.py` : questions, mots, pays, objets) : ils gardent leurs données.
+- `tests/architecture/test_constants.py` vérifie que :
+  - aucune constante publique ne traîne ailleurs ;
+  - un fichier de constantes ne contient que des valeurs (ou des `StrEnum`), avec une phrase d'explication ;
+  - il n'y a ni `constants.py` ni `__init__.py` qui regroupe.
+
 ### Événements de domaine et Unit of Work
 
 - Chaque transition produit des **événements de domaine** (`domain/<domaine>/events/<événement>.py`) : chaque jeu décrit ce
@@ -699,7 +723,7 @@ Les tests suivent les modules métier, pas les couches :
 
 | Dossier | Ce qu'il teste |
 | --- | --- |
-| `tests/architecture/` | Dépendances entre couches (`test_imports.py`), frontières entre modules (`test_module_boundaries.py`), rangement des fichiers (`test_file_responsibilities.py`), séparation lectures / écritures (`test_command_query_separation.py`), une commande, une vue ou un résultat par fichier (`test_application_layout.py`) |
+| `tests/architecture/` | Dépendances entre couches (`test_imports.py`), frontières entre modules (`test_module_boundaries.py`), rangement des fichiers (`test_file_responsibilities.py`), séparation lectures / écritures (`test_command_query_separation.py`), une commande, une vue ou un résultat par fichier (`test_application_layout.py`), rangement des constantes (`test_constants.py`) |
 | `tests/accounts/` | Règles des comptes, cas d'usage, limites d'essais, dépôts, hachage, ménage, API |
 | `tests/rooms/` | Règles des salons, cas d'usage (conflits, limites), dépôt SQL et outbox, API, WebSocket, relais |
 | `tests/game_night/` | Soirée : API, persistance des parties, unité de travail, manches, ouverture, événements |

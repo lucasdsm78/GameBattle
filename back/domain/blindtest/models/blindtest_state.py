@@ -4,17 +4,16 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 
+from domain.blindtest.constants.blindtest_limits import TRACKS_PER_ROUND
+from domain.blindtest.constants.blindtest_playback import PLAYBACK_ACTIONS, PLAYBACK_STATES
 from domain.blindtest.models.blindtest_track import BlindtestTrack
+from domain.shared.constants.scoring import TIE_LABEL
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
 from domain.shared.services.clock import utc_now_iso
-from domain.shared.services.scoring import TIE_LABEL, pick_round_winner, zero_scores
+from domain.shared.services.scoring import pick_round_winner, zero_scores
 from exceptions import InvalidGameConfigError
-
-TRACKS_PER_ROUND = 10
-PLAYBACK_STATES = frozenset({"stopped", "playing", "paused"})
-PLAYBACK_ACTIONS = frozenset({"play", "pause", "resume", "stop", "seek"})
 
 
 def pick_round_tracks(tracks: list[BlindtestTrack], count: int) -> list[BlindtestTrack]:

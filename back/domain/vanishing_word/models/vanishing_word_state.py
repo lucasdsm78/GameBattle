@@ -8,21 +8,16 @@ from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
 from domain.shared.services.scoring import zero_scores
+from domain.vanishing_word.constants.vanishing_word_limits import VANISHING_WORD_WINNING_SCORE, WORDS_PER_LIST
+from domain.vanishing_word.constants.vanishing_word_phases import HIDDEN_PHASES, VANISHING_WORD_PHASES
+from domain.vanishing_word.constants.vanishing_word_timing import VANISHING_WORD_MEMORIZATION_MS
 from domain.vanishing_word.events import (
     VanishedWordRevealed,
     VanishingListShown,
     WordVanished,
 )
-from domain.vanishing_word.services.vanishing_word_catalog import (
-    WORDS_PER_LIST,
-    pick_vanishing_words,
-)
+from domain.vanishing_word.services.vanishing_word_catalog import pick_vanishing_words
 from exceptions import InvalidGameConfigError
-
-VANISHING_WORD_PHASES = frozenset({"idle", "memorizing", "vanished", "claimed", "revealed", "finished"})
-VANISHING_WORD_MEMORIZATION_MS = 7_000
-VANISHING_WORD_WINNING_SCORE = 5
-HIDDEN_PHASES = frozenset({"vanished", "claimed"})
 
 
 @dataclass(slots=True)

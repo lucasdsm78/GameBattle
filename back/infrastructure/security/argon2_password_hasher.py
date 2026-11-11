@@ -7,8 +7,7 @@ from argon2 import PasswordHasher as Argon2Hasher
 from argon2.exceptions import InvalidHashError, VerificationError
 
 from domain.accounts.services.password_hasher import PasswordHasher
-
-MAX_CONCURRENT_HASHES = 2
+from infrastructure.constants.password_hashing import MAX_CONCURRENT_HASHES
 
 
 class Argon2PasswordHasher(PasswordHasher):

@@ -6,14 +6,11 @@ from typing import Optional
 from domain.rooms.events import HostChanged, PlayerJoined, PlayerLeft, RoomClosed, RoomOpened, TeamChanged
 from domain.rooms.models.room_member import RoomMember
 from domain.shared.events.domain_event import DomainEvent
+from domain.rooms.constants.room_formats import RoomFormat
+from domain.rooms.constants.room_limits import MAX_TEAMS, MIN_TEAMS, PLAYERS_PER_TEAM, SOLO_MAX_PLAYERS, SOLO_MIN_PLAYERS, TEAM_NAMES
+from domain.rooms.constants.room_statuses import RoomStatus
+from domain.rooms.constants.room_visibilities import RoomVisibility
 from exceptions import RoomFullError, RoomRuleError
-
-VISIBILITIES = frozenset({"public", "private"})
-FORMATS = frozenset({"solo", "teams"})
-TEAM_NAMES = ("Rouges", "Bleus", "Verts", "Jaunes")
-MIN_TEAMS, MAX_TEAMS = 2, len(TEAM_NAMES)
-PLAYERS_PER_TEAM = 4
-SOLO_MIN_PLAYERS, SOLO_MAX_PLAYERS = 2, 8  # chacun pour soi : l'hôte fixe le nombre maximum de joueurs
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,15 +23,15 @@ class Room:
 
     id: str
     code: str  # secret d'invitation : le lien `/join/<code>`
-    visibility: str
-    format: str
+    visibility: RoomVisibility
+    format: RoomFormat
     teams: tuple[str, ...]  # vide en solo
     max_players: int  # solo : choisi par l'hôte ; en équipes : déduit du nombre d'équipes
     host_account_id: str
     members: tuple[RoomMember, ...]
     created_at_ms: int
     updated_at_ms: int
-    status: str = "lobby"
+    status: RoomStatus = RoomStatus.LOBBY
     version: int = 0  # 0 : pas encore écrit
     pending_events: tuple[DomainEvent, ...] = field(default=(), compare=False, repr=False)
 
@@ -53,25 +50,27 @@ class Room:
         now_ms: int,
     ) -> Room:
         """`team_count` ne vaut qu'en équipes, `max_players` qu'en solo (chacun pour soi)."""
-        if visibility not in VISIBILITIES or format not in FORMATS:
-            raise RoomRuleError("Type de partie inconnu.")
-        if format == "teams" and not MIN_TEAMS <= team_count <= MAX_TEAMS:
+        try:
+            kind, audience = RoomFormat(format), RoomVisibility(visibility)
+        except ValueError as unknown:
+            raise RoomRuleError("Type de partie inconnu.") from unknown
+        if kind == RoomFormat.TEAMS and not MIN_TEAMS <= team_count <= MAX_TEAMS:
             raise RoomRuleError(f"Une partie en équipes se joue de {MIN_TEAMS} à {MAX_TEAMS} équipes.")
-        if format == "solo" and not SOLO_MIN_PLAYERS <= max_players <= SOLO_MAX_PLAYERS:
+        if kind == RoomFormat.SOLO and not SOLO_MIN_PLAYERS <= max_players <= SOLO_MAX_PLAYERS:
             raise RoomRuleError(f"Une partie chacun pour soi se joue de {SOLO_MIN_PLAYERS} à {SOLO_MAX_PLAYERS} joueurs.")
-        capacity = team_count * PLAYERS_PER_TEAM if format == "teams" else max_players
+        capacity = team_count * PLAYERS_PER_TEAM if kind == RoomFormat.TEAMS else max_players
         room = cls(
             id=room_id,
             code=code,
-            visibility=visibility,
-            format=format,
-            teams=TEAM_NAMES[:team_count] if format == "teams" else (),
+            visibility=audience,
+            format=kind,
+            teams=TEAM_NAMES[:team_count] if kind == RoomFormat.TEAMS else (),
             max_players=capacity,
             host_account_id=host_account_id,
             members=(),
             created_at_ms=now_ms,
             updated_at_ms=now_ms,
-            pending_events=(RoomOpened(visibility=visibility, format=format, max_players=capacity, host=host_pseudo),),
+            pending_events=(RoomOpened(visibility=audience, format=kind, max_players=capacity, host=host_pseudo),),
         )
         return room.join(host_account_id, host_pseudo, now_ms)
 
@@ -88,7 +87,7 @@ class Room:
     @property
     def team_choice_allowed(self) -> bool:
         """Choisir son équipe : seulement dans une partie privée en équipes (entre amis, via le lien)."""
-        return self.format == "teams" and self.visibility == "private"
+        return self.format == RoomFormat.TEAMS and self.visibility == RoomVisibility.PRIVATE
 
     def member(self, account_id: str) -> Optional[RoomMember]:
         return next((member for member in self.members if member.account_id == account_id), None)
@@ -105,11 +104,11 @@ class Room:
         """Entrer dans le salon. Déjà membre : rien ne change (un double clic ne fait pas deux entrées)."""
         if self.member(account_id) is not None:
             return self
-        if self.status != "lobby":
+        if self.status != RoomStatus.LOBBY:
             raise RoomRuleError("La partie a déjà commencé.")
         if self.is_full:
             raise RoomFullError("Ce salon est complet.")
-        assigned = pseudo if self.format == "solo" else self._team_for_newcomer(team)
+        assigned = pseudo if self.format == RoomFormat.SOLO else self._team_for_newcomer(team)
         member = RoomMember(account_id=account_id, pseudo=pseudo, team=assigned, joined_at_ms=now_ms)
         return self._changed(now_ms, PlayerJoined(pseudo=pseudo, team=assigned), members=(*self.members, member))
 
@@ -133,7 +132,7 @@ class Room:
         events: list[DomainEvent] = [PlayerLeft(pseudo=member.pseudo)]
         if not members:
             events.append(RoomClosed(reason="empty"))
-            return self._changed(now_ms, *events, members=(), status="closed")
+            return self._changed(now_ms, *events, members=(), status=RoomStatus.CLOSED)
         host_account_id = self.host_account_id
         if account_id == host_account_id:
             successor = min(members, key=lambda m: m.joined_at_ms)
@@ -142,7 +141,7 @@ class Room:
         return self._changed(now_ms, *events, members=members, host_account_id=host_account_id)
 
     def close_for_inactivity(self, now_ms: int) -> Room:
-        return self._changed(now_ms, RoomClosed(reason="inactive"), members=(), status="closed")
+        return self._changed(now_ms, RoomClosed(reason="inactive"), members=(), status=RoomStatus.CLOSED)
 
     # --- Mécanique ---
 

@@ -6,7 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 from infrastructure.config import Settings
-from interface.client_address import UNKNOWN_ADDRESS, resolve_client_address
+from interface.client_address import resolve_client_address
+from interface.constants.http import UNKNOWN_ADDRESS
 
 CADDY = [ipaddress.ip_network("172.30.0.10/32")]
 PROXIES = [ipaddress.ip_network("172.30.0.0/24"), ipaddress.ip_network("10.0.0.0/8")]

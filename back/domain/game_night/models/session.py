@@ -10,23 +10,22 @@ from domain.culture.models.culture_state import CultureState
 from domain.fair_price.models.fair_price_state import FairPriceState
 from domain.flash_calc.models.flash_calc_state import FlashCalcState
 from domain.forbidden_word.models.forbidden_word_state import ForbiddenWordState
-from domain.golden_family.models.golden_family_state import GoldenFamilyState
+from domain.game_night.constants.game_night_limits import SUPPORTED_GAME_KEYS
+from domain.game_night.constants.game_night_phases import OPENING_STAGES
 from domain.game_night.models.active_round import ActiveRound
 from domain.game_night.models.game_registry import GAME_STATE_TYPES
-from domain.game_night.models.settings import SUPPORTED_GAME_KEYS
+from domain.golden_family.models.golden_family_state import GoldenFamilyState
 from domain.memory.models.memory_state import MemoryState
 from domain.right_flag.models.right_flag_state import RightFlagState
 from domain.seven_differences.models.seven_differences_state import (
     SevenDifferencesState,
 )
+from domain.shared.constants.scoring import TIE_LABEL
 from domain.shared.models.game_state import GameState
 from domain.shared.services.clock import utc_now_iso
-from domain.shared.services.scoring import TIE_LABEL
 from domain.stopchrono.models.stopchrono_state import StopChronoState
 from domain.vanishing_word.models.vanishing_word_state import VanishingWordState
 from exceptions import InvalidGameConfigError
-
-OPENING_STAGES = frozenset({"", "teams", "rules"})
 
 
 @dataclass(slots=True)

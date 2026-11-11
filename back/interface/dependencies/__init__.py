@@ -1,5 +1,5 @@
+from interface.constants.http import CONTROLLER_TOKEN_HEADER
 from interface.dependencies.auth import (
-    CONTROLLER_TOKEN_HEADER,
     AccountCommandUseCaseDep,
     AccountQueryUseCaseDep,
     BlindtestUseCaseDep,

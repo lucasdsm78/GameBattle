@@ -3,11 +3,11 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import Any
 
+from application.rooms.constants.invitations import INVITE_PATH
 from application.rooms.presenters.host_pseudo import host_pseudo
-from domain.rooms.models.room import PLAYERS_PER_TEAM, Room
+from domain.rooms.constants.room_limits import PLAYERS_PER_TEAM
+from domain.rooms.models.room import Room
 from domain.rooms.models.room_member import RoomMember
-
-INVITE_PATH = "/join/{code}"
 
 
 def _players(room: Room, viewer_id: str, online: Collection[str]) -> list[dict[str, Any]]:

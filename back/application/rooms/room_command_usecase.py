@@ -7,7 +7,9 @@ from typing import Any, Optional
 from application.rooms.commands.change_team import ChangeTeamCommand
 from application.rooms.commands.create_room import CreateRoomCommand
 from application.rooms.commands.join_room import JoinRoomCommand
-from application.rooms.invitation_codes import INVITATION_MISSING, new_invitation_code
+from application.rooms.constants.invitations import INVITATION_MISSING
+from application.rooms.constants.room_operations import MUTATION_ATTEMPTS
+from application.rooms.invitation_codes import new_invitation_code
 from application.rooms.presenters.room_view import room_view
 from application.rooms.room_access import require_open
 from application.rooms.room_limits import RoomLimits
@@ -16,10 +18,10 @@ from application.shared.attempt_limit import reserve_attempts
 from application.shared.command_usecase import wall_clock_ms
 from application.shared.outbox import NullOutboxNotifier, OutboxNotifier
 from application.shared.player_identity import PlayerIdentity
+from domain.rooms.constants.room_statuses import RoomStatus
+from domain.rooms.constants.room_visibilities import RoomVisibility
 from domain.rooms.models.room import Room
 from exceptions import AlreadyInRoomError, ConcurrentModificationError, NotInRoomError
-
-MUTATION_ATTEMPTS = 3  # reprises après un conflit d'écriture (deux joueurs qui entrent en même temps)
 
 
 def room_stream(room_id: str) -> str:
@@ -86,7 +88,7 @@ class RoomCommandUseCase:
     async def join_public(self, player: PlayerIdentity, room_id: str) -> dict[str, Any]:
         async def public_by_id(uow: RoomUnitOfWork) -> Optional[Room]:
             room = await uow.rooms.get(room_id)
-            return room if room and room.visibility == "public" else None  # un salon privé ne se trouve que par son lien
+            return room if room and room.visibility == RoomVisibility.PUBLIC else None  # un salon privé ne se trouve que par son lien
 
         return await self._join(player, public_by_id, JoinRoomCommand(), missing="Cette partie n'est plus disponible.")
 
@@ -152,7 +154,7 @@ class RoomCommandUseCase:
 
     async def _write(self, uow: RoomUnitOfWork, room: Room, *, new: bool = False) -> Room:
         room, events = room.pull_events()
-        if room.status == "closed":
+        if room.status == RoomStatus.CLOSED:
             await uow.rooms.delete(room)
             saved = room
         else:

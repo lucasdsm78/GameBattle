@@ -8,11 +8,10 @@ from typing import Optional
 from fastapi import Request
 
 from infrastructure.config import IpNetwork
+from interface.constants.http import MAX_REPORTED_PEERS, UNKNOWN_ADDRESS
 from interface.dependencies.container import get_settings
 
 logger = logging.getLogger(__name__)
-UNKNOWN_ADDRESS = "inconnue"
-MAX_REPORTED_PEERS = 256
 _reported_peers: set[str] = set()
 
 

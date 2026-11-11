@@ -8,9 +8,8 @@ from room_app_support import ORIGIN, RoomApp
 from starlette.testclient import WebSocketTestSession
 from starlette.websockets import WebSocketDisconnect
 
-from interface.api.room_realtime import CLOSE_NOT_IN_ROOM, CLOSE_TOO_CHATTY, CLOSE_UNAUTHENTICATED
 from interface.dependencies.container import room_broadcaster
-from interface.realtime.room_broadcaster import LEFT_ROOM_CODE
+from interface.realtime.constants.websocket_codes import CLOSE_LEFT_ROOM, CLOSE_NOT_IN_ROOM, CLOSE_TOO_CHATTY, CLOSE_UNAUTHENTICATED
 
 SOCKET = "/ws/rooms/current"
 Message = dict[str, Any]
@@ -91,7 +90,7 @@ def test_leaving_tells_the_player_then_closes_their_socket(room_app: RoomApp) ->
         assert room_app.client.post("/api/rooms/current/leave", headers=bob).status_code == 204
 
         assert _until(bob_socket, lambda message: message["type"] == "room.left") == {"type": "room.left"}
-        assert _closed_with(bob_socket) == LEFT_ROOM_CODE
+        assert _closed_with(bob_socket) == CLOSE_LEFT_ROOM
         left = _until(alice_socket, lambda message: any(e["type"] == "room.player_left" for e in message.get("events", ())))
         assert [player["pseudo"] for player in left["room"]["players"]] == ["Alice"]
 
@@ -106,7 +105,7 @@ def test_the_last_departure_closes_the_room_for_every_tab(room_app: RoomApp) -> 
 
         for tab in (first_tab, second_tab):
             assert _until(tab, lambda message: message["type"] in {"room.closed", "room.left"})["type"] == "room.closed"
-            assert _closed_with(tab) == LEFT_ROOM_CODE
+            assert _closed_with(tab) == CLOSE_LEFT_ROOM
 
 
 def test_resync_sends_the_full_state_again(room_app: RoomApp) -> None:

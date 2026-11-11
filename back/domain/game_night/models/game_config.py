@@ -11,7 +11,8 @@ from domain.culture.models.culture_actions import CultureActions
 from domain.fair_price.models.fair_price_actions import FairPriceActions
 from domain.flash_calc.models.flash_calc_actions import FlashCalcActions
 from domain.forbidden_word.models.forbidden_word_actions import ForbiddenWordActions
-from domain.golden_family.models.golden_family_actions import GoldenFamilyActions
+from domain.game_night.constants.game_night_phases import ALLOWED_STATUSES
+from domain.game_night.constants.game_night_timing import RULES_MS, TEAM_INTRO_MS, TEAMS_OUTRO_MS
 from domain.game_night.events import (
     GameNightFinished,
     GameNightStarted,
@@ -34,24 +35,19 @@ from domain.game_night.services.round_sequence import (
     build_round_sequence,
     compute_ranking,
 )
+from domain.golden_family.models.golden_family_actions import GoldenFamilyActions
 from domain.memory.models.memory_actions import MemoryActions
 from domain.right_flag.models.right_flag_actions import RightFlagActions
 from domain.seven_differences.models.seven_differences_actions import (
     SevenDifferencesActions,
 )
+from domain.shared.constants.scoring import TIE_LABEL
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
 from domain.shared.services.clock import utc_now_iso
-from domain.shared.services.scoring import TIE_LABEL
 from domain.stopchrono.models.stopchrono_actions import StopChronoActions
 from domain.vanishing_word.models.vanishing_word_actions import VanishingWordActions
 from exceptions import GameConfigurationNotReadyError, InvalidGameConfigError
-
-ALLOWED_STATUSES = frozenset({"configuring", "ready", "live", "finished"})
-# Ouverture : chaque équipe entre sur le plateau, puis les règles de la manche restent affichées 10 secondes.
-TEAM_INTRO_MS = 2_500
-TEAMS_OUTRO_MS = 2_000
-RULES_MS = 10_000
 
 GameTransition = Callable[[Any], GameState]
 

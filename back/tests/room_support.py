@@ -7,12 +7,14 @@ from typing import Any, Optional, Self
 
 from account_support import Clock, InMemoryAttempts
 
-from application.rooms.invitation_codes import CODE_ALPHABET, CODE_LENGTH
+from application.rooms.constants.invitations import CODE_ALPHABET, CODE_LENGTH
 from application.rooms.room_command_usecase import RoomCommandUseCase
 from application.rooms.room_query_usecase import RoomQueryUseCase
 from application.rooms.room_unit_of_work import RoomUnitOfWork
 from application.shared.outbox import Outbox, OutboxNotifier
 from application.shared.player_identity import PlayerIdentity
+from domain.rooms.constants.room_statuses import RoomStatus
+from domain.rooms.constants.room_visibilities import RoomVisibility
 from domain.rooms.models.room import Room
 from domain.rooms.repositories.room_repository import RoomRepository
 from domain.shared.events.domain_event import DomainEvent
@@ -54,11 +56,11 @@ class InMemoryRooms(RoomRepository):
         return next((room for room in self._data.rooms.values() if room.member(account_id)), None)
 
     async def list_open_public(self, limit: int) -> list[Room]:
-        rooms = [room for room in self._data.rooms.values() if room.visibility == "public" and room.status == "lobby"]
+        rooms = [room for room in self._data.rooms.values() if room.visibility == RoomVisibility.PUBLIC and room.status == RoomStatus.LOBBY]
         return sorted(rooms, key=lambda room: room.created_at_ms, reverse=True)[:limit]
 
     async def list_inactive(self, updated_before_ms: int, limit: int) -> list[Room]:
-        return [room for room in self._data.rooms.values() if room.status == "lobby" and room.updated_at_ms < updated_before_ms][:limit]
+        return [room for room in self._data.rooms.values() if room.status == RoomStatus.LOBBY and room.updated_at_ms < updated_before_ms][:limit]
 
     async def add(self, room: Room) -> Room:
         self._maybe_conflict()

@@ -7,18 +7,19 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from support import GameHarness, started_config
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
+from domain.fair_price.constants.fair_price_timing import FAIR_PRICE_TURN_MS
 from domain.fair_price.events import PriceHintGiven, PriceTurnEnded, PriceTurnStarted
-from domain.fair_price.models.fair_price_state import FAIR_PRICE_TURN_MS
 from domain.fair_price.models.price_item import PriceResult
 from domain.fair_price.services.fair_price_catalog import (
     PRICE_BANDS,
     PRICE_ITEMS_BY_ID,
     pick_round_items,
 )
-from domain.shared.services.scoring import TIE_LABEL
+from domain.shared.constants.scoring import TIE_LABEL
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
@@ -27,7 +28,6 @@ from infrastructure.repositories.game_night.game_config_mapper import (
 from interface.api.media import MEDIA_DIR
 from interface.api.media import router as media_router
 from interface.security import SecurityHeadersMiddleware
-from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 START_MS = 1_000

@@ -4,6 +4,8 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Optional
 
+from domain.forbidden_word.constants.forbidden_word_phases import FORBIDDEN_WORD_PHASES
+from domain.forbidden_word.constants.forbidden_word_timing import FORBIDDEN_WORD_SUDDEN_DEATH_MS, FORBIDDEN_WORD_TURN_MS
 from domain.forbidden_word.events import (
     SuddenDeathStarted,
     TurnEnded,
@@ -22,10 +24,6 @@ from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
 from domain.shared.services.scoring import pick_round_winner
 from exceptions import InvalidGameConfigError
-
-FORBIDDEN_WORD_PHASES = frozenset({"idle", "ready", "running", "finished"})
-FORBIDDEN_WORD_TURN_MS = 60_000
-FORBIDDEN_WORD_SUDDEN_DEATH_MS = 20_000
 
 
 def draw_forbidden_word_card(used_card_ids: list[str]) -> tuple[ForbiddenWordCard, list[str]]:

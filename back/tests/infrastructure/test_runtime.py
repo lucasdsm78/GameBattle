@@ -7,11 +7,8 @@ from typing import Any
 
 import pytest
 
-from infrastructure.database.single_instance_lock import (
-    API_INSTANCE_LOCK_ID,
-    AnotherInstanceRunningError,
-    SingleInstanceLock,
-)
+from infrastructure.constants.database_locks import API_INSTANCE_LOCK_ID
+from infrastructure.database.single_instance_lock import AnotherInstanceRunningError, SingleInstanceLock
 from infrastructure.runtime.periodic_task import PeriodicTask
 from interface import client_address as client_address_module
 from interface.client_address import resolve_client_address

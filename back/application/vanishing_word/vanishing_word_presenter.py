@@ -4,13 +4,10 @@ from typing import Any
 
 from application.shared.game_presenter import GamePresenter
 from application.vanishing_word.vanishing_word_rules import VANISHING_WORD_RULES
-from domain.vanishing_word.models.vanishing_word_state import (
-    HIDDEN_PHASES,
-    VANISHING_WORD_MEMORIZATION_MS,
-    VANISHING_WORD_WINNING_SCORE,
-    VanishingWordState,
-)
-from domain.vanishing_word.services.vanishing_word_catalog import WORDS_PER_LIST
+from domain.vanishing_word.constants.vanishing_word_limits import VANISHING_WORD_WINNING_SCORE, WORDS_PER_LIST
+from domain.vanishing_word.constants.vanishing_word_phases import HIDDEN_PHASES
+from domain.vanishing_word.constants.vanishing_word_timing import VANISHING_WORD_MEMORIZATION_MS
+from domain.vanishing_word.models.vanishing_word_state import VanishingWordState
 
 
 class VanishingWordPresenter(GamePresenter[VanishingWordState]):

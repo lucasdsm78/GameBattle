@@ -5,7 +5,8 @@ from typing import Any
 
 from application.fair_price.fair_price_rules import FAIR_PRICE_RULES
 from application.shared.game_presenter import GamePresenter
-from domain.fair_price.models.fair_price_state import FAIR_PRICE_TURN_MS, FairPriceState
+from domain.fair_price.constants.fair_price_timing import FAIR_PRICE_TURN_MS
+from domain.fair_price.models.fair_price_state import FairPriceState
 from domain.fair_price.services.fair_price_catalog import (
     PRICE_BANDS_BY_ID,
     PRICE_ITEMS_BY_ID,

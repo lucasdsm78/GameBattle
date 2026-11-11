@@ -2,20 +2,7 @@ from __future__ import annotations
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
-    (b"x-content-type-options", b"nosniff"),
-    (b"x-frame-options", b"DENY"),
-    (b"referrer-policy", b"no-referrer"),
-    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
-    (
-        b"content-security-policy",
-        b"default-src 'self'; connect-src 'self' ws: wss: http: https:; img-src 'self' data:; "
-        b"style-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'",
-    ),
-    (b"cross-origin-opener-policy", b"same-origin"),
-    (b"cross-origin-resource-policy", b"same-site"),
-    (b"cache-control", b"no-store"),
-)
+from interface.constants.http import SECURITY_HEADERS
 
 
 class SecurityHeadersMiddleware:

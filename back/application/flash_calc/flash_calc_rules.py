@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from application.shared.game_rules import GameRules
-from domain.shared.models.buzz_stream_state import BUZZ_STREAM_WINNING_SCORE
+from domain.shared.constants.buzz_stream_limits import BUZZ_STREAM_WINNING_SCORE
 
 # Écran des règles affiché avant chaque manche de « Calcul flash ».
 FLASH_CALC_RULES = GameRules(

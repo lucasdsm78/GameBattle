@@ -3,11 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from application.shared.game_presenter import GamePresenter
-from domain.shared.models.buzz_stream_state import (
-    BUZZ_STREAM_AUTO_PAUSE_AFTER,
-    BUZZ_STREAM_FEEDBACK_MS,
-    BuzzStreamState,
-)
+from domain.shared.constants.buzz_stream_limits import BUZZ_STREAM_AUTO_PAUSE_AFTER
+from domain.shared.constants.buzz_stream_timing import BUZZ_STREAM_FEEDBACK_MS
+from domain.shared.models.buzz_stream_state import BuzzStreamState
 
 
 class BuzzStreamPresenter[StateT: BuzzStreamState](GamePresenter[StateT]):

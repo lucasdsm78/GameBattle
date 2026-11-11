@@ -1,0 +1,9 @@
+"""Cadence et lots des tâches de fond."""
+
+from __future__ import annotations
+
+ACCOUNT_JANITOR_INTERVAL_SECONDS = 10 * 60
+ROOM_JANITOR_INTERVAL_SECONDS = 10 * 60
+PUBLISHED_EVENTS_KEPT_MS = 24 * 60 * 60 * 1000
+RELAY_INTERVAL_SECONDS = 1.0
+RELAY_BATCH = 200

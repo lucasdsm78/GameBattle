@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from application.shared.game_rules import GameRules, seconds
-from domain.fair_price.models.fair_price_state import FAIR_PRICE_TURN_MS
+from domain.fair_price.constants.fair_price_timing import FAIR_PRICE_TURN_MS
 
 # Écran des règles affiché avant chaque manche de « Le juste prix ».
 FAIR_PRICE_RULES = GameRules(

@@ -4,12 +4,9 @@ from typing import Any
 
 from application.flash_calc.flash_calc_rules import FLASH_CALC_RULES
 from application.shared.buzz_stream_presenter import BuzzStreamPresenter
+from domain.flash_calc.constants.flash_calc_limits import CALCS_PER_LEVEL
 from domain.flash_calc.models.flash_calc_state import FlashCalcState
-from domain.flash_calc.services.flash_calc_generator import (
-    CALCS_PER_LEVEL,
-    MAX_LEVEL,
-    display_ms_for,
-)
+from domain.flash_calc.services.flash_calc_generator import MAX_LEVEL, display_ms_for
 
 
 class FlashCalcPresenter(BuzzStreamPresenter[FlashCalcState]):

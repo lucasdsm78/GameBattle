@@ -3,18 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Optional
 
+from domain.culture.constants.culture_limits import CULTURE_QUESTIONS_PER_ROUND, CULTURE_TIEBREAK_DIFFICULTY
+from domain.culture.constants.culture_phases import CULTURE_PHASES
 from domain.culture.events import CultureAnswerRevealed, CultureTiebreakStarted
+from domain.shared.constants.scoring import TIE_LABEL
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.culture_question import CultureQuestion
 from domain.shared.models.game_state import GameState
 from domain.shared.services.question_catalog import pick_one_culture_question
-from domain.shared.services.scoring import TIE_LABEL, zero_scores
+from domain.shared.services.scoring import zero_scores
 from exceptions import InvalidGameConfigError
-
-CULTURE_QUESTIONS_PER_ROUND = 10
-CULTURE_PHASES = frozenset({"idle", "selecting", "question", "finished"})
-CULTURE_TIEBREAK_DIFFICULTY = "difficile"
 
 
 @dataclass(slots=True)

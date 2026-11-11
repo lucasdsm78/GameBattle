@@ -2,18 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from domain.game_night.constants.game_night_limits import DEFAULT_BUZZER_KEYS, MAX_TOTAL_ROUNDS, SUPPORTED_GAME_KEYS
 from domain.shared.services.question_catalog import CULTURE_DIFFICULTIES
 from exceptions import InvalidGameConfigError
 
-SUPPORTED_GAME_KEYS = frozenset(
-    {
-        "blindtest", "stopchrono", "culture", "bombe", "memory", "seven_differences", "auction", "forbidden_word",
-        "vanishing_word", "flash_calc", "right_flag", "golden_family", "fair_price",
-    }
-)
-DEFAULT_BUZZER_KEYS = ("1", "2", "3", "4", "5", "6")
 ALLOWED_CULTURE_DIFFICULTIES = frozenset({"toutes", *CULTURE_DIFFICULTIES})
-MAX_TOTAL_ROUNDS = 30
 
 
 def build_default_buzzer_keys(team_count: int) -> list[str]:

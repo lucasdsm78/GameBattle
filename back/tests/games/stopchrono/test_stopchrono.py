@@ -3,20 +3,18 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
+from support import started_config
 
 from application.game_night.game_config_presenter import present_game_config
-from domain.shared.services.scoring import TIE_LABEL
+from domain.shared.constants.scoring import TIE_LABEL
+from domain.stopchrono.constants.stopchrono_timing import STOPCHRONO_TARGET_RANGES_S
 from domain.stopchrono.events import ChronoRoundStarted
-from domain.stopchrono.models.stopchrono_state import (
-    STOPCHRONO_ROUNDS,
-    STOPCHRONO_TARGET_RANGES_S,
-)
+from domain.stopchrono.models.stopchrono_state import STOPCHRONO_ROUNDS
 from exceptions import InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 

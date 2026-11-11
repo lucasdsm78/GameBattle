@@ -2,15 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from application.golden_family.constants.golden_family_masks import HIDDEN_FAMILY_ANSWER
 from application.golden_family.golden_family_rules import GOLDEN_FAMILY_RULES
 from application.shared.game_presenter import GamePresenter
-from domain.golden_family.models.golden_family_state import (
-    GOLDEN_FAMILY_MAX_STRIKES,
-    GOLDEN_FAMILY_WINNING_SCORE,
-    GoldenFamilyState,
-)
-
-HIDDEN_FAMILY_ANSWER = {"text": "", "points": 0}
+from domain.golden_family.constants.golden_family_limits import GOLDEN_FAMILY_MAX_STRIKES, GOLDEN_FAMILY_WINNING_SCORE
+from domain.golden_family.models.golden_family_state import GoldenFamilyState
 
 
 class GoldenFamilyPresenter(GamePresenter[GoldenFamilyState]):

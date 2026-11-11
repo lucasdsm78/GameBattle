@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from application.shared.game_rules import GameRules
-from domain.memory.models.memory_state import MEMORY_CHAIN_LENGTH
+from domain.memory.constants.memory_limits import MEMORY_CHAIN_LENGTH
 
 # Écran des règles affiché avant chaque manche de « Mémoire en chaîne ».
 MEMORY_RULES = GameRules(

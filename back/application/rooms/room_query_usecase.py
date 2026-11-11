@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, Optional
 
-from application.rooms.invitation_codes import INVITATION_MISSING
+from application.rooms.constants.invitations import INVITATION_MISSING
+from application.rooms.constants.room_operations import PUBLIC_LIST_LIMIT
 from application.rooms.presenters.invitation_view import invitation_view
 from application.rooms.presenters.public_room_summary import public_room_summary
 from application.rooms.presenters.room_view import room_view
@@ -14,8 +15,6 @@ from application.shared.attempt_limit import reserve_attempts
 from application.shared.command_usecase import wall_clock_ms
 from application.shared.player_identity import PlayerIdentity
 from domain.rooms.models.room import Room
-
-PUBLIC_LIST_LIMIT = 30
 
 
 class RoomQueryUseCase:

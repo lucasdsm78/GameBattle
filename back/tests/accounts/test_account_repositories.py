@@ -16,11 +16,9 @@ from sqlalchemy import func, select
 from application.accounts.account_command_usecase import AccountCommandUseCase
 from application.accounts.account_query_usecase import AccountQueryUseCase
 from application.shared.attempt_counter import AttemptWindow
+from domain.accounts.constants.account_sessions import SESSION_TTL_MS
 from domain.accounts.models.player_account import PlayerAccount
-from domain.accounts.models.player_session import (
-    SESSION_TTL_MS,
-    PlayerSession,
-)
+from domain.accounts.models.player_session import PlayerSession
 from domain.accounts.models.pseudo import Pseudo
 from exceptions import (
     PseudoAlreadyTakenError,

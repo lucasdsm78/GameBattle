@@ -11,9 +11,7 @@ from account_support import (
 )
 
 from application.accounts.account_maintenance import AccountMaintenance
-from domain.accounts.models.player_session import (
-    SESSION_TTL_MS,
-)
+from domain.accounts.constants.account_sessions import SESSION_TTL_MS
 from exceptions import (
     NotAuthenticatedError,
 )

@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from application.shared.game_rules import GameRules, seconds
-from domain.vanishing_word.models.vanishing_word_state import (
-    VANISHING_WORD_MEMORIZATION_MS,
-    VANISHING_WORD_WINNING_SCORE,
-)
+from domain.vanishing_word.constants.vanishing_word_limits import VANISHING_WORD_WINNING_SCORE
+from domain.vanishing_word.constants.vanishing_word_timing import VANISHING_WORD_MEMORIZATION_MS
 
 # Écran des règles affiché avant chaque manche de « Le mot qui disparaît ».
 VANISHING_WORD_RULES = GameRules(

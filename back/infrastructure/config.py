@@ -8,11 +8,10 @@ from typing import Optional, Union
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from infrastructure.constants.environments import LOCAL_ENVIRONMENTS
+
 BASE_DIR = Path(__file__).resolve().parents[1]
 IpNetwork = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
-# Seuls environnements « locaux » : tout autre nom (staging, recette, production…) est un déploiement, avec les
-# mêmes exigences. Une faute de frappe dans GAMEBATTLE_ENVIRONMENT durcit la configuration au lieu de l'affaiblir.
-LOCAL_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
 
 
 class Settings(BaseSettings):

@@ -3,20 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Optional
 
+from domain.right_flag.constants.right_flag_limits import FLAGS_PER_ROUND
+from domain.right_flag.constants.right_flag_timing import RIGHT_FLAG_FASTEST_FLAG_MS, RIGHT_FLAG_FIRST_FLAG_MS, RIGHT_FLAG_SPEEDUP_MS
 from domain.right_flag.events import CountryAnnounced, FlagRevealed
 from domain.right_flag.models.right_flag_verdict import RightFlagVerdict
-from domain.right_flag.services.flag_catalog import (
-    COUNTRIES_BY_CODE,
-    FLAGS_PER_ROUND,
-    pick_round,
-)
+from domain.right_flag.services.flag_catalog import COUNTRIES_BY_CODE, pick_round
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.buzz_stream_state import BuzzStreamState
 from exceptions import InvalidGameConfigError
-
-RIGHT_FLAG_FIRST_FLAG_MS = 2_400
-RIGHT_FLAG_FASTEST_FLAG_MS = 1_500
-RIGHT_FLAG_SPEEDUP_MS = 100
 
 
 def flag_display_ms(round_number: int) -> int:

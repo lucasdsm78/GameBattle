@@ -3,18 +3,18 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from support import GameHarness
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
 from domain.game_night.models.game_config import build_default_game_config
-from domain.memory.models.memory_state import MEMORY_CHAIN_LENGTH
+from domain.memory.constants.memory_limits import MEMORY_CHAIN_LENGTH
 from domain.shared.models.culture_question import CultureQuestion
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import GameHarness
 
 
 def _question(index: int, prefix: str = "") -> CultureQuestion:

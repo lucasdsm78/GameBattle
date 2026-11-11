@@ -3,22 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional, Self
 
+from domain.shared.constants.buzz_stream_limits import BUZZ_STREAM_AUTO_PAUSE_AFTER, BUZZ_STREAM_WINNING_SCORE
+from domain.shared.constants.buzz_stream_phases import BUZZ_STREAM_PHASES, TIMED_PHASES
+from domain.shared.constants.buzz_stream_timing import BUZZ_STREAM_FEEDBACK_MS, BUZZ_STREAM_LOCK_MS
 from domain.shared.events import AnswerJudged, BuzzerPressed, BuzzStreamAutoPaused
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.buzz_verdict import BuzzVerdict
 from domain.shared.models.game_state import GameState
 from domain.shared.services.scoring import award_buzz, zero_scores
 from exceptions import InvalidGameConfigError
-
-BUZZ_STREAM_PHASES = frozenset({"idle", "running", "feedback", "paused", "finished"})
-TIMED_PHASES = frozenset({"running", "feedback"})
-BUZZ_STREAM_WINNING_SCORE = 5
-BUZZ_STREAM_FEEDBACK_MS = 1_500
-# Un buzz reçu juste après l'apparition d'un élément est un réflexe sur le précédent : on l'ignore.
-BUZZ_STREAM_LOCK_MS = 250
-# Après autant d'éléments d'affilée sans aucun buzz, personne ne joue : le défilement se met en pause seul,
-# et le serveur cesse d'écrire et de diffuser.
-BUZZ_STREAM_AUTO_PAUSE_AFTER = 15
 
 
 @dataclass(slots=True)

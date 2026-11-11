@@ -4,14 +4,9 @@ from unittest.mock import patch
 
 import pytest
 
-from domain.bombe.models.bombe_state import (
-    BOMBE_DIE_ROLL_MS,
-    BOMBE_HARD_SOUNDS,
-    BOMBE_MAX_DURATION_MS,
-    BOMBE_MIN_DURATION_MS,
-    BOMBE_SOUND_PATTERN,
-    generate_bombe_sound,
-)
+from domain.bombe.constants.bombe_sounds import BOMBE_HARD_SOUNDS
+from domain.bombe.constants.bombe_timing import BOMBE_DIE_ROLL_MS, BOMBE_MAX_DURATION_MS, BOMBE_MIN_DURATION_MS
+from domain.bombe.models.bombe_state import BOMBE_SOUND_PATTERN, generate_bombe_sound
 from domain.game_night.models.game_config import build_default_game_config
 from exceptions import InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (

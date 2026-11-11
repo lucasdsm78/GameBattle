@@ -8,7 +8,8 @@ from typing import Optional
 from application.accounts.account_commands import CredentialsCommand
 from application.accounts.account_limits import AccountLimits
 from application.accounts.account_unit_of_work import AccountUnitOfWork
-from application.accounts.session_tokens import SESSION_TOKEN_BYTES, hash_session_token, is_plausible_token
+from application.accounts.constants.session_token_limits import SESSION_TOKEN_BYTES
+from application.accounts.session_tokens import hash_session_token, is_plausible_token
 from application.accounts.views.account_view import AccountView
 from application.accounts.views.signed_in import SignedIn
 from application.shared.attempt_limit import reserve_attempts

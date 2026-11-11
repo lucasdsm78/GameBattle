@@ -5,30 +5,25 @@ import unicodedata
 from dataclasses import replace
 
 import pytest
+from support import GameHarness, started_config
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import ClientRole
 from domain.shared.events import AnswerJudged, BuzzerPressed
+from domain.vanishing_word.constants.vanishing_word_limits import VANISHING_WORD_WINNING_SCORE, WORDS_PER_LIST
+from domain.vanishing_word.constants.vanishing_word_timing import VANISHING_WORD_MEMORIZATION_MS
 from domain.vanishing_word.events import (
     VanishedWordRevealed,
     VanishingListShown,
     WordVanished,
 )
-from domain.vanishing_word.models.vanishing_word_state import (
-    VANISHING_WORD_MEMORIZATION_MS,
-    VANISHING_WORD_WINNING_SCORE,
-)
-from domain.vanishing_word.services.vanishing_word_catalog import (
-    VANISHING_WORDS,
-    WORDS_PER_LIST,
-)
+from domain.vanishing_word.services.vanishing_word_catalog import VANISHING_WORDS
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 START_MS = 1_000

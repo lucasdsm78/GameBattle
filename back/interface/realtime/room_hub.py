@@ -5,9 +5,8 @@ from collections import defaultdict
 
 from fastapi import WebSocket
 
+from interface.realtime.constants.realtime_limits import MAX_CONNECTIONS_PER_PLAYER
 from interface.realtime.room_connection import RoomConnection
-
-MAX_CONNECTIONS_PER_PLAYER = 3  # onglets ou appareils ouverts sur le même salon
 
 
 class RoomHub:

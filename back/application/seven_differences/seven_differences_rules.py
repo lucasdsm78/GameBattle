@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from application.shared.game_rules import GameRules, seconds
-from domain.seven_differences.models.seven_differences_state import (
-    DIFFERENCE_COUNT,
-    SEVEN_DIFFERENCES_MEMORIZATION_MS,
-)
+from domain.seven_differences.constants.seven_differences_limits import DIFFERENCE_COUNT
+from domain.seven_differences.constants.seven_differences_timing import SEVEN_DIFFERENCES_MEMORIZATION_MS
 
 # Écran des règles affiché avant chaque manche de « Les 7 différences ».
 SEVEN_DIFFERENCES_RULES = GameRules(

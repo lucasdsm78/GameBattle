@@ -6,30 +6,23 @@ import re
 from dataclasses import replace
 
 import pytest
+from support import GameHarness, started_config
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import ClientRole
+from domain.right_flag.constants.right_flag_limits import FLAGS_PER_ROUND, LOOKALIKES_PER_ROUND
 from domain.right_flag.events import CountryAnnounced, FlagRevealed
 from domain.right_flag.models.right_flag_state import flag_display_ms
-from domain.right_flag.services.flag_catalog import (
-    COUNTRIES,
-    COUNTRIES_BY_CODE,
-    FLAGS_PER_ROUND,
-    LOOKALIKES_PER_ROUND,
-    pick_round,
-)
+from domain.right_flag.services.flag_catalog import COUNTRIES, COUNTRIES_BY_CODE, pick_round
+from domain.shared.constants.buzz_stream_limits import BUZZ_STREAM_WINNING_SCORE
+from domain.shared.constants.buzz_stream_timing import BUZZ_STREAM_LOCK_MS
 from domain.shared.events import AnswerJudged, BuzzerPressed
-from domain.shared.models.buzz_stream_state import (
-    BUZZ_STREAM_LOCK_MS,
-    BUZZ_STREAM_WINNING_SCORE,
-)
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 START_MS = 1_000

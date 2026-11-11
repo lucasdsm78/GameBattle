@@ -12,6 +12,7 @@ from application.game_night.game_night_query_usecase import GameNightQueryUseCas
 from application.rooms.room_command_usecase import RoomCommandUseCase
 from application.rooms.room_query_usecase import RoomQueryUseCase
 from application.shared.player_identity import PlayerIdentity
+from interface.constants.http import CONTROLLER_TOKEN_HEADER, HARDWARE_TOKEN_HEADER
 from interface.dependencies.container import (
     account_command_usecase,
     account_query_usecase,
@@ -30,9 +31,6 @@ from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.realtime.hub import WebSocketHub
 from interface.realtime.room_broadcaster import RoomBroadcaster
 from interface.realtime.room_hub import RoomHub
-
-CONTROLLER_TOKEN_HEADER = "X-GameBattle-Controller-Token"
-HARDWARE_TOKEN_HEADER = "X-GameBattle-Hardware-Token"
 
 
 def game_night_use_case() -> GameNightCommandUseCase:

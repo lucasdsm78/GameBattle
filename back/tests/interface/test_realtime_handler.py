@@ -4,16 +4,13 @@ import asyncio
 import json
 
 import pytest
+from support import GameHarness, started_config
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
 from domain.blindtest.models.blindtest_track import build_blindtest_track
-from interface.realtime.message_handler import (
-    MAX_MESSAGE_CHARS,
-    RateLimiter,
-    handle_client_message,
-)
-from support import GameHarness, started_config
+from interface.realtime.constants.realtime_limits import CONTROL_MESSAGE_MAX_CHARS
+from interface.realtime.message_handler import RateLimiter, handle_client_message
 
 READ_ONLY = {"type": "error", "detail": "Le client display est en lecture seule."}
 
@@ -162,7 +159,7 @@ def test_domain_errors_are_replied_without_persisting() -> None:
         (json.dumps({"type": "unknown.event"}), "Type d'évènement non supporté."),
         (json.dumps({"type": "bombe.buzzer", "payload": {"team": 42}}), "Données invalides pour « bombe.buzzer » (team)."),
         (json.dumps({"type": "bombe.buzzer", "payload": {"team": "Rouges", "admin": True}}), "Données invalides pour « bombe.buzzer » (admin)."),
-        ("x" * (MAX_MESSAGE_CHARS + 1), "Message trop volumineux."),
+        ("x" * (CONTROL_MESSAGE_MAX_CHARS + 1), "Message trop volumineux."),
     ],
 )
 def test_malformed_messages_are_rejected(message: str, detail: str) -> None:

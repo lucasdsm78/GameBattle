@@ -7,24 +7,21 @@ from dataclasses import replace
 
 import pytest
 from pydantic import ValidationError
+from support import GameHarness
 
 from application.forbidden_word.forbidden_word_commands import ForbiddenWordCardCommand
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
+from domain.forbidden_word.constants.forbidden_word_timing import FORBIDDEN_WORD_SUDDEN_DEATH_MS, FORBIDDEN_WORD_TURN_MS
 from domain.forbidden_word.models.forbidden_word_card import ForbiddenWordTurn
-from domain.forbidden_word.models.forbidden_word_state import (
-    FORBIDDEN_WORD_SUDDEN_DEATH_MS,
-    FORBIDDEN_WORD_TURN_MS,
-)
 from domain.forbidden_word.services.forbidden_word_catalog import FORBIDDEN_WORD_CARDS
 from domain.game_night.models.game_config import GameConfig, build_default_game_config
-from domain.shared.services.scoring import TIE_LABEL
+from domain.shared.constants.scoring import TIE_LABEL
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import GameHarness
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 

@@ -9,8 +9,9 @@ from room_support import ALICE, BOB, CHLOE, IP, InMemoryOutboxStore, build_rooms
 
 from application.rooms.commands.create_room import CreateRoomCommand
 from application.rooms.commands.join_room import JoinRoomCommand
+from interface.realtime.constants.realtime_limits import MAX_CONNECTIONS_PER_PLAYER
 from interface.realtime.room_broadcaster import RoomBroadcaster, RoomEvent
-from interface.realtime.room_hub import MAX_CONNECTIONS_PER_PLAYER, RoomHub
+from interface.realtime.room_hub import RoomHub
 from interface.workers import outbox_relay
 from interface.workers.outbox_relay import OutboxRelay
 

@@ -4,10 +4,9 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
+from domain.accounts.constants.account_credentials import PSEUDO_MAX_LENGTH, PSEUDO_MIN_LENGTH
 from exceptions import InvalidPseudoError
 
-PSEUDO_MIN_LENGTH = 3
-PSEUDO_MAX_LENGTH = 20
 # Lettres latines (accents compris), chiffres, « - » et « _ » : pas d'espace ni de caractère invisible ou trompeur.
 _PSEUDO_PATTERN = re.compile(r"[0-9A-Za-zÀ-ÖØ-öø-ÿ_-]+")
 # Personne ne doit pouvoir se faire passer pour l'équipe du jeu ou pour l'animateur d'une partie.

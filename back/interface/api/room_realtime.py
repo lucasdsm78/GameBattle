@@ -20,22 +20,14 @@ from interface.dependencies import (
     RoomQueryUseCaseDep,
 )
 from interface.http_session import announced_origin, origin_is_trusted, session_token
+from interface.realtime.constants.realtime_limits import ROOM_MESSAGE_MAX_CHARS
+from interface.realtime.constants.realtime_timing import HEARTBEAT_SECONDS, IDLE_TIMEOUT_SECONDS, SESSION_RECHECK_SECONDS
+from interface.realtime.constants.websocket_codes import CLOSE_IDLE, CLOSE_NOT_IN_ROOM, CLOSE_TOO_CHATTY, CLOSE_UNAUTHENTICATED
 from interface.realtime.message_handler import RateLimiter
 from interface.realtime.room_connection import RoomConnection
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws", tags=["realtime"])
-
-HEARTBEAT_SECONDS = 20.0
-IDLE_TIMEOUT_SECONDS = 50.0  # plus de deux pings sans réponse : connexion morte
-SESSION_RECHECK_SECONDS = 60.0  # une déconnexion ailleurs (ou une session expirée) coupe aussi le temps réel
-MAX_MESSAGE_CHARS = 256  # le client n'envoie que « pong » et « resync »
-
-# Codes de fermeture que l'app joueur sait interpréter (4xxx : ne pas se reconnecter en boucle).
-CLOSE_UNAUTHENTICATED = 4401
-CLOSE_NOT_IN_ROOM = 4404
-CLOSE_IDLE = 4408
-CLOSE_TOO_CHATTY = 4429
 
 
 async def _resolve_player(accounts: AccountQueryUseCase, token: Optional[str]) -> Optional[PlayerIdentity]:
@@ -96,7 +88,7 @@ async def room_socket(
         while not connection.closed:
             raw = await websocket.receive_text()
             connection.last_seen = time.monotonic()
-            if len(raw) > MAX_MESSAGE_CHARS or not limiter.allow():
+            if len(raw) > ROOM_MESSAGE_MAX_CHARS or not limiter.allow():
                 await connection.close(CLOSE_TOO_CHATTY, "trop de messages")
                 break
             with suppress(ValueError, AttributeError):

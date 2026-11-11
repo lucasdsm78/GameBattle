@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from application.rooms.presenters.room_view import room_view
+from domain.rooms.constants.room_statuses import RoomStatus
 from application.rooms.room_query_usecase import RoomQueryUseCase
+from interface.realtime.constants.websocket_codes import CLOSE_LEFT_ROOM
 from interface.realtime.room_connection import RoomConnection
 from interface.realtime.room_hub import RoomHub
 
 logger = logging.getLogger(__name__)
-
-LEFT_ROOM_CODE = 4000  # fermeture normale : le joueur n'est plus membre (parti, ou salon fermé)
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +50,7 @@ class RoomBroadcaster:
             return
         room = await self._rooms.get_room(room_id)
         leaving: list[RoomConnection] = []
-        if room is None or room.status == "closed":
+        if room is None or room.status == RoomStatus.CLOSED:
             for connection in connections:
                 connection.send({"type": "room.closed"})
                 leaving.append(connection)
@@ -78,5 +78,5 @@ class RoomBroadcaster:
             logger.exception("room.presence.broadcast_failed", extra={"room_id": room_id})
 
     async def _close(self, connection: RoomConnection) -> None:
-        await connection.flush_and_close(LEFT_ROOM_CODE, "plus membre du salon")
+        await connection.flush_and_close(CLOSE_LEFT_ROOM, "plus membre du salon")
         await self._hub.disconnect(connection)

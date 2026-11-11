@@ -4,16 +4,15 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Optional
 
+from domain.shared.constants.scoring import TIE_LABEL
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
-from domain.shared.services.scoring import TIE_LABEL, zero_scores
+from domain.shared.services.scoring import zero_scores
+from domain.stopchrono.constants.stopchrono_phases import STOPCHRONO_PHASES
+from domain.stopchrono.constants.stopchrono_timing import STOPCHRONO_MAX_TARGET_MS, STOPCHRONO_TARGET_RANGES_S
 from domain.stopchrono.events import ChronoRoundStarted, ChronoStarted, ChronoStopped
 from exceptions import InvalidGameConfigError
 
-STOPCHRONO_MAX_TARGET_MS = 25000
-STOPCHRONO_PHASES = frozenset({"idle", "running", "revealed", "finished"})
-# Trois tours, des cibles de plus en plus longues : chaque tour tire la sienne dans sa tranche (en secondes).
-STOPCHRONO_TARGET_RANGES_S = ((7, 12), (13, 18), (19, 25))
 STOPCHRONO_ROUNDS = len(STOPCHRONO_TARGET_RANGES_S)
 
 

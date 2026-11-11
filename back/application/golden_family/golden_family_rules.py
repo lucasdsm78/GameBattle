@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from application.shared.game_rules import GameRules
-from domain.golden_family.models.golden_family_state import (
-    GOLDEN_FAMILY_MAX_STRIKES,
-    GOLDEN_FAMILY_WINNING_SCORE,
-)
+from domain.golden_family.constants.golden_family_limits import GOLDEN_FAMILY_MAX_STRIKES, GOLDEN_FAMILY_WINNING_SCORE
 
 # Écran des règles affiché avant chaque manche de « Une famille en or ».
 GOLDEN_FAMILY_RULES = GameRules(

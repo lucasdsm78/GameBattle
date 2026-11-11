@@ -3,8 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 from application.memory.memory_rules import MEMORY_RULES
-from application.shared.game_presenter import HIDDEN_ANSWER, GamePresenter
-from domain.memory.models.memory_state import MEMORY_CHAIN_LENGTH, MemoryState
+from application.shared.constants.answer_masks import HIDDEN_ANSWER
+from application.shared.game_presenter import GamePresenter
+from domain.memory.constants.memory_limits import MEMORY_CHAIN_LENGTH
+from domain.memory.models.memory_state import MemoryState
 
 
 class MemoryPresenter(GamePresenter[MemoryState]):

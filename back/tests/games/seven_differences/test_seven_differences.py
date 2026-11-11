@@ -3,20 +3,18 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from support import GameHarness
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
 from domain.game_night.models.game_config import build_default_game_config
-from domain.seven_differences.models.seven_differences_state import (
-    SEVEN_DIFFERENCES_MEMORIZATION_MS,
-)
-from domain.shared.services.scoring import TIE_LABEL
+from domain.seven_differences.constants.seven_differences_timing import SEVEN_DIFFERENCES_MEMORIZATION_MS
+from domain.shared.constants.scoring import TIE_LABEL
 from exceptions import CommandNotAllowedError, InvalidGameConfigError
 from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import GameHarness
 
 
 def _seven_config(*, teams: list[str] | None = None):

@@ -25,8 +25,8 @@ from infrastructure.repositories.game_night.game_state_repositories import (
     GAME_STATE_REPOSITORIES,
 )
 
-SESSION_ID = "current"  # une seule partie aujourd'hui ; demain, une par salon
-LEGACY_TABLE = "game_config_state"  # ancien document unique, avant les tables par jeu
+_SESSION_ID = "current"  # une seule partie aujourd'hui ; demain, une par salon
+_LEGACY_TABLE = "game_config_state"  # ancien document unique, avant les tables par jeu
 _COMMON_COLUMNS = tuple(
     column.name for column in GameSessionModel.__table__.columns if column.name not in {"id", "version", "created_at", "saved_at"}
 )
@@ -49,7 +49,7 @@ class PostgreSQLGameConfigRepository(GameConfigRepository):
       lecture, rien n'est écrit, `ConcurrentModificationError` est levée et la prochaine lecture repart de la base.
     """
 
-    def __init__(self, database: Database, session_id: str = SESSION_ID) -> None:
+    def __init__(self, database: Database, session_id: str = _SESSION_ID) -> None:
         self._database = database
         self._session_id = session_id
         self._snapshot: Optional[_Snapshot] = None
@@ -121,7 +121,7 @@ class PostgreSQLGameConfigRepository(GameConfigRepository):
     async def _legacy_payload(self, session: AsyncSession) -> Optional[dict[str, Any]]:
         """Base créée par l'API avant les tables par jeu (développement, sans migration) : on reprend une fois
         l'ancien document, qui reste en place. En production, ce sont les migrations qui recopient les données."""
-        if not await session.run_sync(lambda sync_session: inspect(sync_session.connection()).has_table(LEGACY_TABLE)):
+        if not await session.run_sync(lambda sync_session: inspect(sync_session.connection()).has_table(_LEGACY_TABLE)):
             return None
-        payload = await session.scalar(text(f"SELECT payload FROM {LEGACY_TABLE} WHERE aggregate_key = :key"), {"key": self._session_id})
+        payload = await session.scalar(text(f"SELECT payload FROM {_LEGACY_TABLE} WHERE aggregate_key = :key"), {"key": self._session_id})
         return json.loads(payload) if isinstance(payload, str) else payload

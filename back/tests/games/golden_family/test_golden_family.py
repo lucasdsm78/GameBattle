@@ -5,10 +5,12 @@ import unicodedata
 from dataclasses import replace
 
 import pytest
+from support import GameHarness, started_config
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import ClientRole
+from domain.golden_family.constants.golden_family_limits import GOLDEN_FAMILY_WINNING_SCORE
 from domain.golden_family.events import (
     FamilyAnswerRevealed,
     FamilyBoardRevealed,
@@ -17,7 +19,6 @@ from domain.golden_family.events import (
     FamilyStrikeGiven,
 )
 from domain.golden_family.models.family_question import BoardSlot
-from domain.golden_family.models.golden_family_state import GOLDEN_FAMILY_WINNING_SCORE
 from domain.golden_family.services.golden_family_catalog import (
     FAMILY_QUESTIONS,
     FAMILY_QUESTIONS_BY_ID,
@@ -28,7 +29,6 @@ from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus", "Verts"]
 # Se laver 45 · Chanter 20 · Réfléchir 18 · Se raser 9 · Pleurer 6

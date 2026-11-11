@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 
+from support import started_config
+
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import serialize_event
 from domain.auction.events import AuctionResolved, BidAccepted
 from domain.blindtest.models.blindtest_track import build_blindtest_track
 from domain.bombe.events import BombeArmed, BombeDieRolling, BombeExploded, BombePassed
+from domain.forbidden_word.constants.forbidden_word_timing import FORBIDDEN_WORD_TURN_MS
 from domain.forbidden_word.events import (
     SuddenDeathStarted,
     TurnEnded,
@@ -14,7 +17,6 @@ from domain.forbidden_word.events import (
     WordFound,
     WordSkipped,
 )
-from domain.forbidden_word.models.forbidden_word_state import FORBIDDEN_WORD_TURN_MS
 from domain.game_night.events import (
     GameNightFinished,
     GameNightStarted,
@@ -23,12 +25,10 @@ from domain.game_night.events import (
     RankingRevealed,
 )
 from domain.game_night.models.game_config import GameConfig
+from domain.memory.constants.memory_limits import MEMORY_CHAIN_LENGTH
 from domain.memory.events import ChainRecited, TeamDisqualified
-from domain.memory.models.memory_state import MEMORY_CHAIN_LENGTH
+from domain.seven_differences.constants.seven_differences_timing import SEVEN_DIFFERENCES_MEMORIZATION_MS
 from domain.seven_differences.events import DifferenceFound
-from domain.seven_differences.models.seven_differences_state import (
-    SEVEN_DIFFERENCES_MEMORIZATION_MS,
-)
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
 from domain.stopchrono.events import ChronoStarted, ChronoStopped
@@ -36,7 +36,6 @@ from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_from_payload,
     game_config_to_payload,
 )
-from support import started_config
 
 TWO_TEAMS = ["Rouges", "Bleus"]
 

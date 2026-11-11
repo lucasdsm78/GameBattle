@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from application.shared.game_rules import GameRules, seconds
-from domain.forbidden_word.models.forbidden_word_state import (
-    FORBIDDEN_WORD_SUDDEN_DEATH_MS,
-    FORBIDDEN_WORD_TURN_MS,
-)
+from domain.forbidden_word.constants.forbidden_word_timing import FORBIDDEN_WORD_SUDDEN_DEATH_MS, FORBIDDEN_WORD_TURN_MS
 
 # Écran des règles affiché avant chaque manche de « Le mot interdit ».
 FORBIDDEN_WORD_RULES = GameRules(

@@ -8,12 +8,11 @@ from pydantic import ValidationError
 
 from application.shared.snapshot import ClientRole
 from exceptions import ApplicationError, DomainError
+from interface.realtime.constants.realtime_limits import CONTROL_MESSAGE_MAX_CHARS
 from interface.realtime.dispatcher import RealtimeDispatcher
 from interface.schemas.websocket import ClientMessage
 
 logger = logging.getLogger(__name__)
-
-MAX_MESSAGE_CHARS = 64 * 1024
 
 
 class RateLimiter:
@@ -41,7 +40,7 @@ def error_reply(detail: str) -> dict[str, str]:
 
 async def handle_client_message(raw: str, role: ClientRole, dispatcher: RealtimeDispatcher) -> Optional[dict[str, Any]]:
     """Traite un message entrant. Renvoie la réponse directe à l'émetteur, ou `None` (le nouvel état est diffusé à tous)."""
-    if len(raw) > MAX_MESSAGE_CHARS:
+    if len(raw) > CONTROL_MESSAGE_MAX_CHARS:
         return error_reply("Message trop volumineux.")
     try:
         message = ClientMessage.model_validate_json(raw)

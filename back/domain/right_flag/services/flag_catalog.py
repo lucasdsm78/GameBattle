@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import random
 
+from domain.right_flag.constants.right_flag_limits import FLAGS_PER_ROUND, LOOKALIKES_PER_ROUND
 from domain.right_flag.models.country import Country
 
 # Tirage imprévisible : personne ne peut anticiper la position du bon drapeau.
 _SYSTEM_RANDOM = random.SystemRandom()
 
-FLAGS_PER_ROUND = 7
-LOOKALIKES_PER_ROUND = 4
 
 _FAMILIES: dict[str, tuple[tuple[str, str], ...]] = {
     "Tricolores verticaux": (

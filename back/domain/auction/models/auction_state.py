@@ -3,19 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Optional
 
+from domain.auction.constants.auction_limits import AUCTION_FAILURE_POINTS, AUCTION_MAX_TARGET_COUNT, AUCTION_WINNING_SCORE
+from domain.auction.constants.auction_phases import AUCTION_PHASES
+from domain.auction.constants.auction_timing import AUCTION_DURATION_MS
 from domain.auction.events import AuctionResolved, BidAccepted
 from domain.auction.services.auction_catalog import pick_auction_theme
+from domain.shared.constants.scoring import TIE_LABEL
 from domain.shared.events import BuzzerPressed
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
-from domain.shared.services.scoring import TIE_LABEL, zero_scores
+from domain.shared.services.scoring import zero_scores
 from exceptions import InvalidGameConfigError
-
-AUCTION_PHASES = frozenset({"idle", "bidding", "ready", "running", "resolved", "finished"})
-AUCTION_DURATION_MS = 30_000
-AUCTION_WINNING_SCORE = 20
-AUCTION_MAX_TARGET_COUNT = 100
-AUCTION_FAILURE_POINTS = 2
 
 
 @dataclass(slots=True)

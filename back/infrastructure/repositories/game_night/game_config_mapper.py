@@ -13,7 +13,7 @@ from infrastructure.repositories.game_night.game_state_repositories import (
     GAME_STATE_REPOSITORIES,
 )
 
-SESSION_FIELDS = ("status", "updated_at", "settings", "games", "rounds")
+_SESSION_FIELDS = ("status", "updated_at", "settings", "games", "rounds")
 
 
 def game_config_to_payload(config: GameConfig) -> dict[str, Any]:
@@ -62,7 +62,7 @@ def common_session_fields() -> tuple[str, ...]:
 
 def split_payload(payload: dict[str, Any]) -> GameSessionRecord:
     session = payload["session"]
-    common = {name: payload[name] for name in SESSION_FIELDS}
+    common = {name: payload[name] for name in _SESSION_FIELDS}
     common.update({_column(name): session[name] for name in common_session_fields()})
     active_round = session.get("active_round")
     common["active_game_key"] = active_round["game_key"] if active_round else None  # colonne dérivée, pour les requêtes
@@ -73,7 +73,7 @@ def join_payload(record: GameSessionRecord) -> dict[str, Any]:
     """Inverse de `split_payload`. Un jeu sans ligne (ajouté depuis) reprend son état par défaut."""
     session = {name: record.common[_column(name)] for name in common_session_fields() if _column(name) in record.common}
     session.update(record.game_states)
-    return {**{name: record.common[name] for name in SESSION_FIELDS}, "session": session}
+    return {**{name: record.common[name] for name in _SESSION_FIELDS}, "session": session}
 
 
 def _column(session_field: str) -> str:

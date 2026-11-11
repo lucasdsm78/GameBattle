@@ -3,8 +3,7 @@ from __future__ import annotations
 import hashlib
 from typing import Optional, TypeGuard
 
-SESSION_TOKEN_BYTES = 32
-MAX_SESSION_TOKEN_LENGTH = 128
+from application.accounts.constants.session_token_limits import MAX_SESSION_TOKEN_LENGTH
 
 
 def hash_session_token(token: str) -> str:

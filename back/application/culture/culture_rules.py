@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from application.shared.game_rules import GameRules
-from domain.culture.models.culture_state import CULTURE_QUESTIONS_PER_ROUND
+from domain.culture.constants.culture_limits import CULTURE_QUESTIONS_PER_ROUND
 
 # Écran des règles affiché avant chaque manche de « Culture générale ».
 CULTURE_RULES = GameRules(

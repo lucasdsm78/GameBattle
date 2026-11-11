@@ -5,16 +5,14 @@ from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Optional
 from uuid import uuid4
 
+from domain.memory.constants.memory_limits import MEMORY_CHAIN_LENGTH, MEMORY_RULES_VERSION
+from domain.memory.constants.memory_phases import MEMORY_PHASES
 from domain.memory.events import ChainRecited, TeamDisqualified
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.culture_question import CultureQuestion
 from domain.shared.models.game_state import GameState
 from domain.shared.services.question_catalog import pick_one_culture_question
 from exceptions import InvalidGameConfigError
-
-MEMORY_PHASES = frozenset({"idle", "question", "recitation", "finished"})
-MEMORY_CHAIN_LENGTH = 8
-MEMORY_RULES_VERSION = 2
 
 
 def pick_memory_question(asked_questions: list[str]) -> CultureQuestion:

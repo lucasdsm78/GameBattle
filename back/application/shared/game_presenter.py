@@ -6,8 +6,6 @@ from typing import Any, ClassVar
 from application.shared.game_rules import GameRules
 from domain.shared.models.game_state import GameState
 
-HIDDEN_ANSWER = "Réponse masquée"
-
 
 class GamePresenter[StateT: GameState]:
     """Vues client d'un jeu : la régie ne reçoit pas les données internes, l'écran public aucun secret.

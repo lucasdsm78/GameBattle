@@ -27,6 +27,11 @@ def _main_classes(path: Path) -> list[str]:
     ]
 
 
+# Ce qu'un module du domaine peut contenir : ses modèles, ses événements, ses services, ses ports de dépôt et ses
+# constantes (règles chiffrées, phases). Rien d'autre : pas de dossier `utils/` ou `helpers/` fourre-tout.
+DOMAIN_MODULE_FOLDERS = {"models", "events", "services", "repositories", "constants", "__pycache__"}
+
+
 DATABASE_TECHNICAL_FILES = {
     "__init__.py", "all_models.py", "database.py", "dataclass_codec.py", "json_document.py", "single_instance_lock.py",
     "sql_unit_of_work.py", "upsert.py",
@@ -39,6 +44,13 @@ def test_every_domain_module_follows_the_same_layout() -> None:
 
     assert modules == expected
     assert all((BACK_DIR / "domain" / module / "models").is_dir() for module in expected)
+    unknown = {
+        f"{module}/{folder.name}"
+        for module in expected
+        for folder in (BACK_DIR / "domain" / module).iterdir()
+        if folder.is_dir() and folder.name not in DOMAIN_MODULE_FOLDERS
+    }
+    assert unknown == set()
 
 
 def test_each_module_holds_one_main_class() -> None:

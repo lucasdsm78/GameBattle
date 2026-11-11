@@ -8,9 +8,10 @@ from pydantic import ValidationError
 
 from application.accounts.account_commands import CredentialsCommand
 from application.accounts.views.signed_in import SignedIn
-from domain.accounts.models.player_session import SESSION_TTL_MS
+from domain.accounts.constants.account_sessions import SESSION_TTL_MS
 from exceptions import InvalidCommandPayloadError
 from interface.client_address import client_address
+from interface.constants.http import MAX_CREDENTIALS_BODY_BYTES
 from interface.dependencies import AccountCommandUseCaseDep, AccountQueryUseCaseDep
 from interface.dependencies.container import get_settings
 from interface.http_session import (
@@ -20,7 +21,6 @@ from interface.http_session import (
 )
 from interface.schemas.accounts import AccountResponse
 
-MAX_CREDENTIALS_BODY_BYTES = 2_048
 _TOO_LARGE = HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Requête trop volumineuse.")
 
 

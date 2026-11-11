@@ -4,6 +4,9 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Optional
 
+from domain.fair_price.constants.fair_price_limits import FAIR_PRICE_HINTS
+from domain.fair_price.constants.fair_price_phases import FAIR_PRICE_PHASES
+from domain.fair_price.constants.fair_price_timing import FAIR_PRICE_TURN_MS
 from domain.fair_price.events import PriceHintGiven, PriceTurnEnded, PriceTurnStarted
 from domain.fair_price.models.price_item import PriceItem, PriceResult
 from domain.fair_price.services.fair_price_catalog import (
@@ -11,14 +14,10 @@ from domain.fair_price.services.fair_price_catalog import (
     PRICE_ITEMS_BY_ID,
     pick_round_items,
 )
+from domain.shared.constants.scoring import TIE_LABEL
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
-from domain.shared.services.scoring import TIE_LABEL
 from exceptions import InvalidGameConfigError
-
-FAIR_PRICE_PHASES = frozenset({"idle", "ready", "running", "finished"})
-FAIR_PRICE_TURN_MS = 60_000
-FAIR_PRICE_HINTS = frozenset({"plus", "moins"})
 
 
 @dataclass(slots=True)

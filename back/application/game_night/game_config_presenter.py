@@ -19,7 +19,8 @@ from application.seven_differences.seven_differences_presenter import (
 from application.shared.game_presenter import GamePresenter
 from application.stopchrono.stopchrono_presenter import StopChronoPresenter
 from application.vanishing_word.vanishing_word_presenter import VanishingWordPresenter
-from domain.game_night.models.game_config import TEAM_INTRO_MS, GameConfig
+from domain.game_night.constants.game_night_timing import TEAM_INTRO_MS
+from domain.game_night.models.game_config import GameConfig
 
 GAME_PRESENTERS: dict[str, GamePresenter[Any]] = {
     "blindtest": BlindtestPresenter(),

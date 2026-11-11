@@ -8,7 +8,8 @@ from room_support import ALICE, BOB, CHLOE, IP, build_rooms, events_of
 from application.rooms.commands.change_team import ChangeTeamCommand
 from application.rooms.commands.create_room import CreateRoomCommand
 from application.rooms.commands.join_room import JoinRoomCommand
-from application.rooms.room_command_usecase import MUTATION_ATTEMPTS, room_stream
+from application.rooms.constants.room_operations import MUTATION_ATTEMPTS
+from application.rooms.room_command_usecase import room_stream
 from exceptions import (
     AlreadyInRoomError,
     ConcurrentModificationError,

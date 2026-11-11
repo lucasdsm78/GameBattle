@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from application.culture.culture_rules import CULTURE_RULES
-from application.shared.game_presenter import HIDDEN_ANSWER, GamePresenter
+from application.shared.constants.answer_masks import HIDDEN_ANSWER
+from application.shared.game_presenter import GamePresenter
 from domain.culture.models.culture_state import (
     CultureState,
 )

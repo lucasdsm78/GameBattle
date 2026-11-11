@@ -14,7 +14,7 @@ from exceptions import (
 )
 from interface.realtime.routes import Route
 
-DISPLAY_READ_ONLY_MESSAGE = "Le client display est en lecture seule."
+_DISPLAY_READ_ONLY_MESSAGE = "Le client display est en lecture seule."
 
 
 class RealtimeDispatcher:
@@ -34,7 +34,7 @@ class RealtimeDispatcher:
             raise UnknownCommandError("Type d'évènement non supporté.")
         if role not in route.roles:
             raise CommandNotAllowedError(
-                DISPLAY_READ_ONLY_MESSAGE if role is ClientRole.DISPLAY else "Commande non autorisée pour ce client."
+                _DISPLAY_READ_ONLY_MESSAGE if role is ClientRole.DISPLAY else "Commande non autorisée pour ce client."
             )
         return await route.handler(self._use_cases, self._parse(route, payload))
 

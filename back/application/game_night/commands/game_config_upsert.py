@@ -9,13 +9,9 @@ from application.game_night.commands.game_definition import GameDefinitionModel
 from application.game_night.commands.game_round_plan import GameRoundPlanModel
 from application.game_night.commands.game_settings import GameSettingsModel
 from application.shared.commands.input_model import InputModel
+from domain.game_night.constants.game_night_limits import SUPPORTED_GAME_KEYS
 from domain.game_night.models.game_config import GameConfig
-from domain.game_night.models.settings import (
-    SUPPORTED_GAME_KEYS,
-    GameDefinition,
-    GameRoundPlan,
-    GameSettings,
-)
+from domain.game_night.models.settings import GameDefinition, GameRoundPlan, GameSettings
 
 
 class GameConfigUpsertModel(InputModel):

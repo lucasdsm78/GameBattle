@@ -6,9 +6,7 @@ from collections import defaultdict
 from infrastructure.database.outbox.outbox_store import OutboxStore
 from infrastructure.runtime.periodic_task import PeriodicTask
 from interface.realtime.room_broadcaster import RoomBroadcaster, RoomEvent
-
-RELAY_INTERVAL_SECONDS = 1.0
-RELAY_BATCH = 200
+from interface.workers.constants.worker_schedules import RELAY_BATCH, RELAY_INTERVAL_SECONDS
 
 
 class OutboxRelay(PeriodicTask):

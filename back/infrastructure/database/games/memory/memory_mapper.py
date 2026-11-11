@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from domain.memory.models.memory_state import MEMORY_RULES_VERSION, MemoryState
+from domain.memory.constants.memory_limits import MEMORY_RULES_VERSION
+from domain.memory.models.memory_state import MemoryState
 from infrastructure.database.games.shared.game_state_mapper import GameStateMapper
 
 

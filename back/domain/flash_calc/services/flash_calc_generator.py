@@ -4,13 +4,12 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from domain.flash_calc.constants.flash_calc_limits import CALCS_PER_LEVEL, CORRECT_RATIO
 from domain.flash_calc.models.flash_calculation import FlashCalculation
 
 # Tirage imprévisible : personne ne peut anticiper si le prochain calcul sera juste.
 _SYSTEM_RANDOM = random.SystemRandom()
 
-CORRECT_RATIO = 0.45
-CALCS_PER_LEVEL = 6
 
 Operation = tuple[int, str, int, int]
 OperationFactory = Callable[[random.Random], Operation]

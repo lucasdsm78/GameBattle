@@ -10,10 +10,10 @@ from typing import Any
 
 from fastapi import WebSocket
 
-logger = logging.getLogger(__name__)
+from interface.realtime.constants.realtime_limits import ROOM_MAX_PENDING_MESSAGES
+from interface.realtime.constants.realtime_timing import SEND_TIMEOUT_SECONDS
 
-MAX_PENDING_MESSAGES = 64  # au-delà, le client est trop en retard : on le coupe, il se resynchronisera
-SEND_TIMEOUT_SECONDS = 5.0
+logger = logging.getLogger(__name__)
 
 
 class RoomConnection:
@@ -34,7 +34,7 @@ class RoomConnection:
     def send(self, message: dict[str, Any]) -> None:
         if self.closed:
             return
-        if len(self._queue) >= MAX_PENDING_MESSAGES:
+        if len(self._queue) >= ROOM_MAX_PENDING_MESSAGES:
             asyncio.create_task(self.close(1013, "trop de retard"))
             return
         self._queue.append(json.dumps(message, ensure_ascii=False, separators=(",", ":")))

@@ -5,35 +5,26 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Optional
 
+from domain.bombe.constants.bombe_limits import BOMBE_DIE_RESULTS
+from domain.bombe.constants.bombe_phases import BOMBE_PHASES
+from domain.bombe.constants.bombe_sounds import (
+    BOMBE_HARD_SOUND_RATIO,
+    BOMBE_HARD_SOUNDS,
+    BOMBE_LETTERS,
+    BOMBE_SOUND_CODAS,
+    BOMBE_SOUND_ONSETS,
+    BOMBE_SOUND_VOWELS,
+)
+from domain.bombe.constants.bombe_timing import BOMBE_DIE_ROLL_MS, BOMBE_MAX_DURATION_MS, BOMBE_MIN_DURATION_MS
 from domain.bombe.events import BombeArmed, BombeDieRolling, BombeExploded, BombePassed
 from domain.shared.events.domain_event import DomainEvent
 from domain.shared.models.game_state import GameState
 from domain.shared.services.scoring import zero_scores
 from exceptions import InvalidGameConfigError
 
-BOMBE_PHASES = frozenset({"idle", "awaiting_roll", "rolling", "running", "exploded"})
-BOMBE_LETTERS = tuple("ABCDEFGHILMNOPRSTUV")
-BOMBE_SOUND_ONSETS = tuple("BDFGKLMNPRSTV")
-BOMBE_SOUND_VOWELS = ("A", "E", "I", "O", "OU")
-BOMBE_SOUND_CODAS = ("", "", "L", "M", "N", "R", "S")
-# Sons plus durs (groupes de consonnes, voyelles composées), choisis pour rester jouables à l'oral.
-BOMBE_HARD_SOUND_RATIO = 0.4
-BOMBE_HARD_SOUNDS = (
-    "GRAN", "TRAN", "PLAN", "BLAN", "FRAN", "CHAN", "CRAN", "CLAN", "PRIN", "TRIN", "BRIN",
-    "TROU", "GROU", "CLOU", "FLOU", "CHOU", "JOU", "BROU",
-    "TROI", "CROI", "DROI", "FROI", "CHOI", "JOI", "PROI",
-    "BLEU", "FLEU", "CHEU", "JEU", "PLEU", "PREU",
-    "CRI", "PRI", "TRI", "BRI", "GRI", "PLI", "CLI",
-    "TRO", "CRO", "GRO", "FLO", "GLO", "BRO", "PRO",
-    "CHA", "CHI", "TRA", "GRA", "PLA", "BLA", "CLA", "DRA",
-)
 BOMBE_SOUND_PATTERN = re.compile(
     r"^(?:[BDFGKLMNPRSTV]|[BCDFGPT]R|[BCFGP]L|CH|J)(?:(?:OU|OI|EU|[AEIO])[LMNRS]?|AN|ON|IN)$"
 )
-BOMBE_DIE_RESULTS = ("TIC", "TAC", "BOUM")
-BOMBE_DIE_ROLL_MS = 2_500
-BOMBE_MIN_DURATION_MS = 30_000
-BOMBE_MAX_DURATION_MS = 75_000
 
 
 def generate_bombe_sound() -> str:

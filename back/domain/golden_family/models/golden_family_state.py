@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import ClassVar, Optional
 
+from domain.golden_family.constants.golden_family_limits import GOLDEN_FAMILY_MAX_STRIKES, GOLDEN_FAMILY_WINNING_SCORE
+from domain.golden_family.constants.golden_family_phases import ANSWERING_PHASES, GOLDEN_FAMILY_PHASES
 from domain.golden_family.events import (
     FamilyAnswerRevealed,
     FamilyBoardRevealed,
@@ -21,13 +23,7 @@ from domain.shared.models.game_state import GameState
 from domain.shared.services.scoring import zero_scores
 from exceptions import InvalidGameConfigError
 
-GOLDEN_FAMILY_PHASES = frozenset({"idle", "faceoff", "duel", "control", "steal", "revealed", "finished"})
-# duel : chaque équipe donne une réponse pour prendre la main ; control : l'équipe qui a la main enchaîne ;
-# steal : après 3 fautes, les autres équipes tentent une réponse chacune.
-ANSWERING_PHASES = frozenset({"duel", "control", "steal"})
 QUESTION_PHASES = frozenset({"faceoff", *ANSWERING_PHASES})
-GOLDEN_FAMILY_WINNING_SCORE = 300
-GOLDEN_FAMILY_MAX_STRIKES = 3
 
 
 def _others(teams: list[str], team: str) -> list[str]:

@@ -5,10 +5,8 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from infrastructure.constants.database_locks import API_INSTANCE_LOCK_ID
 from infrastructure.database.database import Database
-
-# Identifiant arbitraire mais fixe du verrou consultatif de l'API (entier 64 bits).
-API_INSTANCE_LOCK_ID = 0x47_42_41_50_49_00_00_01
 
 
 class AnotherInstanceRunningError(RuntimeError):

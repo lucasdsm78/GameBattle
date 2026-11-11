@@ -4,12 +4,13 @@ import asyncio
 from dataclasses import replace
 
 import pytest
+from support import GameHarness, started_config
 
 from application.game_night.game_config_presenter import present_game_config
+from domain.shared.constants.buzz_stream_limits import BUZZ_STREAM_AUTO_PAUSE_AFTER
+from domain.shared.constants.buzz_stream_timing import BUZZ_STREAM_LOCK_MS
 from domain.shared.events import BuzzStreamAutoPaused
-from domain.shared.models.buzz_stream_state import BUZZ_STREAM_AUTO_PAUSE_AFTER, BUZZ_STREAM_LOCK_MS
 from exceptions import InvalidGameConfigError
-from support import GameHarness, started_config
 
 TEAMS = ["Rouges", "Bleus"]
 START_MS = 1_000

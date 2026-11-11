@@ -4,14 +4,12 @@ import asyncio
 from dataclasses import replace
 
 import pytest
+from support import GameHarness
 
 from application.game_night.game_config_presenter import present_game_config
 from application.shared.snapshot import ClientRole
-from domain.auction.models.auction_state import (
-    AUCTION_DURATION_MS,
-    AUCTION_MAX_TARGET_COUNT,
-    AUCTION_WINNING_SCORE,
-)
+from domain.auction.constants.auction_limits import AUCTION_MAX_TARGET_COUNT, AUCTION_WINNING_SCORE
+from domain.auction.constants.auction_timing import AUCTION_DURATION_MS
 from domain.game_night.models.game_config import build_default_game_config
 from exceptions import (
     CommandNotAllowedError,
@@ -23,7 +21,6 @@ from infrastructure.repositories.game_night.game_config_mapper import (
     game_config_to_payload,
 )
 from interface.realtime.deadline_worker import GameDeadlineWorker
-from support import GameHarness
 
 
 def _auction_config(*, teams: list[str] | None = None):
