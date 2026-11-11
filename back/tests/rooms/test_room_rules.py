@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from room_support import ALICE, BOB, CHLOE
 
-from domain.rooms.events import HostChanged, PlayerJoined, PlayerLeft, RoomClosed, RoomOpened, TeamChanged
 from domain.rooms.constants.room_limits import MAX_TEAMS, PLAYERS_PER_TEAM, SOLO_MAX_PLAYERS, SOLO_MIN_PLAYERS, TEAM_NAMES
+from domain.rooms.events import HostChanged, PlayerJoined, PlayerLeft, RoomClosed, RoomOpened, TeamChanged
 from domain.rooms.models.room import Room
 from exceptions import RoomFullError, RoomRuleError
 

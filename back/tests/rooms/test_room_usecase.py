@@ -10,6 +10,7 @@ from application.rooms.commands.create_room import CreateRoomCommand
 from application.rooms.commands.join_room import JoinRoomCommand
 from application.rooms.constants.room_operations import MUTATION_ATTEMPTS
 from application.rooms.room_command_usecase import room_stream
+from application.shared.player_identity import PlayerIdentity
 from exceptions import (
     AlreadyInRoomError,
     ConcurrentModificationError,
@@ -236,3 +237,59 @@ def test_every_player_for_themselves_fills_up_to_the_chosen_maximum() -> None:
 
     assert full["capacity"] == 3 and full["teams"] == [] and [player["team"] for player in full["players"]] == ["Alice", "Bob", "Chloé"]
     assert asyncio.run(rooms.queries.list_public()) == []  # complet : retiré de la liste
+
+
+DAVE = PlayerIdentity(account_id="44444444-4444-4444-8444-444444444444", pseudo="Dave")
+EVE = PlayerIdentity(account_id="55555555-5555-4555-8555-555555555555", pseudo="Eve")
+
+
+def _public(rooms, host, *, max_players: int = 4) -> dict:  # type: ignore[no-untyped-def]
+    return asyncio.run(rooms.commands.create(host, CreateRoomCommand(visibility="public", format="solo", max_players=max_players)))
+
+
+def test_quick_join_picks_the_fullest_public_room_then_the_oldest() -> None:
+    rooms = build_rooms()
+    oldest = _public(rooms, ALICE, max_players=4)
+    rooms.clock.now += 1_000
+    fuller = _public(rooms, BOB, max_players=2)  # 1/2 : plus près de démarrer que 1/4
+    rooms.clock.now += 1_000
+    asyncio.run(rooms.commands.create(CHLOE, PRIVATE_TEAMS))  # privée : jamais proposée
+
+    assert asyncio.run(rooms.commands.quick_join(DAVE))["id"] == fuller["id"]
+    assert asyncio.run(rooms.commands.quick_join(EVE))["id"] == oldest["id"]  # l'autre est complète
+
+
+def test_quick_join_moves_on_when_the_room_fills_up_meanwhile(monkeypatch: pytest.MonkeyPatch) -> None:
+    from room_support import InMemoryRooms
+
+    rooms = build_rooms()
+    taken = _public(rooms, ALICE, max_players=2)
+    rooms.clock.now += 1_000
+    spare = _public(rooms, BOB, max_players=4)
+    stale = rooms.store.rooms[taken["id"]]  # vue de la liste, avant que Chloé prenne la dernière place
+    asyncio.run(rooms.commands.join_public(CHLOE, taken["id"]))
+    original = InMemoryRooms.list_open_public
+
+    async def stale_listing(self, limit):  # type: ignore[no-untyped-def]
+        return [stale, *[room for room in await original(self, limit) if room.id != stale.id]]
+
+    monkeypatch.setattr(InMemoryRooms, "list_open_public", stale_listing)
+
+    assert asyncio.run(rooms.commands.quick_join(DAVE))["id"] == spare["id"]
+
+
+def test_quick_join_says_when_no_public_room_is_waiting() -> None:
+    rooms = build_rooms()
+    asyncio.run(rooms.commands.create(ALICE, PRIVATE_TEAMS))
+
+    with pytest.raises(RoomNotFoundError, match="Aucune partie publique"):
+        asyncio.run(rooms.commands.quick_join(BOB))
+
+
+def test_quick_join_refuses_a_player_already_in_a_room() -> None:
+    rooms = build_rooms()
+    _public(rooms, ALICE)
+    asyncio.run(rooms.commands.create(BOB, PRIVATE_TEAMS))
+
+    with pytest.raises(AlreadyInRoomError):
+        asyncio.run(rooms.commands.quick_join(BOB))

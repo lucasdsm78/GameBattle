@@ -6,8 +6,8 @@ const REFRESH_MS = 10_000;
 
 export type PublicRoomsState = { rooms: PublicRoom[] | null; error: string | null; refreshing: boolean };
 
-/** Les parties publiques ouvertes, rafraîchies toutes les 10 s tant que la page est visible. */
-export function usePublicRooms() {
+/** Les parties publiques ouvertes, rafraîchies toutes les 10 s tant que la liste est affichée et la page visible. */
+export function usePublicRooms(enabled: boolean) {
   const [state, setState] = useState<PublicRoomsState>({ rooms: null, error: null, refreshing: true });
   const inFlight = useRef<AbortController | null>(null);
 
@@ -25,6 +25,7 @@ export function usePublicRooms() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     refresh();
     const timer = window.setInterval(() => document.visibilityState === 'visible' && refresh(), REFRESH_MS);
     const onVisible = () => document.visibilityState === 'visible' && refresh();
@@ -34,7 +35,7 @@ export function usePublicRooms() {
       document.removeEventListener('visibilitychange', onVisible);
       inFlight.current?.abort();
     };
-  }, [refresh]);
+  }, [enabled, refresh]);
 
   return { ...state, refresh };
 }

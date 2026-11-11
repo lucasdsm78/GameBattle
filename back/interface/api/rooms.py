@@ -46,6 +46,11 @@ async def join_by_invitation(
     return await rooms.join_by_invitation(player, code, command or JoinRoomCommand(), client_address(request))
 
 
+@router.post("/quick-join", summary="Rejoindre rapidement la partie publique la plus près de démarrer")
+async def quick_join(player: CurrentPlayerDep, rooms: RoomCommandUseCaseDep) -> dict[str, Any]:
+    return await rooms.quick_join(player)
+
+
 @router.post("/{room_id}/join", summary="Rejoindre une partie publique")
 async def join_public(room_id: RoomId, player: CurrentPlayerDep, rooms: RoomCommandUseCaseDep) -> dict[str, Any]:
     return await rooms.join_public(player, room_id)

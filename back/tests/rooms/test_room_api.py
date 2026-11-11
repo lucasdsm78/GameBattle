@@ -71,3 +71,15 @@ def test_room_errors_are_explicit(room_app: RoomApp) -> None:
     assert malformed.status_code == 422
     too_many = client.post("/api/rooms", json={"visibility": "public", "format": "solo", "max_players": 9}, headers=bob)
     assert too_many.status_code == 422
+
+
+def test_quick_join_from_the_api(room_app: RoomApp) -> None:
+    client = room_app.client
+    alice, bob = room_app.register("Alice"), room_app.register("Bob")
+
+    none = client.post("/api/rooms/quick-join", headers=bob)
+    assert none.status_code == 404 and none.json()["detail"] == "Aucune partie publique n'attend de joueurs pour l'instant."
+
+    room_id = client.post("/api/rooms", json={"visibility": "public", "format": "solo", "max_players": 3}, headers=alice).json()["id"]
+    joined = client.post("/api/rooms/quick-join", headers=bob)
+    assert joined.status_code == 200 and joined.json()["id"] == room_id and joined.json()["me"]["pseudo"] == "Bob"

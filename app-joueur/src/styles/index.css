@@ -780,6 +780,59 @@ button:disabled {
   opacity: 0.55;
 }
 
+/* --- Rejoindre : action principale, puis options repliées --- */
+.play-lead {
+  margin: -8px 0 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.searching {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 4px 16px;
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  background: rgba(255, 198, 41, 0.08);
+  font-weight: 800;
+}
+
+.searching .loader {
+  flex: none;
+}
+
+.searching span:not(.loader) {
+  flex: 1;
+}
+
+.join-options {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.disclosure-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  color: var(--muted);
+}
+
+.disclosure-panel {
+  padding-top: 12px;
+  animation: card-in 0.25s ease-out both;
+}
+
+.public-rooms {
+  display: grid;
+  gap: 10px;
+}
+
 /* --- Parties publiques --- */
 .public-head {
   display: flex;

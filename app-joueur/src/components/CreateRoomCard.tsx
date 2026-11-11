@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../services/http';
 import { CreateRoom, Room, RoomFormat, SOLO_MAX_PLAYERS, SOLO_MIN_PLAYERS, Visibility, roomsApi } from '../services/roomsApi';
 import { Choice, ChoiceGroup } from './ChoiceGroup';
@@ -18,11 +18,27 @@ const TEAM_COUNTS: readonly Choice<'2' | '3' | '4'>[] = [
   { value: '4', label: '4' },
 ];
 
-export function CreateRoomCard({ onCreated }: { onCreated: (room: Room) => void }) {
+type Props = {
+  onCreated: (room: Room) => void;
+  /** Change à chaque demande « Créer une partie publique » (aucune partie trouvée) : la carte se règle en publique. */
+  publicRequest: number;
+};
+
+export function CreateRoomCard({ onCreated, publicRequest }: Props) {
   const [settings, setSettings] = useState<CreateRoom>({ visibility: 'private', format: 'teams', team_count: 2, max_players: 4 });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const card = useRef<HTMLElement>(null);
+  const submit = useRef<HTMLButtonElement>(null);
   const update = (change: Partial<CreateRoom>) => setSettings((current) => ({ ...current, ...change }));
+
+  useEffect(() => {
+    if (publicRequest === 0) return;
+    setSettings((current) => ({ ...current, visibility: 'public' }));
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    card.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+    submit.current?.focus({ preventScroll: true });
+  }, [publicRequest]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,7 +54,7 @@ export function CreateRoomCard({ onCreated }: { onCreated: (room: Room) => void 
   }
 
   return (
-    <section className="panel play-card" aria-labelledby="create-title">
+    <section ref={card} className="panel play-card" aria-labelledby="create-title">
       <h2 id="create-title" className="section-title">
         Créer une partie
       </h2>
@@ -69,7 +85,7 @@ export function CreateRoomCard({ onCreated }: { onCreated: (room: Room) => void 
         <p className="form-error" role="alert">
           {error}
         </p>
-        <button type="submit" className="primary-button" disabled={submitting} aria-busy={submitting}>
+        <button ref={submit} type="submit" className="primary-button" disabled={submitting} aria-busy={submitting}>
           {submitting ? 'Création…' : 'Créer la partie'}
         </button>
       </form>

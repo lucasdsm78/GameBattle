@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { AccountBar } from '../components/AccountBar';
 import { CreateRoomCard } from '../components/CreateRoomCard';
 import { JoinRoomCard } from '../components/JoinRoomCard';
@@ -20,6 +20,7 @@ type Props = {
 /** L'espace du joueur connecté : son salon s'il en a un, sinon de quoi en créer ou en rejoindre un. */
 export function PlayerArea({ account, route, navigate, onSignOut, onSessionLost }: Props) {
   const { state, entered, leave, resume, reload } = useRoom(onSessionLost);
+  const [publicRequest, setPublicRequest] = useState(0);
   const home = useCallback(() => navigate({ name: 'home' }, { replace: true }), [navigate]);
   const joined = useCallback(
     (room: Room) => {
@@ -59,8 +60,12 @@ export function PlayerArea({ account, route, navigate, onSignOut, onSessionLost 
           </p>
         ) : null}
         <div className="play-grid">
-          <CreateRoomCard onCreated={entered} />
-          <JoinRoomCard onJoined={entered} onInvitation={(code) => navigate({ name: 'invitation', code })} />
+          <JoinRoomCard
+            onJoined={entered}
+            onInvitation={(code) => navigate({ name: 'invitation', code })}
+            onCreatePublic={() => setPublicRequest((count) => count + 1)}
+          />
+          <CreateRoomCard onCreated={entered} publicRequest={publicRequest} />
         </div>
       </>
     );

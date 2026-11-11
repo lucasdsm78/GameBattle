@@ -8,7 +8,7 @@ from application.rooms.commands.change_team import ChangeTeamCommand
 from application.rooms.commands.create_room import CreateRoomCommand
 from application.rooms.commands.join_room import JoinRoomCommand
 from application.rooms.constants.invitations import INVITATION_MISSING
-from application.rooms.constants.room_operations import MUTATION_ATTEMPTS
+from application.rooms.constants.room_operations import MUTATION_ATTEMPTS, NO_OPEN_PUBLIC_ROOM, PUBLIC_ROOM_GONE, QUICK_JOIN_CANDIDATES
 from application.rooms.invitation_codes import new_invitation_code
 from application.rooms.presenters.room_view import room_view
 from application.rooms.room_access import require_open
@@ -21,7 +21,7 @@ from application.shared.player_identity import PlayerIdentity
 from domain.rooms.constants.room_statuses import RoomStatus
 from domain.rooms.constants.room_visibilities import RoomVisibility
 from domain.rooms.models.room import Room
-from exceptions import AlreadyInRoomError, ConcurrentModificationError, NotInRoomError
+from exceptions import AlreadyInRoomError, ConcurrentModificationError, NotInRoomError, RoomFullError, RoomNotFoundError
 
 
 def room_stream(room_id: str) -> str:
@@ -86,11 +86,27 @@ class RoomCommandUseCase:
         return await self._join(player, by_code, command, missing=INVITATION_MISSING)
 
     async def join_public(self, player: PlayerIdentity, room_id: str) -> dict[str, Any]:
-        async def public_by_id(uow: RoomUnitOfWork) -> Optional[Room]:
-            room = await uow.rooms.get(room_id)
-            return room if room and room.visibility == RoomVisibility.PUBLIC else None  # un salon privé ne se trouve que par son lien
+        return await self._join(player, self._public(room_id), JoinRoomCommand(), missing=PUBLIC_ROOM_GONE)
 
-        return await self._join(player, public_by_id, JoinRoomCommand(), missing="Cette partie n'est plus disponible.")
+    async def quick_join(self, player: PlayerIdentity) -> dict[str, Any]:
+        """« Rejoindre rapidement » : la partie publique la plus près de démarrer, sinon `RoomNotFoundError`.
+
+        Ordre : la plus remplie d'abord (elle démarrera plus tôt), puis celle qui attend depuis le plus longtemps.
+        La place est prise sous verrou optimiste ; si une partie se remplit ou ferme entre-temps, on passe à la suivante.
+        """
+        async with self._unit_of_work() as uow:
+            await self._ensure_free(uow, player)
+            open_rooms = await uow.rooms.list_open_public(QUICK_JOIN_CANDIDATES)
+        candidates = sorted(
+            (room for room in open_rooms if not room.is_full),
+            key=lambda room: (-len(room.members) / room.capacity, room.created_at_ms),
+        )
+        for candidate in candidates:
+            try:
+                return await self._join(player, self._public(candidate.id), JoinRoomCommand(), missing=PUBLIC_ROOM_GONE)
+            except (RoomFullError, RoomNotFoundError):
+                continue  # prise ou fermée entre la liste et l'entrée : la suivante
+        raise RoomNotFoundError(NO_OPEN_PUBLIC_ROOM)
 
     async def change_team(self, player: PlayerIdentity, command: ChangeTeamCommand) -> dict[str, Any]:
         room = await self._mutate(
@@ -127,6 +143,14 @@ class RoomCommandUseCase:
 
         room = await self._mutate(checked, lambda room: room.join(player.account_id, player.pseudo, self._clock(), team=command.team))
         return room_view(room, player.account_id)
+
+    @staticmethod
+    def _public(room_id: str) -> RoomLoader:
+        async def public_by_id(uow: RoomUnitOfWork) -> Optional[Room]:
+            room = await uow.rooms.get(room_id)
+            return room if room and room.visibility == RoomVisibility.PUBLIC else None  # un salon privé ne se trouve que par son lien
+
+        return public_by_id
 
     def _membership(self, player: PlayerIdentity) -> RoomLoader:
         async def load(uow: RoomUnitOfWork) -> Optional[Room]:
