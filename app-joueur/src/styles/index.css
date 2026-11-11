@@ -807,6 +807,20 @@ button:disabled {
   flex: 1;
 }
 
+/* Aucune partie trouvée : un simple message et l'action qui suit, sans bandeau. */
+.no-room {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.no-room p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .join-options {
   display: grid;
   gap: 10px;

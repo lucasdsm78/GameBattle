@@ -117,7 +117,7 @@ export function JoinRoomCard({ onJoined, onInvitation, onCreatePublic, onResync 
       )}
 
       {search === 'none' ? (
-        <div className="notice" role="status">
+        <div className="no-room" role="status">
           <p>Aucune partie publique n’attend de joueurs pour l’instant.</p>
           <button type="button" className="tool-button" onClick={onCreatePublic}>
             Créer une partie publique
