@@ -5,18 +5,19 @@ from account_support import (
     PASSWORD,
     AccountStore,
     Clock,
-    build_use_case,
+    build_accounts,
 )
 from fastapi.testclient import TestClient
 
-from application.accounts.account_usecase import hash_session_token
+from application.accounts.session_tokens import hash_session_token
 from domain.accounts.models.player_session import (
     SESSION_RENEW_AFTER_MS,
     SESSION_TTL_MS,
 )
 from infrastructure.config import Settings
+from interface import http_session
 from interface.api import accounts as accounts_api
-from interface.dependencies.container import account_usecase
+from interface.dependencies.container import account_command_usecase, account_query_usecase
 
 
 def _client(monkeypatch: pytest.MonkeyPatch, *, environment: str = "development", player_origins: str = "") -> TestClient:
@@ -38,10 +39,11 @@ def _client_with_state(
         trusted_proxies="10.0.0.1",
         rate_limit_secret="r" * 64,
     )
-    monkeypatch.setattr(accounts_api, "get_settings", lambda: settings)
+    for module in (accounts_api, http_session):  # cookie et contrôle d'origine lisent la configuration de l'app de test
+        monkeypatch.setattr(module, "get_settings", lambda: settings)
     app = create_app(settings)
-    use_case, store, clock = build_use_case()
-    app.dependency_overrides[account_usecase] = lambda: use_case
+    commands, queries, store, clock = build_accounts()
+    app.dependency_overrides.update({account_command_usecase: lambda: commands, account_query_usecase: lambda: queries})
     # Un navigateur annonce son origine sur chaque écriture ; les tests qui la retirent le font explicitement.
     return TestClient(app, base_url="http://testserver", headers={"Origin": "http://testserver"}), store, clock
 

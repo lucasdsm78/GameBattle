@@ -1,5 +1,5 @@
 import { FormEvent, KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
-import { Account, ApiError, CredentialField, Credentials, accountsApi } from '../services/accountsApi';
+import { Account, ApiError, CredentialField, Credentials, accountsApi, isCredentialField } from '../services/accountsApi';
 import { PSEUDO_MAX_LENGTH, normalizePseudo, passwordProblem, passwordStrength, pseudoProblem } from '../services/accountRules';
 import { AuthTabs, tabId } from './AuthTabs';
 import { Field, helpId } from './Field';
@@ -107,7 +107,11 @@ export function AuthCard({ onSignedIn }: Props) {
       setRaw(EMPTY);
       onSignedIn(account);
     } catch (error) {
-      setServerError(error instanceof ApiError ? { message: error.message, field: error.field } : { message: 'Une erreur inattendue est survenue. Réessaie.' });
+      setServerError(
+        error instanceof ApiError
+          ? { message: error.message, field: isCredentialField(error.field) ? error.field : undefined }
+          : { message: 'Une erreur inattendue est survenue. Réessaie.' },
+      );
       setSubmitting(false);
     }
   }

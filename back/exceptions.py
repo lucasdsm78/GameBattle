@@ -77,3 +77,23 @@ class ConcurrentModificationError(ApplicationError):
 
     def __init__(self) -> None:
         super().__init__("La partie vient d'être modifiée en même temps : l'action n'a pas été appliquée, réessaie.")
+
+
+class RoomRuleError(DomainError):
+    """Une action viole une règle du salon (équipe pleine, choix d'équipe interdit, partie commencée…)."""
+
+
+class RoomFullError(RoomRuleError):
+    """Le salon (ou l'équipe visée) n'a plus de place."""
+
+
+class RoomNotFoundError(ApplicationError):
+    """Salon introuvable, ou invisible pour ce joueur (un salon privé ne se trouve que par son lien)."""
+
+
+class AlreadyInRoomError(ApplicationError):
+    """Un joueur ne peut être que dans un salon à la fois."""
+
+
+class NotInRoomError(ApplicationError):
+    """L'action suppose d'être dans un salon."""

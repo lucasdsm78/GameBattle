@@ -1,12 +1,19 @@
 import { AuthCard } from './components/AuthCard';
-import { WelcomeCard } from './components/WelcomeCard';
 import { useAccount } from './hooks/useAccount';
+import { useRoute } from './hooks/useRoute';
+import { PlayerArea } from './screens/PlayerArea';
 
 const GAMES = ['Blindtest', 'Culture', 'La bombe', 'Calcul flash', 'Le bon drapeau', 'Une famille en or', 'Le juste prix', 'Stop chrono'];
 
 export default function App() {
-  const { state, retry, signedIn, signOut } = useAccount();
+  const { state, retry, signedIn, signOut, sessionLost } = useAccount();
+  const { route, navigate } = useRoute();
 
+  if (state.status === 'signed-in') {
+    return <PlayerArea account={state.account} route={route} navigate={navigate} onSignOut={signOut} onSessionLost={sessionLost} />;
+  }
+
+  const invited = route.name === 'invitation';
   return (
     <main className="home">
       <header className="home-hero">
@@ -14,11 +21,13 @@ export default function App() {
           <span>Game</span> <b>Battle</b>
         </h1>
         <p className="tagline">Le jeu télé entre amis, depuis ton canapé.</p>
-        <ul className="game-strip" aria-label="Quelques jeux au programme">
-          {GAMES.map((game) => (
-            <li key={game}>{game}</li>
-          ))}
-        </ul>
+        {invited ? null : (
+          <ul className="game-strip" aria-label="Quelques jeux au programme">
+            {GAMES.map((game) => (
+              <li key={game}>{game}</li>
+            ))}
+          </ul>
+        )}
       </header>
 
       {state.status === 'loading' ? (
@@ -33,10 +42,15 @@ export default function App() {
             Réessayer
           </button>
         </section>
-      ) : state.status === 'guest' ? (
-        <AuthCard onSignedIn={signedIn} />
       ) : (
-        <WelcomeCard account={state.account} onSignOut={signOut} />
+        <>
+          {invited || state.notice ? (
+            <p className="notice" role="status">
+              {invited ? 'Tu es invité à une partie ! Connecte-toi ou crée ton compte pour la rejoindre.' : state.notice}
+            </p>
+          ) : null}
+          <AuthCard onSignedIn={signedIn} />
+        </>
       )}
     </main>
   );

@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Account, ApiError, accountsApi } from '../services/accountsApi';
+import { Account, accountsApi } from '../services/accountsApi';
+import { errorMessage, isAbort } from '../services/http';
 
 export type AccountState =
   | { status: 'loading' }
   | { status: 'unreachable'; message: string }
-  | { status: 'guest' }
+  | { status: 'guest'; notice?: string }
   | { status: 'signed-in'; account: Account };
-
-const isAbort = (error: unknown) => error instanceof DOMException && error.name === 'AbortError';
 
 /** Session du joueur, vérifiée auprès du serveur : le cookie HttpOnly n'est pas lisible depuis la page. */
 export function useAccount() {
@@ -21,7 +20,7 @@ export function useAccount() {
       .then((account) => setState(account ? { status: 'signed-in', account } : { status: 'guest' }))
       .catch((error: unknown) => {
         if (isAbort(error)) return;
-        setState({ status: 'unreachable', message: error instanceof ApiError ? error.message : 'Impossible de joindre le serveur.' });
+        setState({ status: 'unreachable', message: errorMessage(error, 'Impossible de joindre le serveur.') });
       });
   }, []);
 
@@ -41,5 +40,8 @@ export function useAccount() {
     setState({ status: 'guest' });
   }, []);
 
-  return { state, retry: () => check(), signedIn, signOut };
+  /** Le serveur ne reconnaît plus la session (expirée, ou déconnectée depuis un autre appareil). */
+  const sessionLost = useCallback(() => setState({ status: 'guest', notice: 'Ta session a expiré : reconnecte-toi pour continuer.' }), []);
+
+  return { state, retry: () => check(), signedIn, signOut, sessionLost };
 }

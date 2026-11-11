@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from application.game_night.game_night_commands import GameConfigUpsertModel
+from application.game_night.commands.game_config_upsert import GameConfigUpsertModel
 from application.shared.command_usecase import CommandUseCase
-from application.shared.commands import TeamCommand
+from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import GameConfigSnapshot
 
 

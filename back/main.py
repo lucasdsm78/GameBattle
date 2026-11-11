@@ -15,10 +15,14 @@ from interface.api.game_config import router as game_config_router
 from interface.api.hardware import router as hardware_router
 from interface.api.media import router as media_router
 from interface.api.realtime import router as realtime_router
+from interface.api.room_realtime import router as room_realtime_router
+from interface.api.rooms import router as rooms_router
 from interface.client_address import came_through_trusted_proxy
 from interface.dependencies.container import (
     account_janitor,
     database,
+    outbox_relay,
+    room_janitor,
     game_config_repository,
     game_deadline_worker,
     get_settings,
@@ -37,7 +41,7 @@ def build_lifespan(settings: Settings):
         if settings.creates_schema_on_startup:
             await database().create_schema()
         game_config_repository().clear()
-        workers = (game_deadline_worker(), account_janitor())
+        workers = (game_deadline_worker(), account_janitor(), outbox_relay(), room_janitor())
         for worker in workers:
             await worker.start()
         try:
@@ -89,6 +93,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     app.include_router(realtime_router)
     app.include_router(media_router)
     app.include_router(accounts_router)
+    app.include_router(rooms_router)
+    app.include_router(room_realtime_router)
     return app
 
 

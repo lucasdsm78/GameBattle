@@ -7,7 +7,7 @@ from dataclasses import replace
 import pytest
 
 from application.game_night.game_config_presenter import present_game_config
-from application.shared.commands import TeamCommand
+from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import ClientRole
 from domain.shared.events import AnswerJudged, BuzzerPressed
 from domain.vanishing_word.events import (

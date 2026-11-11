@@ -13,8 +13,9 @@ from account_support import (
 )
 from sqlalchemy import func, select
 
-from application.accounts.account_usecase import AccountUseCase
-from application.accounts.attempt_counter import AttemptWindow
+from application.accounts.account_command_usecase import AccountCommandUseCase
+from application.accounts.account_query_usecase import AccountQueryUseCase
+from application.shared.attempt_counter import AttemptWindow
 from domain.accounts.models.player_account import PlayerAccount
 from domain.accounts.models.player_session import (
     SESSION_TTL_MS,
@@ -24,11 +25,11 @@ from domain.accounts.models.pseudo import Pseudo
 from exceptions import (
     PseudoAlreadyTakenError,
 )
-from infrastructure.database.accounts.auth_attempt_model import AuthAttemptModel
 from infrastructure.database.accounts.player_account_model import (
     PlayerAccountModel,
 )
 from infrastructure.database.database import Base, Database
+from infrastructure.database.rate_limiting.attempt_model import AuthAttemptModel
 from infrastructure.repositories.accounts.account_unit_of_work import (
     SqlAccountUnitOfWork,
 )
@@ -75,7 +76,9 @@ def test_sql_registration_is_all_or_nothing(sqlite_database: Database, monkeypat
     async def unavailable(*_: object) -> None:
         raise RuntimeError("base indisponible")
 
-    use_case = AccountUseCase(lambda: SqlAccountUnitOfWork(sqlite_database, ATTEMPT_SECRET), FakeHasher(), clock=Clock())
+    unit_of_work = lambda: SqlAccountUnitOfWork(sqlite_database, ATTEMPT_SECRET)  # noqa: E731
+    clock = Clock()
+    use_case = AccountCommandUseCase(unit_of_work, FakeHasher(), clock=clock)
     monkeypatch.setattr(PostgreSQLPlayerSessionRepository, "add", unavailable)
     with pytest.raises(RuntimeError):
         asyncio.run(use_case.register(make_credentials(), IP))
@@ -83,7 +86,7 @@ def test_sql_registration_is_all_or_nothing(sqlite_database: Database, monkeypat
 
     monkeypatch.undo()
     signed_in = asyncio.run(use_case.register(make_credentials(), IP))
-    assert asyncio.run(use_case.current(signed_in.token)).account.pseudo == "Lucas"
+    assert asyncio.run(AccountQueryUseCase(unit_of_work, clock=clock).current(signed_in.token)).account.pseudo == "Lucas"
 
 
 def test_sql_attempt_counter_upserts_atomically_and_purges(sqlite_database: Database) -> None:

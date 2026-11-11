@@ -204,3 +204,57 @@ def test_data_survive_the_round_trip_and_the_lock_works_on_postgresql(databases:
 
     command.upgrade(_alembic(migrated), "head")  # le cycle complet se rejoue sans erreur
     assert asyncio.run(_query(migrated, "SELECT conname FROM pg_constraint WHERE conname = 'game_sessions_pkey'")) == [("game_sessions_pkey",)]
+
+
+def test_rooms_hold_one_seat_per_player_and_follow_their_accounts_on_postgresql(databases: tuple[str, str]) -> None:
+    """0006 : un joueur, un salon (contrainte unique), course détectée, outbox ordonnée, suppression de compte en cascade."""
+    from application.rooms.commands.create_room import CreateRoomCommand
+    from application.rooms.room_command_usecase import RoomCommandUseCase
+    from application.shared.player_identity import PlayerIdentity
+    from infrastructure.database.outbox.outbox_store import OutboxStore
+    from infrastructure.repositories.rooms.room_unit_of_work import SqlRoomUnitOfWork
+
+    migrated, _ = databases
+    command.upgrade(_alembic(migrated), "head")
+    alice, bob, chloe = (PlayerIdentity(str(uuid.uuid4()), pseudo) for pseudo in ("Alice", "Bob", "Chloe"))
+    for player in (alice, bob, chloe):
+        asyncio.run(
+            _execute(
+                migrated,
+                "INSERT INTO player_accounts (id, pseudo, pseudo_key, password_hash, created_at_ms) VALUES (:id, :pseudo, :key, 'x', 1)",
+                id=player.account_id, pseudo=player.pseudo, key=player.pseudo.lower(),
+            )
+        )
+
+    async def play() -> None:
+        database = Database(migrated)
+        secret = b"secret-de-test-des-compteurs-0123456789"
+        try:
+            rooms = RoomCommandUseCase(lambda: SqlRoomUnitOfWork(database, secret))
+            solo = await rooms.create(alice, CreateRoomCommand(visibility="public", format="solo"))
+            teams = await rooms.create(bob, CreateRoomCommand(visibility="public", format="teams"))
+            async with SqlRoomUnitOfWork(database, secret) as uow:
+                one, other = await uow.rooms.get(solo["id"]), await uow.rooms.get(teams["id"])
+            assert one is not None and other is not None
+            async with SqlRoomUnitOfWork(database, secret) as uow:
+                await uow.rooms.save(one.join(chloe.account_id, chloe.pseudo, 2))
+                await uow.commit()
+            async with SqlRoomUnitOfWork(database, secret) as uow:
+                with pytest.raises(ConcurrentModificationError):  # même joueur dans deux salons : la base tranche
+                    await uow.rooms.save(other.join(chloe.account_id, chloe.pseudo, 2))
+            async with SqlRoomUnitOfWork(database, secret) as uow:
+                with pytest.raises(ConcurrentModificationError):  # version périmée
+                    await uow.rooms.save(one.join(chloe.account_id, chloe.pseudo, 3))
+            events = await OutboxStore(database).pending(10)
+            assert [event.event_type for event in events] == ["room.opened", "room.player_joined"] * 2
+            assert events == sorted(events, key=lambda event: event.id)
+        finally:
+            await database.dispose()
+
+    asyncio.run(play())
+    asyncio.run(_execute(migrated, "DELETE FROM player_accounts WHERE id = :id", id=bob.account_id))
+    assert asyncio.run(_query(migrated, "SELECT count(*) FROM rooms")) == [(1,)]  # son salon part avec son compte
+    assert asyncio.run(_query(migrated, "SELECT pseudo FROM room_members ORDER BY pseudo")) == [("Alice",), ("Chloe",)]
+
+    command.downgrade(_alembic(migrated), "0005")
+    assert asyncio.run(_query(migrated, "SELECT to_regclass('rooms'), to_regclass('outbox_events')")) == [(None, None)]

@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from exceptions import (
+    AlreadyInRoomError,
     ApplicationError,
     CommandNotAllowedError,
     ConcurrentModificationError,
@@ -12,7 +13,10 @@ from exceptions import (
     InvalidCommandPayloadError,
     InvalidCredentialsError,
     NotAuthenticatedError,
+    NotInRoomError,
     PseudoAlreadyTakenError,
+    RoomFullError,
+    RoomNotFoundError,
     TooManyAttemptsError,
     UnknownCommandError,
 )
@@ -27,6 +31,10 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     NotAuthenticatedError: status.HTTP_401_UNAUTHORIZED,
     TooManyAttemptsError: status.HTTP_429_TOO_MANY_REQUESTS,
     ConcurrentModificationError: status.HTTP_409_CONFLICT,
+    RoomNotFoundError: status.HTTP_404_NOT_FOUND,
+    NotInRoomError: status.HTTP_404_NOT_FOUND,
+    AlreadyInRoomError: status.HTTP_409_CONFLICT,
+    RoomFullError: status.HTTP_409_CONFLICT,
 }
 
 

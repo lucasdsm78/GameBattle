@@ -3,7 +3,6 @@ lire `Base.metadata`. Ce n'est pas un point d'accès métier : le code d'un modu
 jamais ce fichier (règle vérifiée par `tests/architecture/test_module_boundaries.py`).
 """
 
-from infrastructure.database.accounts.auth_attempt_model import AuthAttemptModel
 from infrastructure.database.accounts.player_account_model import (
     PlayerAccountModel,
 )
@@ -42,8 +41,15 @@ from infrastructure.database.games.stopchrono.stopchrono_game_model import (
 from infrastructure.database.games.vanishing_word.vanishing_word_game_model import (
     VanishingWordGameModel,
 )
+from infrastructure.database.outbox.outbox_event_model import OutboxEventModel
+from infrastructure.database.rate_limiting.attempt_model import AuthAttemptModel
+from infrastructure.database.rooms.room_member_model import RoomMemberModel
+from infrastructure.database.rooms.room_model import RoomModel
 
 __all__ = [
+    "OutboxEventModel",
+    "RoomMemberModel",
+    "RoomModel",
     "AuctionGameModel",
     "AuthAttemptModel",
     "BlindtestGameModel",

@@ -64,6 +64,11 @@ def test_player_accounts_are_independent_of_the_games() -> None:
     assert _domain_dependencies("accounts") <= {"accounts"}
 
 
+def test_rooms_only_depend_on_the_shared_kernel() -> None:
+    # Les salons connaissent un joueur par `PlayerIdentity`, jamais par le module comptes.
+    assert _domain_dependencies("rooms") <= {"rooms", "shared"}
+
+
 def test_the_domain_knows_nothing_about_client_views() -> None:
     from domain.game_night.models.game_config import GameConfig
 
