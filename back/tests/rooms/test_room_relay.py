@@ -57,14 +57,14 @@ def test_the_hub_keeps_at_most_three_tabs_per_player() -> None:
 def test_private_events_only_reach_their_audience() -> None:
     async def scenario() -> None:
         rooms = build_rooms()
-        view = await rooms.use_case.create(ALICE, CreateRoomCommand(visibility="public", format="teams"))
-        await rooms.use_case.join_public(BOB, view["id"])
+        view = await rooms.commands.create(ALICE, CreateRoomCommand(visibility="public", format="teams"))
+        await rooms.commands.join_public(BOB, view["id"])
         hub = RoomHub()
         alice_socket, bob_socket = FakeSocket(), FakeSocket()
         hub.connect(_socket(alice_socket), view["id"], ALICE.account_id)
         hub.connect(_socket(bob_socket), view["id"], BOB.account_id)
 
-        await RoomBroadcaster(rooms.use_case, hub).broadcast(
+        await RoomBroadcaster(rooms.queries, hub).broadcast(
             view["id"], [RoomEvent("room.notice", {"text": "pour Bob"}, audience=BOB.account_id), RoomEvent("room.notice", {"text": "pour tous"})]
         )
         await asyncio.sleep(0.01)
@@ -79,14 +79,14 @@ def test_private_events_only_reach_their_audience() -> None:
 def test_the_relay_publishes_each_room_once_then_marks_its_events() -> None:
     async def scenario() -> None:
         rooms = build_rooms()
-        first = await rooms.use_case.create(ALICE, CreateRoomCommand(visibility="private", format="teams"))
-        second = await rooms.use_case.create(CHLOE, CreateRoomCommand(visibility="public", format="solo"))
-        await rooms.use_case.join_by_invitation(BOB, first["invite_path"].rsplit("/", 1)[1], JoinRoomCommand(), IP)
+        first = await rooms.commands.create(ALICE, CreateRoomCommand(visibility="private", format="teams"))
+        second = await rooms.commands.create(CHLOE, CreateRoomCommand(visibility="public", format="solo"))
+        await rooms.commands.join_by_invitation(BOB, first["invite_path"].rsplit("/", 1)[1], JoinRoomCommand(), IP)
         hub, store = RoomHub(), InMemoryOutboxStore(rooms.store)
         alice_socket, chloe_socket = FakeSocket(), FakeSocket()
         hub.connect(_socket(alice_socket), first["id"], ALICE.account_id)
         hub.connect(_socket(chloe_socket), second["id"], CHLOE.account_id)
-        relay = OutboxRelay(store, RoomBroadcaster(rooms.use_case, hub))
+        relay = OutboxRelay(store, RoomBroadcaster(rooms.queries, hub))
 
         assert await relay.run_once() == 5
         await asyncio.sleep(0.01)
@@ -101,8 +101,8 @@ def test_a_full_batch_wakes_the_relay_again(monkeypatch: Any) -> None:
     async def scenario() -> None:
         monkeypatch.setattr(outbox_relay, "RELAY_BATCH", 2)
         rooms = build_rooms()
-        await rooms.use_case.create(ALICE, CreateRoomCommand(visibility="public", format="solo"))
-        relay = OutboxRelay(InMemoryOutboxStore(rooms.store), RoomBroadcaster(rooms.use_case, RoomHub()))
+        await rooms.commands.create(ALICE, CreateRoomCommand(visibility="public", format="solo"))
+        relay = OutboxRelay(InMemoryOutboxStore(rooms.store), RoomBroadcaster(rooms.queries, RoomHub()))
         woken: list[bool] = []
         monkeypatch.setattr(relay, "wake", lambda: woken.append(True))
 

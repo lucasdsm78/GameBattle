@@ -7,8 +7,10 @@ from typing import Any, Optional, Self
 
 from account_support import Clock, InMemoryAttempts
 
+from application.rooms.invitation_codes import CODE_ALPHABET, CODE_LENGTH
+from application.rooms.room_command_usecase import RoomCommandUseCase
+from application.rooms.room_query_usecase import RoomQueryUseCase
 from application.rooms.room_unit_of_work import RoomUnitOfWork
-from application.rooms.room_usecase import CODE_ALPHABET, CODE_LENGTH, RoomUseCase
 from application.shared.outbox import Outbox, OutboxNotifier
 from application.shared.player_identity import PlayerIdentity
 from domain.rooms.models.room import Room
@@ -154,7 +156,8 @@ def sample_code(index: int) -> str:
 
 @dataclass
 class RoomsHarness:
-    use_case: RoomUseCase
+    commands: RoomCommandUseCase
+    queries: RoomQueryUseCase
     store: RoomStore
     clock: Clock
     notifier: CountingNotifier
@@ -165,10 +168,9 @@ def build_rooms(codes: Optional[list[str]] = None, *, relay: Optional[OutboxNoti
     """`relay` : un notifieur à prévenir en plus du compteur (le vrai relais, pour les tests temps réel)."""
     store, clock, notifier, conflicts = RoomStore(), Clock(), CountingNotifier(relay), [0]
     sequence = iter(codes or (sample_code(index) for index in range(1, 10_000)))
-    use_case = RoomUseCase(
-        lambda: InMemoryRoomUnitOfWork(store, conflicts), notifier=notifier, clock=clock, new_code=lambda: next(sequence)
-    )
-    return RoomsHarness(use_case, store, clock, notifier, conflicts)
+    unit_of_work = lambda: InMemoryRoomUnitOfWork(store, conflicts)  # noqa: E731
+    commands = RoomCommandUseCase(unit_of_work, notifier=notifier, clock=clock, new_code=lambda: next(sequence))
+    return RoomsHarness(commands, RoomQueryUseCase(unit_of_work, clock=clock), store, clock, notifier, conflicts)
 
 
 def events_of(store: RoomStore) -> list[tuple[str, dict[str, Any]]]:

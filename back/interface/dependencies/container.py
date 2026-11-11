@@ -8,7 +8,8 @@ from application.accounts.account_maintenance import AccountMaintenance
 from application.accounts.account_usecase import AccountUseCase
 from application.blindtest.playlist_service import BlindtestPlaylistService
 from application.game_night.game_night_query_usecase import GameNightQueryUseCase
-from application.rooms.room_usecase import RoomUseCase
+from application.rooms.room_command_usecase import RoomCommandUseCase
+from application.rooms.room_query_usecase import RoomQueryUseCase
 from application.use_cases import GameUseCases
 from infrastructure.config import Settings
 from infrastructure.database.database import Database
@@ -110,8 +111,13 @@ def room_unit_of_work() -> SqlRoomUnitOfWork:
 
 
 @lru_cache
-def room_usecase() -> RoomUseCase:
-    return RoomUseCase(room_unit_of_work, notifier=RelayNotifier(outbox_relay))
+def room_command_usecase() -> RoomCommandUseCase:
+    return RoomCommandUseCase(room_unit_of_work, notifier=RelayNotifier(outbox_relay))
+
+
+@lru_cache
+def room_query_usecase() -> RoomQueryUseCase:
+    return RoomQueryUseCase(room_unit_of_work)
 
 
 @lru_cache
@@ -121,7 +127,7 @@ def room_hub() -> RoomHub:
 
 @lru_cache
 def room_broadcaster() -> RoomBroadcaster:
-    return RoomBroadcaster(room_usecase(), room_hub())
+    return RoomBroadcaster(room_query_usecase(), room_hub())
 
 
 @lru_cache
@@ -135,7 +141,7 @@ def outbox_relay() -> OutboxRelay:
 
 
 def room_janitor() -> RoomJanitor:
-    return RoomJanitor(room_usecase(), outbox_store())
+    return RoomJanitor(room_command_usecase(), outbox_store())
 
 
 def account_janitor() -> AccountJanitor:
@@ -175,7 +181,8 @@ def reset_dependency_caches() -> None:
         realtime_dispatcher,
         game_night_query_usecase,
         account_usecase,
-        room_usecase,
+        room_command_usecase,
+        room_query_usecase,
         room_hub,
         room_broadcaster,
         outbox_store,

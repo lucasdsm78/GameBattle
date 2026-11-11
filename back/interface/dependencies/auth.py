@@ -5,11 +5,12 @@ from typing import Annotated, Optional
 from fastapi import Depends, Header, HTTPException, Request, status
 
 from application.accounts.account_usecase import AccountUseCase
-from application.rooms.room_usecase import RoomUseCase
-from application.shared.player_identity import PlayerIdentity
 from application.blindtest.blindtest_command_usecase import BlindtestCommandUseCase
 from application.game_night.game_night_command_usecase import GameNightCommandUseCase
 from application.game_night.game_night_query_usecase import GameNightQueryUseCase
+from application.rooms.room_command_usecase import RoomCommandUseCase
+from application.rooms.room_query_usecase import RoomQueryUseCase
+from application.shared.player_identity import PlayerIdentity
 from interface.dependencies.container import (
     account_usecase,
     authorize_client,
@@ -18,8 +19,9 @@ from interface.dependencies.container import (
     game_use_cases,
     realtime_dispatcher,
     room_broadcaster,
+    room_command_usecase,
     room_hub,
-    room_usecase,
+    room_query_usecase,
     websocket_hub,
 )
 from interface.realtime.dispatcher import RealtimeDispatcher
@@ -45,7 +47,8 @@ DispatcherDep = Annotated[RealtimeDispatcher, Depends(realtime_dispatcher)]
 GameNightQueryDep = Annotated[GameNightQueryUseCase, Depends(game_night_query_usecase)]
 WebSocketHubDep = Annotated[WebSocketHub, Depends(websocket_hub)]
 AccountUseCaseDep = Annotated[AccountUseCase, Depends(account_usecase)]
-RoomUseCaseDep = Annotated[RoomUseCase, Depends(room_usecase)]
+RoomCommandUseCaseDep = Annotated[RoomCommandUseCase, Depends(room_command_usecase)]
+RoomQueryUseCaseDep = Annotated[RoomQueryUseCase, Depends(room_query_usecase)]
 RoomHubDep = Annotated[RoomHub, Depends(room_hub)]
 RoomBroadcasterDep = Annotated[RoomBroadcaster, Depends(room_broadcaster)]
 

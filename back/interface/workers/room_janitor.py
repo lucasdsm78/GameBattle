@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from application.rooms.room_usecase import RoomUseCase
+from application.rooms.room_command_usecase import RoomCommandUseCase
 from infrastructure.database.outbox.outbox_store import OutboxStore
 from infrastructure.runtime.periodic_task import PeriodicTask
 
@@ -15,7 +15,7 @@ class RoomJanitor(PeriodicTask):
 
     name = "rooms.janitor"
 
-    def __init__(self, rooms: RoomUseCase, outbox: OutboxStore, *, interval_seconds: float = JANITOR_INTERVAL_SECONDS) -> None:
+    def __init__(self, rooms: RoomCommandUseCase, outbox: OutboxStore, *, interval_seconds: float = JANITOR_INTERVAL_SECONDS) -> None:
         super().__init__(interval_seconds=interval_seconds)
         self._rooms = rooms
         self._outbox = outbox

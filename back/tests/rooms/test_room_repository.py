@@ -8,7 +8,8 @@ from room_support import ALICE, BOB, CHLOE
 from application.rooms.commands.change_team import ChangeTeamCommand
 from application.rooms.commands.create_room import CreateRoomCommand
 from application.rooms.commands.join_room import JoinRoomCommand
-from application.rooms.room_usecase import RoomUseCase
+from application.rooms.room_command_usecase import RoomCommandUseCase
+from application.rooms.room_query_usecase import RoomQueryUseCase
 from domain.rooms.models.room import Room
 from exceptions import AlreadyInRoomError, ConcurrentModificationError
 from infrastructure.database.database import Database
@@ -19,8 +20,8 @@ SECRET = b"secret-de-test-des-compteurs-0123456789"
 IP = "203.0.113.7"
 
 
-def _use_case(database: Database) -> RoomUseCase:
-    return RoomUseCase(lambda: SqlRoomUnitOfWork(database, SECRET))
+def _commands(database: Database) -> RoomCommandUseCase:
+    return RoomCommandUseCase(lambda: SqlRoomUnitOfWork(database, SECRET))
 
 
 async def _stored(database: Database, room_id: str) -> Room | None:
@@ -29,7 +30,7 @@ async def _stored(database: Database, room_id: str) -> Room | None:
 
 
 def test_a_room_round_trips_with_its_members_in_arrival_order(sqlite_database: Database) -> None:
-    rooms = _use_case(sqlite_database)
+    rooms = _commands(sqlite_database)
 
     async def scenario() -> None:
         view = await rooms.create(ALICE, CreateRoomCommand(visibility="private", format="teams", team_count=3))
@@ -51,7 +52,7 @@ def test_a_room_round_trips_with_its_members_in_arrival_order(sqlite_database: D
 
 
 def test_a_stale_write_is_refused(sqlite_database: Database) -> None:
-    rooms = _use_case(sqlite_database)
+    rooms = _commands(sqlite_database)
 
     async def scenario() -> None:
         view = await rooms.create(ALICE, CreateRoomCommand(visibility="public", format="teams"))
@@ -70,7 +71,7 @@ def test_a_stale_write_is_refused(sqlite_database: Database) -> None:
 
 
 def test_a_player_cannot_be_seated_in_two_rooms_even_in_a_race(sqlite_database: Database) -> None:
-    rooms = _use_case(sqlite_database)
+    rooms = _commands(sqlite_database)
 
     async def scenario() -> None:
         first = await rooms.create(ALICE, CreateRoomCommand(visibility="public", format="solo"))
@@ -91,7 +92,7 @@ def test_a_player_cannot_be_seated_in_two_rooms_even_in_a_race(sqlite_database: 
 
 
 def test_events_are_written_with_the_room_and_relayed_once(sqlite_database: Database) -> None:
-    rooms, store = _use_case(sqlite_database), OutboxStore(sqlite_database)
+    rooms, store = _commands(sqlite_database), OutboxStore(sqlite_database)
 
     async def scenario() -> None:
         view = await rooms.create(ALICE, CreateRoomCommand(visibility="private", format="solo"))
@@ -135,7 +136,9 @@ def test_a_rolled_back_write_leaves_no_event_behind(sqlite_database: Database) -
 
 def test_the_janitor_query_only_sees_quiet_lobbies(sqlite_database: Database) -> None:
     clock = [1_000_000]
-    rooms = RoomUseCase(lambda: SqlRoomUnitOfWork(sqlite_database, SECRET), clock=lambda: clock[0])
+    unit_of_work = lambda: SqlRoomUnitOfWork(sqlite_database, SECRET)  # noqa: E731
+    rooms = RoomCommandUseCase(unit_of_work, clock=lambda: clock[0])
+    queries = RoomQueryUseCase(unit_of_work, clock=lambda: clock[0])
 
     async def scenario() -> None:
         await rooms.create(ALICE, CreateRoomCommand(visibility="public", format="solo"))
@@ -143,7 +146,7 @@ def test_the_janitor_query_only_sees_quiet_lobbies(sqlite_database: Database) ->
         await rooms.create(BOB, CreateRoomCommand(visibility="public", format="solo"))
 
         assert await rooms.purge_inactive() == 1
-        assert await rooms.current(ALICE) is None and await rooms.current(BOB) is not None
-        assert [summary["host"] for summary in await rooms.list_public()] == ["Bob"]
+        assert await queries.current(ALICE) is None and await queries.current(BOB) is not None
+        assert [summary["host"] for summary in await queries.list_public()] == ["Bob"]
 
     asyncio.run(scenario())

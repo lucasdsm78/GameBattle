@@ -13,8 +13,9 @@ from room_support import InMemoryOutboxStore, RoomsHarness, build_rooms
 from infrastructure.config import Settings
 from interface import http_session
 from interface.api import accounts as accounts_api
-from interface.api import room_realtime, rooms as rooms_api
-from interface.dependencies.container import account_usecase, room_broadcaster, room_hub, room_usecase
+from interface.api import room_realtime
+from interface.api import rooms as rooms_api
+from interface.dependencies.container import account_usecase, room_broadcaster, room_command_usecase, room_hub, room_query_usecase
 from interface.errors import register_exception_handlers
 from interface.realtime.room_broadcaster import RoomBroadcaster
 from interface.realtime.room_hub import RoomHub
@@ -50,7 +51,7 @@ def running_room_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[RoomApp]:
     relay_holder: list[OutboxRelay] = []
     rooms = build_rooms(relay=RelayNotifier(lambda: relay_holder[0]))
     hub = RoomHub()
-    broadcaster = RoomBroadcaster(rooms.use_case, hub)
+    broadcaster = RoomBroadcaster(rooms.queries, hub)
     relay = OutboxRelay(InMemoryOutboxStore(rooms.store), broadcaster, interval_seconds=0.05)
     relay_holder.append(relay)
     accounts, _, _ = build_use_case()
@@ -60,7 +61,9 @@ def running_room_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[RoomApp]:
     for router in (accounts_api.router, rooms_api.router, room_realtime.router):
         app.include_router(router)
     app.dependency_overrides.update(
-        {account_usecase: lambda: accounts, room_usecase: lambda: rooms.use_case, room_hub: lambda: hub, room_broadcaster: lambda: broadcaster}
+        {account_usecase: lambda: accounts, room_command_usecase: lambda: rooms.commands,
+            room_query_usecase: lambda: rooms.queries,
+            room_hub: lambda: hub, room_broadcaster: lambda: broadcaster}
     )
     with TestClient(app, base_url=ORIGIN) as client:
         assert client.portal is not None
