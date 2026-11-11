@@ -4,8 +4,9 @@ import secrets
 from functools import lru_cache
 from typing import Optional
 
+from application.accounts.account_command_usecase import AccountCommandUseCase
 from application.accounts.account_maintenance import AccountMaintenance
-from application.accounts.account_usecase import AccountUseCase
+from application.accounts.account_query_usecase import AccountQueryUseCase
 from application.blindtest.playlist_service import BlindtestPlaylistService
 from application.game_night.game_night_query_usecase import GameNightQueryUseCase
 from application.rooms.room_command_usecase import RoomCommandUseCase
@@ -102,8 +103,13 @@ def account_unit_of_work() -> SqlAccountUnitOfWork:
 
 
 @lru_cache
-def account_usecase() -> AccountUseCase:
-    return AccountUseCase(account_unit_of_work, Argon2PasswordHasher())
+def account_command_usecase() -> AccountCommandUseCase:
+    return AccountCommandUseCase(account_unit_of_work, Argon2PasswordHasher())
+
+
+@lru_cache
+def account_query_usecase() -> AccountQueryUseCase:
+    return AccountQueryUseCase(account_unit_of_work)
 
 
 def room_unit_of_work() -> SqlRoomUnitOfWork:
@@ -180,7 +186,8 @@ def reset_dependency_caches() -> None:
         game_use_cases,
         realtime_dispatcher,
         game_night_query_usecase,
-        account_usecase,
+        account_command_usecase,
+        account_query_usecase,
         room_command_usecase,
         room_query_usecase,
         room_hub,

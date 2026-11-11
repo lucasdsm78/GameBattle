@@ -7,11 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import ValidationError
 
 from application.accounts.account_commands import CredentialsCommand
-from application.accounts.account_usecase import SignedIn
+from application.accounts.views.signed_in import SignedIn
 from domain.accounts.models.player_session import SESSION_TTL_MS
 from exceptions import InvalidCommandPayloadError
 from interface.client_address import client_address
-from interface.dependencies import AccountUseCaseDep
+from interface.dependencies import AccountCommandUseCaseDep, AccountQueryUseCaseDep
 from interface.dependencies.container import get_settings
 from interface.http_session import (
     require_same_origin,
@@ -69,17 +69,17 @@ def _signed_in(response: Response, signed_in: SignedIn) -> AccountResponse:
 
 # La session que ce navigateur avait encore est révoquée dans la même transaction que l'ouverture de la nouvelle.
 @router.post("/register", status_code=status.HTTP_201_CREATED, summary="Créer un compte joueur et se connecter")
-async def register(credentials: Credentials, request: Request, response: Response, accounts: AccountUseCaseDep) -> AccountResponse:
+async def register(credentials: Credentials, request: Request, response: Response, accounts: AccountCommandUseCaseDep) -> AccountResponse:
     return _signed_in(response, await accounts.register(credentials, client_address(request), session_token(request.cookies)))
 
 
 @router.post("/login", summary="Se connecter avec son pseudo et son mot de passe")
-async def login(credentials: Credentials, request: Request, response: Response, accounts: AccountUseCaseDep) -> AccountResponse:
+async def login(credentials: Credentials, request: Request, response: Response, accounts: AccountCommandUseCaseDep) -> AccountResponse:
     return _signed_in(response, await accounts.login(credentials, client_address(request), session_token(request.cookies)))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, summary="Se déconnecter")
-async def logout(request: Request, accounts: AccountUseCaseDep) -> Response:
+async def logout(request: Request, accounts: AccountCommandUseCaseDep) -> Response:
     await accounts.logout(session_token(request.cookies))
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.delete_cookie(session_cookie_name(), path="/", secure=get_settings().is_deployed, httponly=True, samesite="strict")
@@ -87,9 +87,12 @@ async def logout(request: Request, accounts: AccountUseCaseDep) -> Response:
 
 
 @router.get("/me", summary="Le joueur connecté (prolonge la session d'un joueur actif)")
-async def me(request: Request, response: Response, accounts: AccountUseCaseDep) -> AccountResponse:
+async def me(
+    request: Request, response: Response, accounts: AccountQueryUseCaseDep, account_commands: AccountCommandUseCaseDep
+) -> AccountResponse:
     token = session_token(request.cookies)
     current = await accounts.current(token)
-    if current.renewed_until_ms is not None and token:
+    # Lecture d'abord ; la prolongation (une écriture) n'a lieu que lorsqu'elle est due, environ tous les 15 jours.
+    if token and current.renewal_due and await account_commands.renew_session(token) is not None:
         _set_session_cookie(response, token)
     return AccountResponse(pseudo=current.account.pseudo)

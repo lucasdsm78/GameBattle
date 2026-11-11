@@ -1,6 +1,7 @@
 from interface.dependencies.auth import (
     CONTROLLER_TOKEN_HEADER,
-    AccountUseCaseDep,
+    AccountCommandUseCaseDep,
+    AccountQueryUseCaseDep,
     BlindtestUseCaseDep,
     CurrentPlayerDep,
     DispatcherDep,
@@ -19,7 +20,8 @@ from interface.dependencies.auth import (
 
 __all__ = [
     "CONTROLLER_TOKEN_HEADER",
-    "AccountUseCaseDep",
+    "AccountCommandUseCaseDep",
+    "AccountQueryUseCaseDep",
     "CurrentPlayerDep",
     "RoomBroadcasterDep",
     "RoomHubDep",

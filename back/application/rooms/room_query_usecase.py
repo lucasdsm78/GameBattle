@@ -7,9 +7,10 @@ from application.rooms.invitation_codes import INVITATION_MISSING
 from application.rooms.presenters.invitation_view import invitation_view
 from application.rooms.presenters.public_room_summary import public_room_summary
 from application.rooms.presenters.room_view import room_view
-from application.rooms.room_access import require_open, reserve_attempts
+from application.rooms.room_access import require_open
 from application.rooms.room_limits import RoomLimits
 from application.rooms.room_unit_of_work import RoomUnitOfWork
+from application.shared.attempt_limit import reserve_attempts
 from application.shared.command_usecase import wall_clock_ms
 from application.shared.player_identity import PlayerIdentity
 from domain.rooms.models.room import Room

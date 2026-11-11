@@ -4,7 +4,8 @@ from typing import Annotated, Optional
 
 from fastapi import Depends, Header, HTTPException, Request, status
 
-from application.accounts.account_usecase import AccountUseCase
+from application.accounts.account_command_usecase import AccountCommandUseCase
+from application.accounts.account_query_usecase import AccountQueryUseCase
 from application.blindtest.blindtest_command_usecase import BlindtestCommandUseCase
 from application.game_night.game_night_command_usecase import GameNightCommandUseCase
 from application.game_night.game_night_query_usecase import GameNightQueryUseCase
@@ -12,7 +13,8 @@ from application.rooms.room_command_usecase import RoomCommandUseCase
 from application.rooms.room_query_usecase import RoomQueryUseCase
 from application.shared.player_identity import PlayerIdentity
 from interface.dependencies.container import (
-    account_usecase,
+    account_command_usecase,
+    account_query_usecase,
     authorize_client,
     authorize_hardware_token,
     game_night_query_usecase,
@@ -46,14 +48,15 @@ BlindtestUseCaseDep = Annotated[BlindtestCommandUseCase, Depends(blindtest_use_c
 DispatcherDep = Annotated[RealtimeDispatcher, Depends(realtime_dispatcher)]
 GameNightQueryDep = Annotated[GameNightQueryUseCase, Depends(game_night_query_usecase)]
 WebSocketHubDep = Annotated[WebSocketHub, Depends(websocket_hub)]
-AccountUseCaseDep = Annotated[AccountUseCase, Depends(account_usecase)]
+AccountCommandUseCaseDep = Annotated[AccountCommandUseCase, Depends(account_command_usecase)]
+AccountQueryUseCaseDep = Annotated[AccountQueryUseCase, Depends(account_query_usecase)]
 RoomCommandUseCaseDep = Annotated[RoomCommandUseCase, Depends(room_command_usecase)]
 RoomQueryUseCaseDep = Annotated[RoomQueryUseCase, Depends(room_query_usecase)]
 RoomHubDep = Annotated[RoomHub, Depends(room_hub)]
 RoomBroadcasterDep = Annotated[RoomBroadcaster, Depends(room_broadcaster)]
 
 
-async def current_player(request: Request, accounts: AccountUseCaseDep) -> PlayerIdentity:
+async def current_player(request: Request, accounts: AccountQueryUseCaseDep) -> PlayerIdentity:
     """Le joueur de la session (cookie HttpOnly), sinon 401 : la seule porte des autres modules vers les comptes."""
     from interface.http_session import session_token  # import local : http_session dépend lui-même du container
 

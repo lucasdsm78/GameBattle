@@ -9,9 +9,10 @@ from application.rooms.commands.create_room import CreateRoomCommand
 from application.rooms.commands.join_room import JoinRoomCommand
 from application.rooms.invitation_codes import INVITATION_MISSING, new_invitation_code
 from application.rooms.presenters.room_view import room_view
-from application.rooms.room_access import require_open, reserve_attempts
+from application.rooms.room_access import require_open
 from application.rooms.room_limits import RoomLimits
 from application.rooms.room_unit_of_work import RoomUnitOfWork
+from application.shared.attempt_limit import reserve_attempts
 from application.shared.command_usecase import wall_clock_ms
 from application.shared.outbox import NullOutboxNotifier, OutboxNotifier
 from application.shared.player_identity import PlayerIdentity
