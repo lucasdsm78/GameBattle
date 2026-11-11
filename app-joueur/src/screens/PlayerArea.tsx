@@ -64,6 +64,7 @@ export function PlayerArea({ account, route, navigate, onSignOut, onSessionLost 
             onJoined={entered}
             onInvitation={(code) => navigate({ name: 'invitation', code })}
             onCreatePublic={() => setPublicRequest((count) => count + 1)}
+            onResync={reload}
           />
           <CreateRoomCard onCreated={entered} publicRequest={publicRequest} />
         </div>

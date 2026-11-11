@@ -81,7 +81,7 @@ export const roomsApi = {
   joinByInvitation: (code: string, team?: string) => postJson(`${BASE_URL}/invitations/${code}/join`, team ? { team } : undefined).then(readRoom),
   joinPublic: (roomId: string) => postJson(`${BASE_URL}/${encodeURIComponent(roomId)}/join`).then(readRoom),
   /** La partie publique la plus près de démarrer ; 404 s'il n'y en a aucune. */
-  quickJoin: () => postJson(`${BASE_URL}/quick-join`).then(readRoom),
+  quickJoin: (signal?: AbortSignal) => postJson(`${BASE_URL}/quick-join`, undefined, signal).then(readRoom),
   changeTeam: (team: string) => postJson(`${BASE_URL}/current/team`, { team }).then(readRoom),
   leave: async (): Promise<void> => {
     await postJson(`${BASE_URL}/current/leave`);
