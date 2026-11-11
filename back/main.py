@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from infrastructure.config import Settings
+from infrastructure.database.schema_version import ensure_schema_is_current
 from infrastructure.logging_filters import install_secret_redaction
 from interface.api.accounts import router as accounts_router
 from interface.api.game_config import router as game_config_router
@@ -21,11 +22,11 @@ from interface.client_address import came_through_trusted_proxy
 from interface.dependencies.container import (
     account_janitor,
     database,
-    outbox_relay,
-    room_janitor,
     game_config_repository,
     game_deadline_worker,
     get_settings,
+    outbox_relay,
+    room_janitor,
     single_instance_lock,
     spotify_playlist_service,
 )
@@ -38,6 +39,7 @@ def build_lifespan(settings: Settings):
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings
         await single_instance_lock().acquire()  # avant tout : une seconde instance s'arrête ici
+        await ensure_schema_is_current(database())  # base en retard sur le code : on s'arrête avec la commande à lancer
         if settings.creates_schema_on_startup:
             await database().create_schema()
         game_config_repository().clear()

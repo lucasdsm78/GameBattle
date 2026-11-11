@@ -34,7 +34,7 @@ DOMAIN_MODULE_FOLDERS = {"models", "events", "services", "repositories", "consta
 
 DATABASE_TECHNICAL_FILES = {
     "__init__.py", "all_models.py", "database.py", "dataclass_codec.py", "json_document.py", "single_instance_lock.py",
-    "sql_unit_of_work.py", "upsert.py",
+    "schema_version.py", "sql_unit_of_work.py", "upsert.py",
 }
 
 

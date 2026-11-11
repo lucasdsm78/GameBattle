@@ -451,6 +451,11 @@ En développement et dans les tests, l'API crée elle-même les tables manquante
 production (`GAMEBATTLE_ENVIRONMENT=production`), elle ne touche jamais au schéma : il faut migrer avant de
 démarrer.
 
+Une base suivie par Alembic mais en retard sur le code empêche l'API de démarrer, en développement comme en
+production. Le message donne la commande à lancer (`alembic upgrade head`). Sans ce garde-fou, la création
+automatique ajouterait en développement des tables au schéma du moment, que les migrations ne pourraient plus
+appliquer ensuite (`infrastructure/database/schema_version.py`).
+
 ```bash
 cd back
 .venv/bin/alembic upgrade head           # base vide ou déjà suivie par Alembic
