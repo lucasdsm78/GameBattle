@@ -3,8 +3,6 @@ import { useAccount } from './hooks/useAccount';
 import { useRoute } from './hooks/useRoute';
 import { PlayerArea } from './screens/PlayerArea';
 
-const GAMES = ['Blindtest', 'Culture', 'La bombe', 'Calcul flash', 'Le bon drapeau', 'Une famille en or', 'Le juste prix', 'Stop chrono'];
-
 export default function App() {
   const { state, retry, signedIn, signOut, sessionLost } = useAccount();
   const { route, navigate } = useRoute();
@@ -21,13 +19,6 @@ export default function App() {
           <span>Game</span> <b>Battle</b>
         </h1>
         <p className="tagline">Le jeu télé entre amis, depuis ton canapé.</p>
-        {invited ? null : (
-          <ul className="game-strip" aria-label="Quelques jeux au programme">
-            {GAMES.map((game) => (
-              <li key={game}>{game}</li>
-            ))}
-          </ul>
-        )}
       </header>
 
       {state.status === 'loading' ? (
