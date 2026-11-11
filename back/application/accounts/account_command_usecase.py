@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-import hashlib
 import secrets
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Optional, TypeGuard
+from typing import Optional
 
 from application.accounts.account_commands import CredentialsCommand
 from application.accounts.account_limits import AccountLimits
 from application.accounts.account_unit_of_work import AccountUnitOfWork
-from application.shared.attempt_limit import AttemptLimit, enforce
+from application.accounts.session_tokens import SESSION_TOKEN_BYTES, hash_session_token, is_plausible_token
+from application.accounts.views.account_view import AccountView
+from application.accounts.views.signed_in import SignedIn
+from application.shared.attempt_limit import reserve_attempts
 from application.shared.command_usecase import wall_clock_ms
-from application.shared.player_identity import PlayerIdentity
 from domain.accounts.models.password_policy import check_password, normalize_password
 from domain.accounts.models.player_account import PlayerAccount
 from domain.accounts.models.player_session import PlayerSession
@@ -21,48 +21,12 @@ from domain.accounts.services.password_hasher import PasswordHasher
 from exceptions import (
     InvalidAccountError,
     InvalidCredentialsError,
-    NotAuthenticatedError,
     PseudoAlreadyTakenError,
 )
 
-SESSION_TOKEN_BYTES = 32
-MAX_SESSION_TOKEN_LENGTH = 128
 
-
-@dataclass(frozen=True, slots=True)
-class AccountView:
-    pseudo: str
-    account_id: str = ""  # interne : jamais renvoyé par l'API, transmis aux autres modules via `PlayerIdentity`
-
-    @property
-    def identity(self) -> PlayerIdentity:
-        return PlayerIdentity(account_id=self.account_id, pseudo=self.pseudo)
-
-
-@dataclass(frozen=True, slots=True)
-class CurrentPlayer:
-    """Le joueur de la session ; `renewed_until_ms` est renseigné quand la session vient d'être prolongée."""
-
-    account: AccountView
-    renewed_until_ms: Optional[int] = None
-
-
-@dataclass(frozen=True, slots=True)
-class SignedIn:
-    """Résultat d'une inscription ou d'une connexion : le jeton en clair ne sort d'ici que vers le cookie."""
-
-    account: AccountView
-    token: str
-    expires_at_ms: int
-
-
-def hash_session_token(token: str) -> str:
-    # Le jeton est aléatoire (256 bits) : un SHA-256 suffit, pas besoin d'un hachage lent comme pour un mot de passe.
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-
-class AccountUseCase:
-    """Inscription, connexion et sessions.
+class AccountCommandUseCase:
+    """Inscription, connexion, déconnexion et prolongation des sessions (la lecture est dans `AccountQueryUseCase`).
 
     Chaque étape qui écrit tient dans une seule unité de travail : un compte n'existe jamais sans sa session.
     Le hachage Argon2 (lent par conception) se fait entre deux transactions : aucune connexion à la base
@@ -85,7 +49,7 @@ class AccountUseCase:
     async def register(self, command: CredentialsCommand, client_ip: str, replacing_token: Optional[str] = None) -> SignedIn:
         now = self._clock()
         async with self._unit_of_work() as uow:
-            await self._reserve_attempt(
+            await reserve_attempts(
                 uow, now, (self._limits.attempts_per_ip, client_ip), (self._limits.signup_attempts_per_ip, client_ip)
             )
             pseudo = Pseudo.parse(command.pseudo)
@@ -111,7 +75,7 @@ class AccountUseCase:
         pseudo_key = pseudo.key if pseudo else command.pseudo.casefold()
         # 1. Réserver l'essai (adresse et pseudo), validé en base avant le calcul : la limite tient sous concurrence.
         async with self._unit_of_work() as uow:
-            await self._reserve_attempt(
+            await reserve_attempts(
                 uow, now, (self._limits.attempts_per_ip, client_ip), (self._limits.login_attempts_per_pseudo, pseudo_key)
             )
             account = await uow.accounts.find_by_pseudo(pseudo) if pseudo else None
@@ -133,49 +97,31 @@ class AccountUseCase:
         return signed_in
 
     async def logout(self, token: Optional[str]) -> None:
-        if not _plausible_token(token):
+        if not is_plausible_token(token):
             return
         async with self._unit_of_work() as uow:
             await uow.sessions.delete(hash_session_token(token))
             await uow.commit()
 
-    async def current(self, token: Optional[str]) -> CurrentPlayer:
-        """Le joueur de la session, ou `NotAuthenticatedError` (jeton absent, inconnu ou expiré)."""
-        if not _plausible_token(token):
-            raise NotAuthenticatedError("Connecte-toi pour continuer.")
+    async def renew_session(self, token: Optional[str]) -> Optional[int]:
+        """Prolonge la session d'un joueur actif ; renvoie sa nouvelle échéance, ou `None` s'il n'y avait rien à faire."""
+        if not is_plausible_token(token):
+            return None
         now = self._clock()
-        token_hash = hash_session_token(token)
         async with self._unit_of_work() as uow:
-            session = await uow.sessions.get(token_hash)
-            if session is not None and session.is_expired(now):
-                await uow.sessions.delete(token_hash)
-                await uow.commit()
-                session = None
-            account = await uow.accounts.get(session.account_id) if session else None
-            if session is None or account is None:
-                raise NotAuthenticatedError("Connecte-toi pour continuer.")
-            view = AccountView(pseudo=account.pseudo.value, account_id=account.id)
-            if not session.needs_renewal(now):
-                return CurrentPlayer(view)
+            session = await uow.sessions.get(hash_session_token(token))
+            if session is None or session.is_expired(now) or not session.needs_renewal(now):
+                return None
             renewed = session.renewed(now)
             await uow.sessions.save_expiry(renewed)
             await uow.commit()
-        return CurrentPlayer(view, renewed_until_ms=renewed.expires_at_ms)
-
-    async def _reserve_attempt(self, uow: AccountUnitOfWork, now_ms: int, *limits: tuple[AttemptLimit, str]) -> None:
-        """Compte l'essai dans chaque limite et le valide en base, puis refuse si l'une est dépassée.
-
-        La validation précède le refus : une requête bloquée compte aussi, et une rafale ne se recharge pas.
-        """
-        reservations = [await limit.reserve(uow.attempts, subject, now_ms) for limit, subject in limits]
-        await uow.commit()
-        enforce(now_ms, *reservations)
+        return renewed.expires_at_ms
 
     async def _open_session(
         self, uow: AccountUnitOfWork, account: PlayerAccount, now_ms: int, replacing_token: Optional[str]
     ) -> SignedIn:
         """Nouvelle session ; celle que ce navigateur avait encore est révoquée dans la même transaction."""
-        if _plausible_token(replacing_token):
+        if is_plausible_token(replacing_token):
             await uow.sessions.delete(hash_session_token(replacing_token))
         token = secrets.token_urlsafe(SESSION_TOKEN_BYTES)
         session = PlayerSession.open(hash_session_token(token), account.id, now_ms)
@@ -184,6 +130,3 @@ class AccountUseCase:
             account=AccountView(pseudo=account.pseudo.value, account_id=account.id), token=token, expires_at_ms=session.expires_at_ms
         )
 
-
-def _plausible_token(token: Optional[str]) -> TypeGuard[str]:
-    return bool(token) and len(token) <= MAX_SESSION_TOKEN_LENGTH

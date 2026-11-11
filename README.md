@@ -204,6 +204,12 @@ back/
 
 - `POST /register`, `POST /login`, `POST /logout`, `GET /me`. Domaine dans `back/domain/accounts/`
   (pseudo, règles du mot de passe, compte, session), cas d'usage dans `back/application/accounts/`.
+- Lectures et écritures séparées, comme pour la soirée et les salons :
+  - `AccountCommandUseCase` inscrit, connecte, déconnecte et prolonge les sessions ;
+  - `AccountQueryUseCase.current` dit qui est connecté, à chaque requête authentifiée et pour le temps réel,
+    sans rien écrire. Une session expirée est refusée, puis supprimée par le ménage ;
+  - la réservation d'essais (`reserve_attempts`, dans `application/shared/attempt_limit.py`) est commune aux
+    comptes et aux salons.
 - Unité de travail `AccountUnitOfWork` : compte, session et compteurs d'essais partagent une transaction.
   Une inscription crée le compte et sa session ensemble ou pas du tout. Une reconnexion révoque l'ancienne
   session dans la même transaction. Le hachage Argon2 a lieu entre deux transactions : aucune connexion à
@@ -219,7 +225,8 @@ back/
   connexion suivante.
 - La session est un jeton aléatoire de 256 bits, dans un cookie `HttpOnly`, `SameSite=Strict`, valable
   30 jours (`__Host-gb_session` avec `Secure` en production). La base n'en garde que l'empreinte SHA-256.
-  Elle glisse : un joueur qui revient après plus de 15 jours repart pour 30 jours. Se reconnecter dans le
+  Elle glisse : un joueur qui revient après plus de 15 jours repart pour 30 jours (prolongation faite par
+  `GET /me`, que l'app appelle à chaque ouverture, et seulement quand elle est due). Se reconnecter dans le
   même navigateur révoque la session précédente.
 - Le corps des requêtes de connexion est lu par morceaux et borné à 2 Ko, même sans `Content-Length`.
 - L'app joueur de production embarque une CSP stricte (tout depuis la même origine, aucun script inline).

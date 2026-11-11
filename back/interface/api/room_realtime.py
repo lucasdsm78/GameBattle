@@ -9,12 +9,12 @@ from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from application.accounts.account_usecase import AccountUseCase
+from application.accounts.account_query_usecase import AccountQueryUseCase
 from application.rooms.presenters.room_view import room_view
 from application.shared.player_identity import PlayerIdentity
 from exceptions import NotAuthenticatedError
 from interface.dependencies import (
-    AccountUseCaseDep,
+    AccountQueryUseCaseDep,
     RoomBroadcasterDep,
     RoomHubDep,
     RoomQueryUseCaseDep,
@@ -38,14 +38,14 @@ CLOSE_IDLE = 4408
 CLOSE_TOO_CHATTY = 4429
 
 
-async def _resolve_player(accounts: AccountUseCase, token: Optional[str]) -> Optional[PlayerIdentity]:
+async def _resolve_player(accounts: AccountQueryUseCase, token: Optional[str]) -> Optional[PlayerIdentity]:
     try:
         return (await accounts.current(token)).account.identity
     except NotAuthenticatedError:
         return None
 
 
-async def _heartbeat(connection: RoomConnection, accounts: AccountUseCase, token: Optional[str]) -> None:
+async def _heartbeat(connection: RoomConnection, accounts: AccountQueryUseCase, token: Optional[str]) -> None:
     """Ping régulier ; coupe une connexion muette ou dont la session n'est plus valide."""
     session_checked_at = time.monotonic()
     while not connection.closed:
@@ -64,7 +64,7 @@ async def _heartbeat(connection: RoomConnection, accounts: AccountUseCase, token
 
 @router.websocket("/rooms/current")
 async def room_socket(
-    websocket: WebSocket, accounts: AccountUseCaseDep, rooms: RoomQueryUseCaseDep, hub: RoomHubDep, broadcaster: RoomBroadcasterDep
+    websocket: WebSocket, accounts: AccountQueryUseCaseDep, rooms: RoomQueryUseCaseDep, hub: RoomHubDep, broadcaster: RoomBroadcasterDep
 ) -> None:
     """Flux temps réel du salon du joueur connecté.
 

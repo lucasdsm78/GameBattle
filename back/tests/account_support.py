@@ -4,9 +4,10 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Optional, Self
 
+from application.accounts.account_command_usecase import AccountCommandUseCase
 from application.accounts.account_commands import CredentialsCommand
+from application.accounts.account_query_usecase import AccountQueryUseCase
 from application.accounts.account_unit_of_work import AccountUnitOfWork
-from application.accounts.account_usecase import AccountUseCase
 from application.shared.attempt_counter import AttemptCounter, AttemptWindow
 from domain.accounts.models.player_account import PlayerAccount
 from domain.accounts.models.player_session import (
@@ -153,12 +154,13 @@ class Clock:
         return self.now
 
 
-def build_use_case(
+def build_accounts(
     hasher: Optional[FakeHasher] = None, *, store: Optional[AccountStore] = None, clock: Optional[Clock] = None, broken_sessions: bool = False
-) -> tuple[AccountUseCase, AccountStore, Clock]:
+) -> tuple[AccountCommandUseCase, AccountQueryUseCase, AccountStore, Clock]:
+    """Écritures et lectures des comptes, sur la même « base » en mémoire."""
     store, clock = store or AccountStore(), clock or Clock()
-    use_case = AccountUseCase(lambda: InMemoryAccountUnitOfWork(store, broken_sessions=broken_sessions), hasher or FakeHasher(), clock=clock)
-    return use_case, store, clock
+    unit_of_work = lambda: InMemoryAccountUnitOfWork(store, broken_sessions=broken_sessions)  # noqa: E731
+    return AccountCommandUseCase(unit_of_work, hasher or FakeHasher(), clock=clock), AccountQueryUseCase(unit_of_work, clock=clock), store, clock
 
 
 def make_credentials(pseudo: str = "Lucas", password: str = PASSWORD) -> CredentialsCommand:

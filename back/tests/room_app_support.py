@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 
 import pytest
-from account_support import PASSWORD, build_use_case
+from account_support import PASSWORD, build_accounts
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from room_support import InMemoryOutboxStore, RoomsHarness, build_rooms
@@ -15,7 +15,14 @@ from interface import http_session
 from interface.api import accounts as accounts_api
 from interface.api import room_realtime
 from interface.api import rooms as rooms_api
-from interface.dependencies.container import account_usecase, room_broadcaster, room_command_usecase, room_hub, room_query_usecase
+from interface.dependencies.container import (
+    account_command_usecase,
+    account_query_usecase,
+    room_broadcaster,
+    room_command_usecase,
+    room_hub,
+    room_query_usecase,
+)
 from interface.errors import register_exception_handlers
 from interface.realtime.room_broadcaster import RoomBroadcaster
 from interface.realtime.room_hub import RoomHub
@@ -54,16 +61,21 @@ def running_room_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[RoomApp]:
     broadcaster = RoomBroadcaster(rooms.queries, hub)
     relay = OutboxRelay(InMemoryOutboxStore(rooms.store), broadcaster, interval_seconds=0.05)
     relay_holder.append(relay)
-    accounts, _, _ = build_use_case()
+    account_commands, account_queries, _, _ = build_accounts()
 
     app = FastAPI()
     register_exception_handlers(app)
     for router in (accounts_api.router, rooms_api.router, room_realtime.router):
         app.include_router(router)
     app.dependency_overrides.update(
-        {account_usecase: lambda: accounts, room_command_usecase: lambda: rooms.commands,
+        {
+            account_command_usecase: lambda: account_commands,
+            account_query_usecase: lambda: account_queries,
+            room_command_usecase: lambda: rooms.commands,
             room_query_usecase: lambda: rooms.queries,
-            room_hub: lambda: hub, room_broadcaster: lambda: broadcaster}
+            room_hub: lambda: hub,
+            room_broadcaster: lambda: broadcaster,
+        }
     )
     with TestClient(app, base_url=ORIGIN) as client:
         assert client.portal is not None
