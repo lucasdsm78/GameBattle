@@ -697,7 +697,7 @@ Les tests suivent les modules métier, pas les couches :
 
 | Dossier | Ce qu'il teste |
 | --- | --- |
-| `tests/architecture/` | Dépendances entre couches (`test_imports.py`), frontières entre modules (`test_module_boundaries.py`), rangement des fichiers (`test_file_responsibilities.py`) |
+| `tests/architecture/` | Dépendances entre couches (`test_imports.py`), frontières entre modules (`test_module_boundaries.py`), rangement des fichiers (`test_file_responsibilities.py`), séparation lectures / écritures (`test_command_query_separation.py`), une commande, une vue ou un résultat par fichier (`test_application_layout.py`) |
 | `tests/accounts/` | Règles des comptes, cas d'usage, limites d'essais, dépôts, hachage, ménage, API |
 | `tests/rooms/` | Règles des salons, cas d'usage (conflits, limites), dépôt SQL et outbox, API, WebSocket, relais |
 | `tests/game_night/` | Soirée : API, persistance des parties, unité de travail, manches, ouverture, événements |
