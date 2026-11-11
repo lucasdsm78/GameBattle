@@ -28,12 +28,13 @@ def _main_classes(path: Path) -> list[str]:
 
 
 DATABASE_TECHNICAL_FILES = {
-    "__init__.py", "all_models.py", "database.py", "dataclass_codec.py", "json_document.py", "single_instance_lock.py", "upsert.py",
+    "__init__.py", "all_models.py", "database.py", "dataclass_codec.py", "json_document.py", "single_instance_lock.py",
+    "sql_unit_of_work.py", "upsert.py",
 }
 
 
 def test_every_domain_module_follows_the_same_layout() -> None:
-    expected = {"game_night", "shared", "accounts", *GAME_MODULES}
+    expected = {"game_night", "shared", "accounts", "rooms", *GAME_MODULES}
     modules = {path.name for path in (BACK_DIR / "domain").iterdir() if path.is_dir() and path.name != "__pycache__"}
 
     assert modules == expected
@@ -54,7 +55,8 @@ def test_each_module_holds_one_main_class() -> None:
 def test_persistence_is_grouped_by_module() -> None:
     accounts = {path.name for path in (DATABASE_DIR / "accounts").glob("*_model.py")}
 
-    assert accounts == {"player_account_model.py", "player_session_model.py", "auth_attempt_model.py"}
+    assert accounts == {"player_account_model.py", "player_session_model.py"}
+    assert {path.name for path in (DATABASE_DIR / "rate_limiting").glob("*.py")} == {"__init__.py", "attempt_model.py", "sql_attempt_counter.py"}
     assert (DATABASE_DIR / "game_sessions" / "game_session_model.py").is_file()
     games = {path.name for path in (DATABASE_DIR / "games").iterdir() if path.is_dir() and path.name not in {"shared", "__pycache__"}}
     assert games == set(GAME_MODULES)

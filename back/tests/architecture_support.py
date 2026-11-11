@@ -11,7 +11,14 @@ GAME_MODULES = (
 DATABASE_DIR = BACK_DIR / "infrastructure" / "database"
 
 
-DATABASE_MODULE_DIRS = {"accounts": "accounts", "game_sessions": "game_night"}  # dossier -> module du domaine
+# Dossier -> module : un dossier par bounded context ; `rate_limiting` relève du noyau partagé (comptes et salons).
+DATABASE_MODULE_DIRS = {
+    "accounts": "accounts",
+    "game_sessions": "game_night",
+    "rooms": "rooms",
+    "rate_limiting": "shared",
+    "outbox": "shared",
+}
 
 
 REPOSITORIES_DIR = BACK_DIR / "infrastructure" / "repositories"

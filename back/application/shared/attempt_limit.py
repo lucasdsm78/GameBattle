@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from application.accounts.attempt_counter import AttemptCounter, AttemptWindow
+from application.shared.attempt_counter import AttemptCounter, AttemptWindow
 from exceptions import TooManyAttemptsError
 
 

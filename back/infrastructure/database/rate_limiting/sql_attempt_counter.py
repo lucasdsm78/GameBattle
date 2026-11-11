@@ -6,8 +6,8 @@ import hmac
 from sqlalchemy import case, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from application.accounts.attempt_counter import AttemptCounter, AttemptWindow
-from infrastructure.database.accounts.auth_attempt_model import AuthAttemptModel
+from application.shared.attempt_counter import AttemptCounter, AttemptWindow
+from infrastructure.database.rate_limiting.attempt_model import AuthAttemptModel
 from infrastructure.database.upsert import upsert_insert
 
 

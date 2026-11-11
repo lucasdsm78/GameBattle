@@ -7,7 +7,7 @@ from typing import Optional, Self
 from application.accounts.account_commands import CredentialsCommand
 from application.accounts.account_unit_of_work import AccountUnitOfWork
 from application.accounts.account_usecase import AccountUseCase
-from application.accounts.attempt_counter import AttemptCounter, AttemptWindow
+from application.shared.attempt_counter import AttemptCounter, AttemptWindow
 from domain.accounts.models.player_account import PlayerAccount
 from domain.accounts.models.player_session import (
     PlayerSession,

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from types import TracebackType
 from typing import Self
 
-from application.accounts.attempt_counter import AttemptCounter
+from application.shared.attempt_counter import AttemptCounter
 from domain.accounts.repositories.player_account_repository import (
     PlayerAccountRepository,
 )
