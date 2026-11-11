@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from application.golden_family.golden_family_commands import FamilyAnswerCommand, FamilyTurnCommand
+from application.golden_family.commands.family_answer import FamilyAnswerCommand
+from application.golden_family.commands.family_turn import FamilyTurnCommand
 from application.shared.command_usecase import CommandUseCase
-from application.shared.commands import TeamCommand
+from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import GameConfigSnapshot
 
 

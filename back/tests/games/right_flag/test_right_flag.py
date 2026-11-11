@@ -8,7 +8,7 @@ from dataclasses import replace
 import pytest
 
 from application.game_night.game_config_presenter import present_game_config
-from application.shared.commands import TeamCommand
+from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import ClientRole
 from domain.right_flag.events import CountryAnnounced, FlagRevealed
 from domain.right_flag.models.right_flag_state import flag_display_ms

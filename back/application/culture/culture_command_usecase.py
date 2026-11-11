@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from application.culture.culture_commands import CultureDifficultyCommand
 from application.shared.command_usecase import CommandUseCase
-from application.shared.commands import AnswerCommand, TeamCommand
+from application.shared.commands.answer import AnswerCommand
+from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import GameConfigSnapshot
 
 

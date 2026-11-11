@@ -4,7 +4,7 @@ from application.seven_differences.seven_differences_commands import (
     SevenDifferenceFoundCommand,
 )
 from application.shared.command_usecase import CommandUseCase
-from application.shared.commands import TeamCommand
+from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import GameConfigSnapshot
 
 

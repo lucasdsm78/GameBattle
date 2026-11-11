@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from application.shared.commands import TeamCommand
+from application.shared.commands.team import TeamCommand
 from interface.api.game_config import controller_view
 from interface.dependencies import (
     GameNightQueryDep,

@@ -12,7 +12,7 @@ from architecture_support import (
     REPOSITORIES_DIR,
 )
 
-from application.game_night.game_night_commands import GameKey
+from application.game_night.commands.fields import GameKey
 from domain.game_night.models.game_registry import GAME_STATE_TYPES
 from domain.game_night.models.session import GameSession
 from domain.game_night.models.settings import SUPPORTED_GAME_KEYS
@@ -108,7 +108,7 @@ def test_every_game_has_its_presenter_in_the_application_layer() -> None:
 
 
 def test_the_configuration_accepts_every_supported_game_at_once() -> None:
-    from application.game_night.game_night_commands import GameConfigUpsertModel
+    from application.game_night.commands.game_config_upsert import GameConfigUpsertModel
 
     payload = {
         "settings": {"game_title": "Soirée", "teams": ["Rouges", "Bleus"]},

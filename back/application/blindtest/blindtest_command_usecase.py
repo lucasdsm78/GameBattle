@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from application.blindtest.blindtest_commands import (
-    PlaybackControlCommand,
-    PlaybackSyncCommand,
-    PlaylistLoadCommand,
-    SpotifyPlaylistImportCommand,
-    SpotifyTokenCommand,
-)
+from application.blindtest.commands.playback_control import PlaybackControlCommand
+from application.blindtest.commands.playback_sync import PlaybackSyncCommand
+from application.blindtest.commands.playlist_load import PlaylistLoadCommand
+from application.blindtest.commands.spotify_playlist_import import SpotifyPlaylistImportCommand
+from application.blindtest.commands.spotify_token import SpotifyTokenCommand
 from application.shared.command_usecase import CommandUseCase
-from application.shared.commands import AnswerCommand, TeamCommand
+from application.shared.commands.answer import AnswerCommand
+from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import GameConfigSnapshot
 from domain.blindtest.models.blindtest_track import build_blindtest_track
 

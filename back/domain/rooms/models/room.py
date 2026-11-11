@@ -25,7 +25,7 @@ class Room:
     """
 
     id: str
-    code: str  # secret d'invitation : le lien `/rejoindre/<code>`
+    code: str  # secret d'invitation : le lien `/join/<code>`
     visibility: str
     format: str
     teams: tuple[str, ...]  # vide en solo
