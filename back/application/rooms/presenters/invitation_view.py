@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from application.rooms.presenters.room_host import host_pseudo
+from application.rooms.presenters.host_pseudo import host_pseudo
 from domain.rooms.models.room import PLAYERS_PER_TEAM, Room
 
 
