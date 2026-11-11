@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -9,6 +10,8 @@ from application.rooms.room_presenter import room_view
 from application.rooms.room_usecase import RoomUseCase
 from interface.realtime.room_connection import RoomConnection
 from interface.realtime.room_hub import RoomHub
+
+logger = logging.getLogger(__name__)
 
 LEFT_ROOM_CODE = 4000  # fermeture normale : le joueur n'est plus membre (parti, ou salon fermé)
 
@@ -37,7 +40,7 @@ class RoomBroadcaster:
 
     def broadcast_soon(self, room_id: str) -> None:
         """Diffusion détachée de l'appelant : une connexion qui se termine (ou s'annule) n'emporte pas la mise à jour de présence."""
-        task = asyncio.create_task(self.broadcast(room_id), name=f"room-presence-{room_id}")
+        task = asyncio.create_task(self._broadcast_logged(room_id), name=f"room-presence-{room_id}")
         self._background.add(task)  # référence forte : une tâche sans référence peut être ramassée en cours de route
         task.add_done_callback(self._background.discard)
 
@@ -67,6 +70,12 @@ class RoomBroadcaster:
                 )
         # Tout le monde est servi d'abord ; les départs se ferment ensuite, en parallèle.
         await asyncio.gather(*(self._close(connection) for connection in leaving))
+
+    async def _broadcast_logged(self, room_id: str) -> None:
+        try:
+            await self.broadcast(room_id)
+        except Exception:  # personne n'attend cette tâche : on journalise au lieu de perdre l'erreur
+            logger.exception("room.presence.broadcast_failed", extra={"room_id": room_id})
 
     async def _close(self, connection: RoomConnection) -> None:
         await connection.flush_and_close(LEFT_ROOM_CODE, "plus membre du salon")

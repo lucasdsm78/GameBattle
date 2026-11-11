@@ -85,11 +85,14 @@ async def room_socket(
         return
 
     connection = hub.connect(websocket, room.id, player.account_id)
-    connection.send({"type": "room.snapshot", "room": room_view(room, player.account_id, hub.online(room.id))})
-    await broadcaster.broadcast(room.id)  # présence : les autres voient qu'il est en ligne
-    heartbeat = asyncio.create_task(_heartbeat(connection, accounts, token))
-    limiter = RateLimiter(rate_per_second=2.0, burst=10)
+    heartbeat: Optional[asyncio.Task[None]] = None
+    # Tout ce qui suit l'enregistrement est dans le `try` : une erreur (base indisponible pendant la diffusion de
+    # présence…) ne laisse jamais une connexion fantôme dans le hub, ni un joueur affiché en ligne à tort.
     try:
+        connection.send({"type": "room.snapshot", "room": room_view(room, player.account_id, hub.online(room.id))})
+        await broadcaster.broadcast(room.id)  # présence : les autres voient qu'il est en ligne
+        heartbeat = asyncio.create_task(_heartbeat(connection, accounts, token))
+        limiter = RateLimiter(rate_per_second=2.0, burst=10)
         while not connection.closed:
             raw = await websocket.receive_text()
             connection.last_seen = time.monotonic()
@@ -108,7 +111,8 @@ async def room_socket(
     except (KeyError, RuntimeError):  # trame binaire ou socket déjà fermée
         pass
     finally:
-        heartbeat.cancel()
+        if heartbeat is not None:
+            heartbeat.cancel()
         hub.remove(connection)
         broadcaster.broadcast_soon(room.id)  # présence : il n'est plus en ligne (même si cette tâche est annulée)
         await connection.close()

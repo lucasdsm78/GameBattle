@@ -4,9 +4,20 @@ export type Route = { name: 'home' } | { name: 'invitation'; code: string };
 
 const INVITATION_PATH = /^\/rejoindre\/([^/]+)\/?$/;
 
+function decoded(segment: string): string | null {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null; // « %E0%A4%A » et autres séquences invalides : `decodeURIComponent` lève une URIError
+  }
+}
+
+/** Jamais d'exception ici : une adresse mal formée ne doit pas planter l'app au démarrage. */
 function parse(pathname: string): Route {
   const match = pathname.match(INVITATION_PATH);
-  return match ? { name: 'invitation', code: decodeURIComponent(match[1]).toUpperCase() } : { name: 'home' };
+  if (!match) return { name: 'home' };
+  // Code illisible : on reste sur l'écran d'invitation, qui dit que le lien n'est pas valide (code vide).
+  return { name: 'invitation', code: decoded(match[1])?.toUpperCase() ?? '' };
 }
 
 const pathOf = (route: Route) => (route.name === 'invitation' ? `/rejoindre/${encodeURIComponent(route.code)}` : '/');

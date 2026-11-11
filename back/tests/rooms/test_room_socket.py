@@ -9,6 +9,7 @@ from starlette.testclient import WebSocketTestSession
 from starlette.websockets import WebSocketDisconnect
 
 from interface.api.room_realtime import CLOSE_NOT_IN_ROOM, CLOSE_TOO_CHATTY, CLOSE_UNAUTHENTICATED
+from interface.dependencies.container import room_broadcaster
 from interface.realtime.room_broadcaster import LEFT_ROOM_CODE
 
 SOCKET = "/ws/rooms/current"
@@ -138,3 +139,24 @@ def test_an_oversized_message_is_cut_off(room_app: RoomApp) -> None:
         socket.receive_json()
         socket.send_text("x" * 300)
         assert _closed_with(socket) == CLOSE_TOO_CHATTY
+
+
+def test_a_failure_during_the_handshake_leaves_no_ghost_connection(room_app: RoomApp, monkeypatch: pytest.MonkeyPatch) -> None:
+    alice = room_app.register("Alice")
+    room_id = _create(room_app, alice)["id"]
+    broadcaster = room_app.client.app.dependency_overrides[room_broadcaster]()  # type: ignore[attr-defined]
+    original = broadcaster.broadcast
+
+    async def unavailable(room_id: str, events: Any = ()) -> None:
+        raise ConnectionError("base indisponible")
+
+    monkeypatch.setattr(broadcaster, "broadcast", unavailable)
+    with pytest.raises(ConnectionError):
+        with room_app.client.websocket_connect(SOCKET, headers=alice) as socket:
+            socket.receive_json()
+            socket.receive_json()
+
+    assert room_app.hub.connections(room_id) == [] and room_app.hub.online(room_id) == frozenset()
+    monkeypatch.setattr(broadcaster, "broadcast", original)
+    with room_app.client.websocket_connect(SOCKET, headers=alice) as socket:  # la reconnexion repart d'un hub propre
+        assert _online(socket.receive_json()) == {"Alice": True}
