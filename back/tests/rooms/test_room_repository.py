@@ -5,7 +5,9 @@ import asyncio
 import pytest
 from room_support import ALICE, BOB, CHLOE
 
-from application.rooms.room_commands import ChangeTeamCommand, CreateRoomCommand, JoinRoomCommand
+from application.rooms.commands.change_team import ChangeTeamCommand
+from application.rooms.commands.create_room import CreateRoomCommand
+from application.rooms.commands.join_room import JoinRoomCommand
 from application.rooms.room_usecase import RoomUseCase
 from domain.rooms.models.room import Room
 from exceptions import AlreadyInRoomError, ConcurrentModificationError

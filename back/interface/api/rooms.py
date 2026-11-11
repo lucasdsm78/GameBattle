@@ -4,7 +4,9 @@ from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Body, Depends, Path, Request, Response, status
 
-from application.rooms.room_commands import ChangeTeamCommand, CreateRoomCommand, JoinRoomCommand
+from application.rooms.commands.change_team import ChangeTeamCommand
+from application.rooms.commands.create_room import CreateRoomCommand
+from application.rooms.commands.join_room import JoinRoomCommand
 from application.rooms.room_usecase import CODE_ALPHABET, CODE_LENGTH
 from interface.client_address import client_address
 from interface.dependencies import CurrentPlayerDep, RoomUseCaseDep

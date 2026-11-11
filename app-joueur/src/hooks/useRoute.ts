@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type Route = { name: 'home' } | { name: 'invitation'; code: string };
 
-const INVITATION_PATH = /^\/rejoindre\/([^/]+)\/?$/;
+const INVITATION_PATH = /^\/join\/([^/]+)\/?$/;
 
 function decoded(segment: string): string | null {
   try {
@@ -20,9 +20,9 @@ function parse(pathname: string): Route {
   return { name: 'invitation', code: decoded(match[1])?.toUpperCase() ?? '' };
 }
 
-const pathOf = (route: Route) => (route.name === 'invitation' ? `/rejoindre/${encodeURIComponent(route.code)}` : '/');
+const pathOf = (route: Route) => (route.name === 'invitation' ? `/join/${encodeURIComponent(route.code)}` : '/');
 
-/** Deux adresses seulement (`/` et `/rejoindre/<code>`) : l'API History suffit, sans routeur à embarquer. */
+/** Deux adresses seulement (`/` et `/join/<code>`) : l'API History suffit, sans routeur à embarquer. */
 export function useRoute() {
   const [route, setRoute] = useState<Route>(() => parse(window.location.pathname));
 

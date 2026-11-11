@@ -36,7 +36,7 @@ function teamChoices(teams: InvitationTeam[]): Choice<string>[] {
   }));
 }
 
-/** Arrivée par un lien `/rejoindre/<code>` : aperçu de la partie, choix de l'équipe si elle est privée, puis entrée. */
+/** Arrivée par un lien `/join/<code>` : aperçu de la partie, choix de l'équipe si elle est privée, puis entrée. */
 export function InvitationScreen({ code, roomState, onJoined, onLeaveCurrent, onDone }: Props) {
   const [preview, setPreview] = useState<Preview>(() => (INVITATION_CODE.test(code) ? { status: 'loading' } : { status: 'failed', message: INVALID_LINK }));
   const [team, setTeam] = useState('');

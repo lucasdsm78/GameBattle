@@ -5,7 +5,9 @@ import asyncio
 import pytest
 from room_support import ALICE, BOB, CHLOE, IP, build_rooms, events_of
 
-from application.rooms.room_commands import ChangeTeamCommand, CreateRoomCommand, JoinRoomCommand
+from application.rooms.commands.change_team import ChangeTeamCommand
+from application.rooms.commands.create_room import CreateRoomCommand
+from application.rooms.commands.join_room import JoinRoomCommand
 from application.rooms.room_usecase import MUTATION_ATTEMPTS, room_stream
 from exceptions import (
     AlreadyInRoomError,
@@ -29,7 +31,7 @@ def test_creating_a_room_seats_the_host_and_hands_out_an_invitation_link() -> No
 
     view = asyncio.run(rooms.use_case.create(ALICE, PRIVATE_TEAMS))
 
-    assert view["invite_path"].startswith("/rejoindre/") and view["host"] == "Alice" and view["version"] == 1
+    assert view["invite_path"].startswith("/join/") and view["host"] == "Alice" and view["version"] == 1
     assert view["me"] == {"pseudo": "Alice", "team": "Rouges", "is_host": True}
     assert view["can_choose_team"] is True and [team["name"] for team in view["teams"]] == ["Rouges", "Bleus"]
     assert "account_id" not in str(view) and ALICE.account_id not in str(view)
@@ -195,7 +197,7 @@ def test_an_invitation_code_collision_draws_a_new_code() -> None:
 
     view = asyncio.run(rooms.use_case.create(BOB, PRIVATE_TEAMS))
 
-    assert view["invite_path"] == "/rejoindre/MNPQRSTUVW"
+    assert view["invite_path"] == "/join/MNPQRSTUVW"
 
 
 def test_inactive_rooms_are_closed_by_the_janitor() -> None:

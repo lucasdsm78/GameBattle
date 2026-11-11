@@ -7,28 +7,23 @@ from typing import Any
 from pydantic import BaseModel
 
 from application.auction.auction_commands import AuctionBidCommand
-from application.blindtest.blindtest_commands import (
-    PlaybackControlCommand,
-    PlaybackSyncCommand,
-    PlaylistLoadCommand,
-    SpotifyPlaylistImportCommand,
-    SpotifyTokenCommand,
-)
+from application.blindtest.commands.playback_control import PlaybackControlCommand
+from application.blindtest.commands.playback_sync import PlaybackSyncCommand
+from application.blindtest.commands.playlist_load import PlaylistLoadCommand
+from application.blindtest.commands.spotify_playlist_import import SpotifyPlaylistImportCommand
+from application.blindtest.commands.spotify_token import SpotifyTokenCommand
 from application.culture.culture_commands import CultureDifficultyCommand
-from application.fair_price.fair_price_commands import (
-    FairPriceFoundCommand,
-    FairPriceHintCommand,
-)
+from application.fair_price.commands.fair_price_found import FairPriceFoundCommand
+from application.fair_price.commands.fair_price_hint import FairPriceHintCommand
 from application.forbidden_word.forbidden_word_commands import ForbiddenWordCardCommand
-from application.game_night.game_night_commands import GameConfigUpsertModel
-from application.golden_family.golden_family_commands import (
-    FamilyAnswerCommand,
-    FamilyTurnCommand,
-)
+from application.game_night.commands.game_config_upsert import GameConfigUpsertModel
+from application.golden_family.commands.family_answer import FamilyAnswerCommand
+from application.golden_family.commands.family_turn import FamilyTurnCommand
 from application.seven_differences.seven_differences_commands import (
     SevenDifferenceFoundCommand,
 )
-from application.shared.commands import AnswerCommand, TeamCommand
+from application.shared.commands.answer import AnswerCommand
+from application.shared.commands.team import TeamCommand
 from application.shared.snapshot import ClientRole
 from application.use_cases import GameUseCases
 

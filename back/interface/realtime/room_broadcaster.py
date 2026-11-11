@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from application.rooms.room_presenter import room_view
+from application.rooms.presenters.room_view import room_view
 from application.rooms.room_usecase import RoomUseCase
 from interface.realtime.room_connection import RoomConnection
 from interface.realtime.room_hub import RoomHub

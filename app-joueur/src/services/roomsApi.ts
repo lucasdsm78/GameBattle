@@ -54,10 +54,10 @@ const isInvitation = (body: unknown): body is Invitation => isObject(body) && ty
 
 const readRoom = (response: Response) => readJson(response, isRoom);
 
-/** Le code d'un lien d'invitation collé tel quel (`https://…/rejoindre/ABC…`), ou le code seul ; `null` s'il est illisible. */
+/** Le code d'un lien d'invitation collé tel quel (`https://…/join/ABC…`), ou le code seul ; `null` s'il est illisible. */
 export function invitationCodeFrom(input: string): string | null {
   const trimmed = input.trim();
-  const candidate = (trimmed.match(/rejoindre\/([^/?#\s]+)/i)?.[1] ?? trimmed).toUpperCase();
+  const candidate = (trimmed.match(/\/join\/([^/?#\s]+)/i)?.[1] ?? trimmed).toUpperCase();
   return INVITATION_CODE.test(candidate) ? candidate : null;
 }
 

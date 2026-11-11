@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from application.accounts.account_usecase import AccountUseCase
-from application.rooms.room_presenter import room_view
+from application.rooms.presenters.room_view import room_view
 from application.shared.player_identity import PlayerIdentity
 from exceptions import NotAuthenticatedError
 from interface.dependencies import (

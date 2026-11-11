@@ -96,7 +96,8 @@ back/
 │   ├── stopchrono/ culture/ bombe/ memory/ seven_differences/ auction/ forbidden_word/
 │   │   vanishing_word/ flash_calc/ right_flag/ golden_family/ fair_price/
 │   │                        # <jeu>_command_usecase.py, <jeu>_presenter.py, <jeu>_rules.py
-│   │                        # (+ <jeu>_commands.py pour ses schémas)
+│   │                        # (+ <jeu>_commands.py s'il n'a qu'une commande, sinon commands/ :
+│   │                        #  un fichier par commande, fields.py pour les types partagés)
 │   └── use_cases.py         # GameUseCases : regroupe les use cases d'écriture
 ├── infrastructure/
 │   ├── database/            # Moteur SQLAlchemy, verrou d'instance unique
@@ -160,7 +161,8 @@ back/
 - Ajouter une action = une méthode sur l'état du jeu, une méthode sur `GameConfig`, une méthode sur le
   use case et, si elle est pilotée en WebSocket, une ligne dans `interface/realtime/routes.py`.
 - Les modèles du domaine sont des dataclasses (plus rapides et sans dépendance) ; Pydantic est réservé
-  aux frontières (`application/<domaine>/<domaine>_commands.py`, `interface/schemas/`).
+  aux frontières (`application/<domaine>/<domaine>_commands.py` ou `application/<domaine>/commands/`, `interface/schemas/`).
+  La base commune `InputModel` et les types partagés (`TeamName`…) sont dans `application/shared/commands/`.
 
 ### Événements de domaine et Unit of Work
 
@@ -365,7 +367,7 @@ Ce déploiement a été vérifié en local (`GAMEBATTLE_DOMAIN=localhost`, ports
 
 Un joueur connecté crée une partie **publique** (listée pour tous) ou **privée** (accessible par son lien), en
 **1 contre 1** ou **en équipes** (2 à 4 équipes de 4 joueurs). À la création, un lien d'invitation
-`/rejoindre/<code>` est remis au joueur ; dans une partie privée en équipes, celui qui ouvre le lien choisit son
+`/join/<code>` est remis au joueur ; dans une partie privée en équipes, celui qui ouvre le lien choisit son
 équipe (et peut en changer dans la salle d'attente). Ailleurs, les équipes s'équilibrent seules. Lancer les jeux
 en ligne viendra ensuite : le bouton « Lancer la partie » est déjà en place, désactivé.
 

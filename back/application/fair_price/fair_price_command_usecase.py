@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from application.fair_price.fair_price_commands import FairPriceFoundCommand, FairPriceHintCommand
+from application.fair_price.commands.fair_price_found import FairPriceFoundCommand
+from application.fair_price.commands.fair_price_hint import FairPriceHintCommand
 from application.shared.command_usecase import CommandUseCase
 from application.shared.snapshot import GameConfigSnapshot
 

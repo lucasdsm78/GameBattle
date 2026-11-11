@@ -4,7 +4,7 @@ from typing import Annotated
 
 from pydantic import ConfigDict, Field, StringConstraints
 
-from application.shared.commands import InputModel
+from application.shared.commands.input_model import InputModel
 
 
 class CredentialsCommand(InputModel):

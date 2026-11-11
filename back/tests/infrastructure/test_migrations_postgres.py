@@ -208,7 +208,7 @@ def test_data_survive_the_round_trip_and_the_lock_works_on_postgresql(databases:
 
 def test_rooms_hold_one_seat_per_player_and_follow_their_accounts_on_postgresql(databases: tuple[str, str]) -> None:
     """0006 : un joueur, un salon (contrainte unique), course détectée, outbox ordonnée, suppression de compte en cascade."""
-    from application.rooms.room_commands import CreateRoomCommand
+    from application.rooms.commands.create_room import CreateRoomCommand
     from application.rooms.room_usecase import RoomUseCase
     from application.shared.player_identity import PlayerIdentity
     from infrastructure.database.outbox.outbox_store import OutboxStore
