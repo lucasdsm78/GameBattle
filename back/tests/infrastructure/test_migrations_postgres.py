@@ -209,7 +209,7 @@ def test_data_survive_the_round_trip_and_the_lock_works_on_postgresql(databases:
 def test_rooms_hold_one_seat_per_player_and_follow_their_accounts_on_postgresql(databases: tuple[str, str]) -> None:
     """0006 : un joueur, un salon (contrainte unique), course détectée, outbox ordonnée, suppression de compte en cascade."""
     from application.rooms.commands.create_room import CreateRoomCommand
-    from application.rooms.room_usecase import RoomUseCase
+    from application.rooms.room_command_usecase import RoomCommandUseCase
     from application.shared.player_identity import PlayerIdentity
     from infrastructure.database.outbox.outbox_store import OutboxStore
     from infrastructure.repositories.rooms.room_unit_of_work import SqlRoomUnitOfWork
@@ -230,7 +230,7 @@ def test_rooms_hold_one_seat_per_player_and_follow_their_accounts_on_postgresql(
         database = Database(migrated)
         secret = b"secret-de-test-des-compteurs-0123456789"
         try:
-            rooms = RoomUseCase(lambda: SqlRoomUnitOfWork(database, secret))
+            rooms = RoomCommandUseCase(lambda: SqlRoomUnitOfWork(database, secret))
             solo = await rooms.create(alice, CreateRoomCommand(visibility="public", format="solo"))
             teams = await rooms.create(bob, CreateRoomCommand(visibility="public", format="teams"))
             async with SqlRoomUnitOfWork(database, secret) as uow:

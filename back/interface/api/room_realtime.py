@@ -17,7 +17,7 @@ from interface.dependencies import (
     AccountUseCaseDep,
     RoomBroadcasterDep,
     RoomHubDep,
-    RoomUseCaseDep,
+    RoomQueryUseCaseDep,
 )
 from interface.http_session import announced_origin, origin_is_trusted, session_token
 from interface.realtime.message_handler import RateLimiter
@@ -64,7 +64,7 @@ async def _heartbeat(connection: RoomConnection, accounts: AccountUseCase, token
 
 @router.websocket("/rooms/current")
 async def room_socket(
-    websocket: WebSocket, accounts: AccountUseCaseDep, rooms: RoomUseCaseDep, hub: RoomHubDep, broadcaster: RoomBroadcasterDep
+    websocket: WebSocket, accounts: AccountUseCaseDep, rooms: RoomQueryUseCaseDep, hub: RoomHubDep, broadcaster: RoomBroadcasterDep
 ) -> None:
     """Flux temps réel du salon du joueur connecté.
 

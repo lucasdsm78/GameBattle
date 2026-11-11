@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from application.rooms.presenters.room_view import room_view
-from application.rooms.room_usecase import RoomUseCase
+from application.rooms.room_query_usecase import RoomQueryUseCase
 from interface.realtime.room_connection import RoomConnection
 from interface.realtime.room_hub import RoomHub
 
@@ -33,7 +33,7 @@ class RoomBroadcaster:
     message perdu ou rejoué ne laisse jamais d'état incohérent. Un événement privé ne part qu'à son destinataire.
     """
 
-    def __init__(self, rooms: RoomUseCase, hub: RoomHub) -> None:
+    def __init__(self, rooms: RoomQueryUseCase, hub: RoomHub) -> None:
         self._rooms = rooms
         self._hub = hub
         self._background: set[asyncio.Task[None]] = set()

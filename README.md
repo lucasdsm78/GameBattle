@@ -375,6 +375,12 @@ en ligne viendra ensuite : le bouton « Lancer la partie » est déjà en place,
   salon à la fois. Entrer deux fois ne change rien. Un salon complet refuse les nouveaux. Quand l'hôte part, le
   plus ancien membre prend la main, et le dernier départ ferme le salon. Chaque action produit ses événements
   (`room.player_joined`, `room.team_changed`…).
+- Application `back/application/rooms/`, découpée en lectures et écritures :
+  - `RoomCommandUseCase` crée, fait entrer, change d'équipe, fait partir et fait le ménage. Chaque écriture passe
+    par le verrou optimiste et l'outbox ;
+  - `RoomQueryUseCase` lit (salon courant, liste publique, aperçu d'invitation), ne modifie aucun salon et ne
+    publie rien. Seule exception : le compteur anti-énumération de l'aperçu d'invitation ;
+  - `commands/` contient une commande par fichier, `presenters/` une vue par fichier.
 - HTTP : `POST /api/rooms`, `GET /current`, `GET /public`, `GET /invitations/{code}` (aperçu), `POST /invitations/{code}/join`,
   `POST /{id}/join` (parties publiques seulement), `POST /current/team`, `POST /current/leave`. Toutes les routes exigent
   la session et, pour les écritures, la même origine que les comptes. Aucune réponse ne contient d'identifiant de
