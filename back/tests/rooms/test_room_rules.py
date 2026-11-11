@@ -4,19 +4,20 @@ import pytest
 from room_support import ALICE, BOB, CHLOE
 
 from domain.rooms.events import HostChanged, PlayerJoined, PlayerLeft, RoomClosed, RoomOpened, TeamChanged
-from domain.rooms.models.room import PLAYERS_PER_TEAM, Room
+from domain.rooms.models.room import PLAYERS_PER_TEAM, SOLO_MAX_PLAYERS, SOLO_MIN_PLAYERS, Room
 from exceptions import RoomFullError, RoomRuleError
 
 NOW = 1_000_000
 
 
-def _open(visibility: str = "private", format: str = "teams", team_count: int = 2) -> Room:
+def _open(visibility: str = "private", format: str = "teams", team_count: int = 2, max_players: int = 2) -> Room:
     return Room.open(
         room_id="room-1",
         code="ABCDEFGHJK",
         visibility=visibility,
         format=format,
         team_count=team_count,
+        max_players=max_players,
         host_account_id=ALICE.account_id,
         host_pseudo=ALICE.pseudo,
         now_ms=NOW,
@@ -34,7 +35,7 @@ def test_opening_seats_the_host_and_announces_the_room() -> None:
 
     assert room.teams == ("Rouges", "Bleus") and room.capacity == 2 * PLAYERS_PER_TEAM
     assert [(m.pseudo, m.team) for m in room.members] == [("Alice", "Rouges")] and room.host_account_id == ALICE.account_id
-    assert events == (RoomOpened(visibility="private", format="teams", host="Alice"), PlayerJoined(pseudo="Alice", team="Rouges"))
+    assert events == (RoomOpened(visibility="private", format="teams", max_players=8, host="Alice"), PlayerJoined(pseudo="Alice", team="Rouges"))
     assert room.pending_events == ()
 
 
@@ -44,13 +45,26 @@ def test_unknown_formats_and_team_counts_are_refused(format: str, team_count: in
         _open(format=format, team_count=team_count)
 
 
-def test_solo_is_a_one_versus_one_where_each_player_is_their_own_side() -> None:
-    room = _open(format="solo").join(BOB.account_id, BOB.pseudo, NOW + 1)
+def test_solo_is_every_player_for_themselves_up_to_the_chosen_maximum() -> None:
+    room = _open(format="solo", max_players=3).join(BOB.account_id, BOB.pseudo, NOW + 1)
+    assert room.teams == () and room.capacity == 3 and not room.is_full
 
-    assert room.teams == () and room.capacity == 2 and room.is_full
-    assert [m.team for m in room.members] == ["Alice", "Bob"]
+    room = room.join(CHLOE.account_id, CHLOE.pseudo, NOW + 2)
+    assert room.is_full and [m.team for m in room.members] == ["Alice", "Bob", "Chloé"]  # chacun son camp
     with pytest.raises(RoomFullError):
-        room.join(CHLOE.account_id, CHLOE.pseudo, NOW + 2)
+        room.join("guest", "Invité", NOW + 3)
+
+
+@pytest.mark.parametrize("max_players", [SOLO_MIN_PLAYERS - 1, SOLO_MAX_PLAYERS + 1])
+def test_solo_maximum_stays_within_bounds(max_players: int) -> None:
+    with pytest.raises(RoomRuleError):
+        _open(format="solo", max_players=max_players)
+
+
+def test_the_maximum_only_counts_in_solo() -> None:
+    room = _open(format="teams", team_count=3, max_players=SOLO_MAX_PLAYERS + 50)
+
+    assert room.capacity == 3 * PLAYERS_PER_TEAM and room.max_players == room.capacity
 
 
 def test_private_team_games_let_the_newcomer_pick_a_team() -> None:

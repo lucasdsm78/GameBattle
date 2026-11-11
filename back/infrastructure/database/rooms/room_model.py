@@ -15,6 +15,7 @@ class RoomModel(Base):
     visibility: Mapped[str] = mapped_column(String(10), nullable=False)
     format: Mapped[str] = mapped_column(String(10), nullable=False)
     teams: Mapped[list[str]] = mapped_column(JsonDocument, nullable=False)
+    max_players: Mapped[int] = mapped_column(Integer, nullable=False)
     # Clé étrangère par nom de table : le module salons ne dépend pas du code des comptes.
     host_account_id: Mapped[str] = mapped_column(String(36), ForeignKey("player_accounts.id", ondelete="CASCADE"), nullable=False)
     status: Mapped[str] = mapped_column(String(10), nullable=False)

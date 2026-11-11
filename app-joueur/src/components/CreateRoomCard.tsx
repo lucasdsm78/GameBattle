@@ -1,14 +1,15 @@
 import { FormEvent, useState } from 'react';
 import { errorMessage } from '../services/http';
-import { CreateRoom, Room, RoomFormat, Visibility, roomsApi } from '../services/roomsApi';
+import { CreateRoom, Room, RoomFormat, SOLO_MAX_PLAYERS, SOLO_MIN_PLAYERS, Visibility, roomsApi } from '../services/roomsApi';
 import { Choice, ChoiceGroup } from './ChoiceGroup';
+import { Stepper } from './Stepper';
 
 const VISIBILITIES: readonly Choice<Visibility>[] = [
   { value: 'private', label: 'Privée', hint: 'Entre amis, avec ton lien' },
   { value: 'public', label: 'Publique', hint: 'Ouverte à tous les joueurs' },
 ];
 const FORMATS: readonly Choice<RoomFormat>[] = [
-  { value: 'solo', label: '1 contre 1', hint: 'Un duel, chacun pour soi' },
+  { value: 'solo', label: 'Chacun pour soi', hint: 'Chaque joueur joue pour sa peau' },
   { value: 'teams', label: 'En équipes', hint: 'Jusqu’à 4 joueurs par équipe' },
 ];
 const TEAM_COUNTS: readonly Choice<'2' | '3' | '4'>[] = [
@@ -18,7 +19,7 @@ const TEAM_COUNTS: readonly Choice<'2' | '3' | '4'>[] = [
 ];
 
 export function CreateRoomCard({ onCreated }: { onCreated: (room: Room) => void }) {
-  const [settings, setSettings] = useState<CreateRoom>({ visibility: 'private', format: 'teams', team_count: 2 });
+  const [settings, setSettings] = useState<CreateRoom>({ visibility: 'private', format: 'teams', team_count: 2, max_players: 4 });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const update = (change: Partial<CreateRoom>) => setSettings((current) => ({ ...current, ...change }));
@@ -44,7 +45,18 @@ export function CreateRoomCard({ onCreated }: { onCreated: (room: Room) => void 
       <form className="play-form" onSubmit={onSubmit}>
         <ChoiceGroup legend="Qui peut entrer ?" choices={VISIBILITIES} value={settings.visibility} onChange={(visibility) => update({ visibility })} disabled={submitting} />
         <ChoiceGroup legend="Format" choices={FORMATS} value={settings.format} onChange={(format) => update({ format })} disabled={submitting} />
-        {settings.format === 'teams' ? (
+        {settings.format === 'solo' ? (
+          <Stepper
+            label="Joueurs maximum"
+            value={settings.max_players}
+            min={SOLO_MIN_PLAYERS}
+            max={SOLO_MAX_PLAYERS}
+            onChange={(max_players) => update({ max_players })}
+            unit={['joueur', 'joueurs']}
+            hint={`De ${SOLO_MIN_PLAYERS} à ${SOLO_MAX_PLAYERS} joueurs, toi compris.`}
+            disabled={submitting}
+          />
+        ) : (
           <ChoiceGroup
             legend="Nombre d’équipes"
             choices={TEAM_COUNTS}
@@ -53,7 +65,7 @@ export function CreateRoomCard({ onCreated }: { onCreated: (room: Room) => void 
             disabled={submitting}
             compact
           />
-        ) : null}
+        )}
         <p className="form-error" role="alert">
           {error}
         </p>

@@ -47,7 +47,7 @@ def test_create_then_join_a_private_team_game_through_its_invitation(room_app: R
 def test_join_a_public_game_from_the_list(room_app: RoomApp) -> None:
     client = room_app.client
     alice, bob, chloe = room_app.register("Alice"), room_app.register("Bob"), room_app.register("Chloe")
-    room_id = client.post("/api/rooms", json={"visibility": "public", "format": "solo"}, headers=alice).json()["id"]
+    room_id = client.post("/api/rooms", json={"visibility": "public", "format": "solo", "max_players": 2}, headers=alice).json()["id"]
 
     listed = client.get("/api/rooms/public", headers=bob).json()["rooms"]
     assert [room["id"] for room in listed] == [room_id] and "invite_path" not in listed[0]
@@ -69,3 +69,5 @@ def test_room_errors_are_explicit(room_app: RoomApp) -> None:
     assert client.post("/api/rooms/current/leave", headers=bob).status_code == 404
     malformed = client.post("/api/rooms", json={"visibility": "secret", "format": "teams", "team_count": 9}, headers=bob)
     assert malformed.status_code == 422
+    too_many = client.post("/api/rooms", json={"visibility": "public", "format": "solo", "max_players": 9}, headers=bob)
+    assert too_many.status_code == 422

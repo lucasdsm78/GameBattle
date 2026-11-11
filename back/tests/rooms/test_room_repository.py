@@ -123,7 +123,7 @@ def test_a_rolled_back_write_leaves_no_event_behind(sqlite_database: Database) -
     async def scenario() -> None:
         room = Room.open(
             room_id="00000000-0000-4000-8000-000000000000", code="ABCDEFGHJK", visibility="public", format="solo",
-            team_count=2, host_account_id=ALICE.account_id, host_pseudo=ALICE.pseudo, now_ms=1,
+            team_count=2, max_players=2, host_account_id=ALICE.account_id, host_pseudo=ALICE.pseudo, now_ms=1,
         )
         async with SqlRoomUnitOfWork(sqlite_database, SECRET) as uow:
             room, events = room.pull_events()

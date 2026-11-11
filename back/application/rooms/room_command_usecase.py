@@ -65,6 +65,7 @@ class RoomCommandUseCase:
                         visibility=command.visibility,
                         format=command.format,
                         team_count=command.team_count,
+                        max_players=command.max_players,
                         host_account_id=player.account_id,
                         host_pseudo=player.pseudo,
                         now_ms=now,

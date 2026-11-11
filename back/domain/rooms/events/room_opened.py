@@ -13,4 +13,5 @@ class RoomOpened(DomainEvent):
     name: ClassVar[str] = "room.opened"
     visibility: str
     format: str
+    max_players: int
     host: str

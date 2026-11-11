@@ -19,7 +19,7 @@ RoomId = Annotated[str, Path(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 OptionalJoin = Annotated[Optional[JoinRoomCommand], Body()]
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, summary="Créer une partie (publique ou privée, solo ou en équipes)")
+@router.post("", status_code=status.HTTP_201_CREATED, summary="Créer une partie (publique ou privée, chacun pour soi ou en équipes)")
 async def create_room(command: CreateRoomCommand, player: CurrentPlayerDep, rooms: RoomCommandUseCaseDep) -> dict[str, Any]:
     return await rooms.create(player, command)
 

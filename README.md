@@ -373,7 +373,8 @@ Ce déploiement a été vérifié en local (`GAMEBATTLE_DOMAIN=localhost`, ports
 ### Salons en ligne (`/api/rooms`, `/ws/rooms/current`)
 
 Un joueur connecté crée une partie **publique** (listée pour tous) ou **privée** (accessible par son lien), en
-**1 contre 1** ou **en équipes** (2 à 4 équipes de 4 joueurs). À la création, un lien d'invitation
+**chacun pour soi** (l'hôte fixe le nombre maximum de joueurs, de 2 à 8 ; chacun joue pour sa peau) ou **en équipes**
+(2 à 4 équipes de 4 joueurs). À la création, un lien d'invitation
 `/join/<code>` est remis au joueur ; dans une partie privée en équipes, celui qui ouvre le lien choisit son
 équipe (et peut en changer dans la salle d'attente). Ailleurs, les équipes s'équilibrent seules. Lancer les jeux
 en ligne viendra ensuite : le bouton « Lancer la partie » est déjà en place, désactivé.
@@ -444,7 +445,8 @@ La migration `0005` aligne sur PostgreSQL les noms de contraintes que les renomm
 derrière eux (`game_nights_pkey`, `<jeu>_games_night_id_fkey`), pour qu'une base migrée et une base créée depuis
 les modèles soient identiques.
 
-La migration `0006` crée les salons (`rooms`, `room_members`) et l'outbox (`outbox_events`).
+La migration `0006` crée les salons (`rooms`, `room_members`) et l'outbox (`outbox_events`). La migration `0007` ajoute
+`rooms.max_players`. Les salons existants reçoivent 2 joueurs s'ils étaient en 1 contre 1, et 4 par équipe sinon.
 
 Les migrations sont testées sur un vrai PostgreSQL, jetable, avant toute mise en production :
 

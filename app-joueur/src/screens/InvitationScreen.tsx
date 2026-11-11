@@ -129,7 +129,7 @@ export function InvitationScreen({ code, roomState, onJoined, onLeaveCurrent, on
         <ChoiceGroup legend="Choisis ton équipe" choices={teamChoices(invitation.teams)} value={team} onChange={setTeam} disabled={joining} />
       ) : (
         <p className="welcome-text">
-          {invitation.format === 'solo' ? 'Un duel en 1 contre 1 t’attend.' : 'Les équipes sont équilibrées automatiquement à ton arrivée.'}
+          {invitation.format === 'solo' ? `Chacun pour soi, jusqu’à ${invitation.capacity} joueurs : chacun joue pour sa peau.` : 'Les équipes sont équilibrées automatiquement à ton arrivée.'}
         </p>
       )}
 

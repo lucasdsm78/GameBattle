@@ -258,3 +258,27 @@ def test_rooms_hold_one_seat_per_player_and_follow_their_accounts_on_postgresql(
 
     command.downgrade(_alembic(migrated), "0005")
     assert asyncio.run(_query(migrated, "SELECT to_regclass('rooms'), to_regclass('outbox_events')")) == [(None, None)]
+
+
+def test_existing_rooms_get_their_maximum_on_postgresql(databases: tuple[str, str]) -> None:
+    """0007 : les salons d'avant gardent leur capacité (1 contre 1 → 2, en équipes → 4 par équipe), puis la descente."""
+    migrated, _ = databases
+    command.upgrade(_alembic(migrated), "0006")
+    host = str(uuid.uuid4())
+    asyncio.run(_execute(migrated, "INSERT INTO player_accounts (id, pseudo, pseudo_key, password_hash, created_at_ms) VALUES (:id, 'Hote', 'hote', 'x', 1)", id=host))
+    for room_id, code, format, teams in (("r-solo", "AAAAAAAAAA", "solo", []), ("r-teams", "BBBBBBBBBB", "teams", ["Rouges", "Bleus", "Verts"])):
+        asyncio.run(
+            _execute(
+                migrated,
+                "INSERT INTO rooms (id, code, visibility, format, teams, host_account_id, status, version, created_at_ms, updated_at_ms) "
+                "VALUES (:id, :code, 'public', :format, CAST(:teams AS JSONB), :host, 'lobby', 1, 1, 1)",
+                id=room_id, code=code, format=format, teams=json.dumps(teams), host=host,
+            )
+        )
+
+    command.upgrade(_alembic(migrated), "head")
+
+    assert asyncio.run(_query(migrated, "SELECT id, max_players FROM rooms ORDER BY id")) == [("r-solo", 2), ("r-teams", 12)]
+    assert asyncio.run(_query(migrated, "SELECT column_default FROM information_schema.columns WHERE table_name = 'rooms' AND column_name = 'max_players'")) == [(None,)]
+    command.downgrade(_alembic(migrated), "0006")
+    assert asyncio.run(_query(migrated, "SELECT count(*) FROM information_schema.columns WHERE table_name = 'rooms' AND column_name = 'max_players'")) == [(0,)]

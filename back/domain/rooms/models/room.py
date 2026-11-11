@@ -13,7 +13,7 @@ FORMATS = frozenset({"solo", "teams"})
 TEAM_NAMES = ("Rouges", "Bleus", "Verts", "Jaunes")
 MIN_TEAMS, MAX_TEAMS = 2, len(TEAM_NAMES)
 PLAYERS_PER_TEAM = 4
-SOLO_PLAYERS = 2  # 1 contre 1
+SOLO_MIN_PLAYERS, SOLO_MAX_PLAYERS = 2, 8  # chacun pour soi : l'hôte fixe le nombre maximum de joueurs
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +29,7 @@ class Room:
     visibility: str
     format: str
     teams: tuple[str, ...]  # vide en solo
+    max_players: int  # solo : choisi par l'hôte ; en équipes : déduit du nombre d'équipes
     host_account_id: str
     members: tuple[RoomMember, ...]
     created_at_ms: int
@@ -39,23 +40,38 @@ class Room:
 
     @classmethod
     def open(
-        cls, *, room_id: str, code: str, visibility: str, format: str, team_count: int, host_account_id: str, host_pseudo: str, now_ms: int
+        cls,
+        *,
+        room_id: str,
+        code: str,
+        visibility: str,
+        format: str,
+        team_count: int,
+        max_players: int,
+        host_account_id: str,
+        host_pseudo: str,
+        now_ms: int,
     ) -> Room:
+        """`team_count` ne vaut qu'en équipes, `max_players` qu'en solo (chacun pour soi)."""
         if visibility not in VISIBILITIES or format not in FORMATS:
             raise RoomRuleError("Type de partie inconnu.")
         if format == "teams" and not MIN_TEAMS <= team_count <= MAX_TEAMS:
             raise RoomRuleError(f"Une partie en équipes se joue de {MIN_TEAMS} à {MAX_TEAMS} équipes.")
+        if format == "solo" and not SOLO_MIN_PLAYERS <= max_players <= SOLO_MAX_PLAYERS:
+            raise RoomRuleError(f"Une partie chacun pour soi se joue de {SOLO_MIN_PLAYERS} à {SOLO_MAX_PLAYERS} joueurs.")
+        capacity = team_count * PLAYERS_PER_TEAM if format == "teams" else max_players
         room = cls(
             id=room_id,
             code=code,
             visibility=visibility,
             format=format,
             teams=TEAM_NAMES[:team_count] if format == "teams" else (),
+            max_players=capacity,
             host_account_id=host_account_id,
             members=(),
             created_at_ms=now_ms,
             updated_at_ms=now_ms,
-            pending_events=(RoomOpened(visibility=visibility, format=format, host=host_pseudo),),
+            pending_events=(RoomOpened(visibility=visibility, format=format, max_players=capacity, host=host_pseudo),),
         )
         return room.join(host_account_id, host_pseudo, now_ms)
 
@@ -63,7 +79,7 @@ class Room:
 
     @property
     def capacity(self) -> int:
-        return SOLO_PLAYERS if self.format == "solo" else len(self.teams) * PLAYERS_PER_TEAM
+        return self.max_players
 
     @property
     def is_full(self) -> bool:

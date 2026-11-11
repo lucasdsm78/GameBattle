@@ -39,7 +39,11 @@ export type Invitation = {
   teams: InvitationTeam[];
 };
 
-export type CreateRoom = { visibility: Visibility; format: RoomFormat; team_count: number };
+export type CreateRoom = { visibility: Visibility; format: RoomFormat; team_count: number; max_players: number };
+
+// Mêmes bornes que le serveur (`SOLO_MIN_PLAYERS`, `SOLO_MAX_PLAYERS`).
+export const SOLO_MIN_PLAYERS = 2;
+export const SOLO_MAX_PLAYERS = 8;
 
 const BASE_URL = '/api/rooms';
 // Même alphabet et même longueur que le serveur : un lien mal copié est refusé sans requête.

@@ -1,5 +1,5 @@
 import { Room } from '../services/roomsApi';
-import { teamTone } from '../services/roomLabels';
+import { freeSeatsLabel, teamTone } from '../services/roomLabels';
 import { PlayerTag } from './PlayerTag';
 
 type Props = { room: Room; switching: string | null; onPick: (team: string) => void };
@@ -27,9 +27,7 @@ export function TeamBoard({ room, switching, onPick }: Props) {
                 </li>
               ))}
               {full ? null : (
-                <li className="free-slot">
-                  {team.capacity - players.length} place{team.capacity - players.length > 1 ? 's' : ''} libre{team.capacity - players.length > 1 ? 's' : ''}
-                </li>
+                <li className="free-slot">{freeSeatsLabel(team.capacity - players.length)}</li>
               )}
             </ul>
             {room.can_choose_team && !mine ? (

@@ -15,7 +15,7 @@ CODE = "ABCDEFGHJK"
 def _room() -> Room:
     room = Room.open(
         room_id="5f0c1c8e-1111-4111-8111-111111111111", code=CODE, visibility="private", format="teams",
-        team_count=2, host_account_id=ALICE.account_id, host_pseudo=ALICE.pseudo, now_ms=1,
+        team_count=2, max_players=2, host_account_id=ALICE.account_id, host_pseudo=ALICE.pseudo, now_ms=1,
     )
     return room.join(BOB.account_id, BOB.pseudo, 2, team="Bleus")
 

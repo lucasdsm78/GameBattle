@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DuelBoard } from '../components/DuelBoard';
+import { FreeForAllBoard } from '../components/FreeForAllBoard';
 import { InviteLink } from '../components/InviteLink';
 import { TeamBoard } from '../components/TeamBoard';
 import { Link } from '../hooks/useRoomSocket';
@@ -80,7 +80,7 @@ export function RoomLobby({ room, link, onRoom, onLeave, onResume }: Props) {
 
       <InviteLink room={room} />
 
-      {room.format === 'solo' ? <DuelBoard room={room} /> : <TeamBoard room={room} switching={switching} onPick={pickTeam} />}
+      {room.format === 'solo' ? <FreeForAllBoard room={room} /> : <TeamBoard room={room} switching={switching} onPick={pickTeam} />}
 
       <p className="form-error" role="alert">
         {error}

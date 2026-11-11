@@ -19,7 +19,7 @@ from exceptions import (
 )
 
 PRIVATE_TEAMS = CreateRoomCommand(visibility="private", format="teams", team_count=2)
-PUBLIC_SOLO = CreateRoomCommand(visibility="public", format="solo")
+PUBLIC_SOLO = CreateRoomCommand(visibility="public", format="solo", max_players=2)
 
 
 def _code(view: dict) -> str:
@@ -225,3 +225,13 @@ def test_queries_never_change_a_room_nor_publish_anything() -> None:
 
     assert (dict(rooms.store.rooms), list(rooms.store.outbox), rooms.notifier.calls) == before
     assert any(key.startswith("room_code:") for key in rooms.store.attempts)  # seule trace : le compteur anti-énumération
+
+
+def test_every_player_for_themselves_fills_up_to_the_chosen_maximum() -> None:
+    rooms = build_rooms()
+    view = asyncio.run(rooms.commands.create(ALICE, CreateRoomCommand(visibility="public", format="solo", max_players=3)))
+    asyncio.run(rooms.commands.join_public(BOB, view["id"]))
+    full = asyncio.run(rooms.commands.join_public(CHLOE, view["id"]))
+
+    assert full["capacity"] == 3 and full["teams"] == [] and [player["team"] for player in full["players"]] == ["Alice", "Bob", "Chloé"]
+    assert asyncio.run(rooms.queries.list_public()) == []  # complet : retiré de la liste

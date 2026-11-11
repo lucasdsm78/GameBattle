@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class RoomMember:
-    """Un joueur dans un salon. En solo, son « équipe » est son pseudo : chacun joue pour soi."""
+    """Un joueur dans un salon. En solo, son « équipe » est son pseudo : chacun joue pour sa peau."""
 
     account_id: str
     pseudo: str
